@@ -80,6 +80,7 @@ body {
 }
 .live-banner span { color: var(--text-tertiary); }
 .live-banner .ts { color: var(--text-quaternary); font-size: 12px; }
+.live-banner .deploy-age { color: var(--text-quaternary); font-size: 11px; }
 
 /* ═══ DASHBOARD ═══ */
 .live-panel { padding: 60px 0; border-bottom: 1px solid var(--border-subtle); }
@@ -442,20 +443,31 @@ footer a:hover { color: var(--accent); }
         <div class="status-row"><span class="label">Capital</span><span class="value" id="t2Capital">--</span></div>
         <div class="status-row"><span class="label">Darwin Epochs</span><span class="value" id="t2Darwin">--</span></div>
       </div>
-      <div class="verify-tier" id="t3Panel">
-        <h3><span class="dot" id="t3Dot"></span> T3 — Output Pipeline</h3>
-        <div class="status-row"><span class="label">Dashboard</span><span class="value" id="t3Dashboard">--</span></div>
-        <div class="status-row"><span class="label">Snapshot Ver</span><span class="value" id="t3Version">--</span></div>
-        <div class="status-row"><span class="label">Website</span><span class="value" id="t3Website">--</span></div>
-        <div class="status-row"><span class="label">Deploy</span><span class="value" id="t3Deploy">--</span></div>
-        <div class="status-row"><span class="label">Generated</span><span class="value" id="t3Generated">--</span></div>
-      </div>
-    </div>
+        <div class="verify-tier" id="t3Panel">
+          <h3><span class="dot" id="t3Dot"></span> T3 — Output Pipeline</h3>
+          <div class="status-row"><span class="label">Dashboard</span><span class="value" id="t3Dashboard">--</span></div>
+          <div class="status-row"><span class="label">Snapshot Ver</span><span class="value" id="t3Version">--</span></div>
+          <div class="status-row"><span class="label">Website</span><span class="value" id="t3Website">--</span></div>
+          <div class="status-row"><span class="label">Deploy</span><span class="value" id="t3Deploy">--</span></div>
+          <div class="status-row"><span class="label">Generated</span><span class="value" id="t3Generated">--</span></div>
+          <div class="status-row"><span class="label">API Calls</span><span class="value" id="t2ApiCalls">--</span></div>
+        </div>
     <div class="verify-conf-bar">
       <div class="big-score"><span class="num" id="verifyScore">-</span><span class="den">/<span id="verifyTotal">8</span></span></div>
       <div class="big-label" id="verifyLabel">System Confidence</div>
       <div class="verify-note" id="verifyNote"></div>
     </div>
+  </div>
+</section>
+
+<!-- ═══ 8-CRITERIA PAPER PROOF ═══ -->
+<section class="verify-section" id="paperProof" style="border-top:1px solid var(--border-subtle)">
+  <div class="container">
+    <div class="verify-header">
+      <h2>📋 <span>Paper Proof</span> — 8-Criteria Framework</h2>
+      <p>Academic validation: 4/8 criteria met. <span id="paperCriteriaPassed" style="color:var(--orange)">C1-C3,C5,C8 not met</span></p>
+    </div>
+    <div class="criteria-grid" id="criteriaGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px"></div>
   </div>
 </section>
 
@@ -475,6 +487,11 @@ footer a:hover { color: var(--accent); }
       <div class="global-stat"><div class="val" id="gdArticles">--</div><div class="lbl">Articles Scanned</div></div>
       <div class="global-divider"></div>
       <div class="global-stat"><div class="val" id="gdMarkets">--</div><div class="lbl">Markets Tracked</div></div>
+    </div>
+
+    <!-- T185: Sentiment engine gauge (from sentiment_features.json) -->
+    <div id="sentimentGauge" style="margin-bottom:24px">
+      <div style="text-align:center;padding:12px;color:var(--text-quaternary);font-size:12px">Loading sentiment data...</div>
     </div>
 
     <div class="gdelt-grid" id="gdeltGrid">
@@ -581,6 +598,7 @@ function loadSnapshot(idx) {
     .then(snap => {
       renderLive(snap);
       renderVerification(snap);
+      renderCriteria(snap);
       renderYesterday(snap);
       setTimeout(() => loadSnapshot(0), 15000);
     })
@@ -840,6 +858,16 @@ function renderVerification(data) {
   document.getElementById('t3Deploy').textContent = t3.deploy_schedule || '--';
   const gen = v.generated_at;
   document.getElementById('t3Generated').textContent = gen ? new Date(gen*1000).toLocaleString() : '--';
+  // API usage tracking
+  const st = data.stats || {};
+  const apiEl = document.getElementById('t2ApiCalls');
+  if (apiEl) {
+    if (st.api_active) {
+      apiEl.innerHTML = '<span style="color:var(--bullish)">' + (st.api_calls_24h || 0) + ' calls</span>';
+    } else {
+      apiEl.innerHTML = '<span style="color:var(--text-quaternary)">offline</span>';
+    }
+  }
   document.getElementById('t3Dot').className = 'dot ' + (t3.status === 'operational' ? 'green' : 'red');
 
   // Confidence score
@@ -862,6 +890,32 @@ function renderVerification(data) {
     note.className = 'verify-note warn';
     note.innerHTML = '⚠️ ' + (total - passed) + ' check(s) failed — review tiers above.';
   }
+}
+
+/* ═══ 8-CRITERIA PAPER PROOF RENDERER ═══ */
+function renderCriteria(data) {
+  var pp = data.paper_proof || {};
+  var criteria = pp.criteria || [];
+  var grid = document.getElementById('criteriaGrid');
+  if (!grid || criteria.length === 0) return;
+  var passed = 0, total = criteria.length;
+  var html = '';
+  for (var i = 0; i < criteria.length; i++) {
+    var c = criteria[i];
+    var ok = c.pass;
+    if (ok) passed++;
+    html += '<div style="background:var(--bg-panel);border:1px solid ' + (ok ? 'var(--bullish)' : 'var(--bearish)') + '33;border-radius:var(--radius-md);padding:14px">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      + '<span style="color:' + (ok ? 'var(--bullish)' : 'var(--bearish)') + ';font-size:16px">' + (ok ? '✅' : '❌') + '</span>'
+      + '<strong style="color:var(--text-primary);font-size:13px">' + c.name + '</strong>'
+      + '<span style="color:var(--text-tertiary);font-size:12px;margin-left:auto">' + (c.value !== undefined ? c.value.toFixed(2) : '--') + '</span>'
+      + '</div>'
+      + '<p style="color:var(--text-tertiary);font-size:11px;line-height:1.4;margin:0">' + (c.explanation || '') + '</p>'
+      + '</div>';
+  }
+  grid.innerHTML = html;
+  var el = document.getElementById('paperCriteriaPassed');
+  if (el) el.innerHTML = passed + '/' + total + ' passed (' + (passed >= 4 ? 'needs 5/8 for viability' : 'needs 5/8 for viability') + ')';
 }
 
 /* ═══ YESTERDAY DATA RENDERER ═══ */
@@ -892,7 +946,49 @@ function renderYesterday(data) {
   document.getElementById('yPolyCount').textContent = h.polymarket_markets_yesterday ? fmt(h.polymarket_markets_yesterday) + ' markets' : (pm.length ? pm.length + ' shown' : '--');
 }
 
+function ago(ts) {
+  var d = Math.floor((Date.now()/1000 - ts));
+  if (d < 60) return d + 's ago';
+  if (d < 3600) return Math.floor(d/60) + 'm ago';
+  return Math.floor(d/3600) + 'h ago';
+}
+function fetchDeployAge() {
+  fetch('.deploy_status.json')
+    .then(function(r) { if (!r.ok) throw Error('no status'); return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById('deployAge');
+      if (el) el.textContent = 'Deployed ' + ago(d.last_push);
+    })
+    .catch(function() { /* no status file yet */ });
+}
 loadSnapshot();
+fetchDeployAge();
+setInterval(fetchDeployAge, 60000);
+
+/* T185: Sentiment panel — fetch live sentiment features */
+function loadSentiment() {
+  var el = document.getElementById('sentimentGauge');
+  if (!el) return;
+  fetch('https://waefrebeorn.github.io/money-room/data/sentiment_features.json')
+    .then(function(r) { if (!r.ok) throw Error('no data'); return r.json(); })
+    .then(function(d) {
+      var cs = d.composite_sentiment || 0.5;
+      var cv = d.composite_volume || 0.5;
+      var ss = d.sentiment_score || 0;
+      var pct = Math.round(cs * 100);
+      var color = cs > 0.55 ? 'var(--bullish)' : cs < 0.45 ? 'var(--bearish)' : 'var(--neutral)';
+      var label = cs > 0.65 ? 'Bullish' : cs > 0.55 ? 'Slightly Bullish' : cs > 0.45 ? 'Neutral' : cs > 0.35 ? 'Slightly Bearish' : 'Bearish';
+      el.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:16px;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--radius-lg)">'
+        + '<div style="font-size:32px;font-weight:700;color:'+color+'">'+pct+'</div>'
+        + '<div><div style="color:var(--text-primary);font-weight:600;font-size:14px">'+label+'</div>'
+        + '<div style="font-size:11px;color:var(--text-tertiary)">Score: '+ss.toFixed(4)+' · Vol: '+cv.toFixed(3)+'</div></div>'
+        + '<div style="flex:1;height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden">'
+        + '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:4px;transition:width 0.5s"></div></div></div>';
+    })
+    .catch(function() { /* silent */ });
+}
+loadSentiment();
+setInterval(loadSentiment, 120000);
 </script>
 
 <!-- ═══ DONATION / PRICING FOOTER ═══ -->
