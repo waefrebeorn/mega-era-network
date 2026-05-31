@@ -1,0 +1,35 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Sync site files to docs/
+        run: |
+          # Ensure docs/ has latest site files from root
+          cp -n index.html docs/index.html 2>/dev/null || true
+          cp -n live.html docs/live.html 2>/dev/null || true
+          cp -n pricing.html docs/pricing.html 2>/dev/null || true
+          cp -n terms.html docs/terms.html 2>/dev/null || true
+          cp -n privacy.html docs/privacy.html 2>/dev/null || true
+          cp -n style.css docs/style.css 2>/dev/null || true
+          cp -n .auth.json docs/.auth.json 2>/dev/null || true
+          touch docs/.nojekyll
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs/index.html docs/live.html docs/pricing.html docs/terms.html docs/privacy.html docs/style.css docs/.auth.json docs/.nojekyll
+          git commit -m "sync: site files to docs/ $(date +'%Y-%m-%d %H:%M')" || echo "nothing to sync"
+          git push origin main
