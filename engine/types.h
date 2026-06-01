@@ -41,7 +41,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        28
+#define N_FEATURES        29
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
@@ -123,7 +123,8 @@ typedef struct {
     float difficulty_norm;      // F26: mining difficulty normalized (0-1)
     float miner_floor_norm;     // F27: miner cost floor normalized (0-1)
     // ── B11: Time-of-day features ──
-    float hour_of_day_norm;     // F28: hour of day [0,1] (0=midnight, 1=23:59)
+    float hour_of_day_norm;     // F28: hour of day [0,1) (0=midnight)
+    float day_of_week_norm;     // F29: day of week [0,1) (0=Mon, 0.857=Sun)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -161,7 +162,8 @@ typedef struct {
     float    difficulty_norm;    // mining difficulty normalized (0-1)
     float miner_floor_norm;     // F27: miner cost floor normalized (0-1)
     // ── B11: Time-of-day features ──
-    float hour_of_day_norm;     // F28: hour of day [0,1] (0=midnight, 1=23:59)
+    float hour_of_day_norm;     // F28: hour of day [0,1) (0=midnight)
+    float day_of_week_norm;     // F29: day of week [0,1) (0=Mon, 0.857=Sun)
 } MarketTick;
 
 // ── Agent vote result ──

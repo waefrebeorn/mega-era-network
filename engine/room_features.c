@@ -595,6 +595,7 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     time_t now = time(NULL);
     struct tm *tm_now = localtime(&now);
     fv->hour_of_day_norm = tm_now->tm_hour / 24.0f + tm_now->tm_min / 1440.0f;
+    fv->day_of_week_norm = tm_now->tm_wday / 7.0f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
