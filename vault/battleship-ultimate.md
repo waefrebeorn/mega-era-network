@@ -161,7 +161,7 @@
 || C29 | No fee-aware position sizing | Risk | 🟡 | ⏳ | $1 trade on Kraken costs $0.001 fee (0.1%). But $0.99 minimum. |
 || C30 | No win rate stability filter | Risk | ⚪ | ⏳ | Agent with volatile WR (0.8 then 0.3 then 0.8) is less reliable than steady 0.55. |
 || C31 | No t-tested edge | Risk | ⚪ | ⏳ | Is the agent's edge statistically significant? p-value not computed. |
-|| C32 | No Kelly bet sizing | Risk | 🟡 | ⏳ | Fractional Kelly (half/quarter) adapts position to edge confidence. |
+|| C32 | No Kelly bet sizing | Risk | 🟡 | ✅ | **STALE**: A37 already implements Fractional Kelly at room_capital.c:62-73. kelly_f = win_rate_ema - 0.5f caps genome stake. WR<50% → 1/4 genome size. Position capped at 5% max_loss and 50% of capital. |
 || C33 | No position unwind schedule | Risk | ⚪ | ⏳ | If room needs capital, which positions get closed first? |
 || C34 | No stop-loss at room level | Risk | 🟡 | ✅ | **STALE**: T17 circuit breaker IS the room-level stop-loss. Triggered at 20% drawdown or 10 consecutive losses. 100-cycle cooldown. |
 | C35 | No take-profit at room level | Risk | ⚪ | ⏳ | Room keeps trading indefinitely. No "we made 20%, lock in profits" mode. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 17 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 13 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 12 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **124** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **123** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 124 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 123 major gaps | ⚪ P3: 228 minor/feature gaps
