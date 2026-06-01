@@ -1,0 +1,12 @@
+{
+  "status": "ok",
+  "timestamp": 1780303089,
+  "agents_alive": 2500,
+  "never_traded": 294  Bankrupt: 0,
+  "win_rate_mean": $49.69,
+  "win_rate_stddev": $3.98,
+  "capital_total": 124215.71,
+  "capital_mean": 49.27%,
+  "darwin_epoch": 0,
+  "raw":
+}

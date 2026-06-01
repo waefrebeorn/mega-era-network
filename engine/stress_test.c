@@ -22,10 +22,23 @@
 static RoomState *map_state(const char *path) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) { perror("open"); return NULL; }
-    size_t sz = sizeof(RoomState);
-    RoomState *s = (RoomState*)mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+    struct stat st;
+    if (fstat(fd, &st) < 0) { perror("fstat"); close(fd); return NULL; }
+    if ((size_t)st.st_size < sizeof(RoomState)) {
+        fprintf(stderr, "ERROR: state.bin too small (%zu bytes, expected %zu) — likely STATE_MAGIC mismatch or old binary wrote incompatible struct\n",
+                (size_t)st.st_size, sizeof(RoomState));
+        close(fd);
+        return NULL;
+    }
+    RoomState *s = (RoomState*)mmap(NULL, sizeof(RoomState), PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (s == MAP_FAILED) { perror("mmap"); return NULL; }
+    if (s->magic != STATE_MAGIC) {
+        fprintf(stderr, "ERROR: STATE_MAGIC mismatch (file=0x%08X, expected=0x%08X) — rebuild state with current binary\n",
+                s->magic, STATE_MAGIC);
+        munmap(s, sizeof(RoomState));
+        return NULL;
+    }
     return s;
 }
 
