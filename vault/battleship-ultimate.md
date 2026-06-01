@@ -142,7 +142,7 @@
 | C10 | No exchange outage handling | Risk | 🟡 | ⏳ | If Kraken API goes down, what happens to open positions? |
 | C11 | No position liquidation model | Risk | 🟡 | ⏳ | Paper trading doesn't model forced liquidation at margin thresholds. |
 | C12 | No slippage shock test | Risk | ⚪ | ⏳ | High-vol slippage can be 50bps. Simulation uses 5bps. 10x discrepancy. |
-| C13 | No fee model for different order types | Risk | 🟡 | ⏳ | Taker=0.1%, maker=0%. Engine always charges taker rate. Should model both. |
+|| C13 | No fee model for different order types | Risk | 🟡 | ✅ | **STALE**: MARKET_MAKER_FEE (0%) and MARKET_TAKER_FEE (0.1%) both defined in types.h. In paper P2P mode, all orders are market orders (taker+0.1%). Maker model matters for live exchange execution (E01), not paper. No code change needed. |
 | C14 | No gas cost model for crypto trades | Risk | ⚪ | ⏳ | On-chain settlement costs $0.50-5 per trade. $50 seed would be decimated by gas. |
 | C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ⏳ | Polymarket enforces 5-share minimum. Engine may place smaller orders. |
 || C16 | No position size floor check | Risk | 🟡 | ✅ | **STALE**: MIN_TRADE_STAKE=$1 enforced at room_capital.c:82-83. `if (stake < MIN_TRADE_STAKE) continue` catches any sub-threshold stake regardless of how it was computed. Also `if (stake <= 0) continue` guard. |
@@ -158,7 +158,7 @@
 || C26 | No overnight gap risk model | Risk | ⚪ | ⏳ | Crypto trades 24/7 but positions held overnight face gap risk. |
 || C27 | No weekend liquidity model | Risk | ⚪ | ⏳ | Weekend spreads are wider. Engine uses same slippage 7 days/week. |
 || C28 | No holiday effect model | Risk | ⚪ | ⏳ | Low volume holidays have different market microstructure. |
-|| C29 | No fee-aware position sizing | Risk | 🟡 | ⏳ | $1 trade on Kraken costs $0.001 fee (0.1%). But $0.99 minimum. |
+|| C29 | No fee-aware position sizing | Risk | 🟡 | ✅ | **STALE**: Fees are proportional (0.1% taker). $1 trade = $0.001 fee — no minimum fee. MIN_TRADE_STAKE=$1 floor already enforced. MIN_TRADE_STAKE ≥ fee cost for all trade sizes. Relevant for fixed-fee chains (Ethereum gas) but not paper P2P. |
 || C30 | No win rate stability filter | Risk | ⚪ | ⏳ | Agent with volatile WR (0.8 then 0.3 then 0.8) is less reliable than steady 0.55. |
 || C31 | No t-tested edge | Risk | ⚪ | ⏳ | Is the agent's edge statistically significant? p-value not computed. |
 || C32 | No Kelly bet sizing | Risk | 🟡 | ✅ | **STALE**: A37 already implements Fractional Kelly at room_capital.c:62-73. kelly_f = win_rate_ema - 0.5f caps genome stake. WR<50% → 1/4 genome size. Position capped at 5% max_loss and 50% of capital. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 9 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 7 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 16 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **115** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **113** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 115 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 113 major gaps | ⚪ P3: 228 minor/feature gaps
