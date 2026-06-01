@@ -130,6 +130,12 @@
 - **D51: T-bill risk-free rate** — ab_test.c:69-70, room_engine.c:1373-1374. rf_per_period = 0.045 / periods_per_year.
 - Fixed battleship stale ⏳ → ✅ for all 4. P1 count: 140→136.
 
+## Batch 2026-06-01 — B11: Time-of-day features (hour + day of week)
+- **B11: Time features** — F28: hour_of_day_norm, F29: day_of_week_norm.
+- Captures intraday seasonality + day-of-week effects (Monday/Friday/weekend).
+- Computed from localtime() — no collector needed.
+- N_FEATURES 27→29. P1 count: 130→129.
+
 ## Batch 2026-06-01 — B17/B18/B19: Liquidation, stablecoin, whale wired as features F22-F24
 - **B17: Liquidation cascade** — liq_ls_ratio_norm (F22) from liquidation_features.json. Long/short liquidation pressure signal.
 - **B18: Stablecoin inflow** — stable_inflow_norm (F23) from stablecoin_features.json. Stablecoin volume ratio proxy.

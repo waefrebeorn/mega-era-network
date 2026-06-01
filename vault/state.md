@@ -3,8 +3,8 @@
 ## Current Status
 - **Engine:** 210 C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 130 🟡 P1, 225 ⚪ P3)
-- **Rooms:** 16 configured. market_type set per room. SIGMA_NORMALIZER fixed (0.001→0.15). 98% agent voting. OB features + CVD + 6 derived features (funding/OI/LS/liquidation/stablecoin/whale) wired. N_FEATURES=24.
+- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 129 🟡 P1, 226 ⚪ P3)
+- **Rooms:** 16 configured. market_type set per room. SIGMA_NORMALIZER fixed (0.001→0.15). 98% agent voting. OB + CVD + 7 derived + time features wired. N_FEATURES=29.
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db backfill underway (33K+ rows), orderbook_depth/cumulative_volume_delta live
 - **Latest batch:** B02 (persistent price_history for DFT), B05 (orderbook features), B06 (CVD), C25 (panic stop), F14 (Telegram health alerts), A38 (min sample filter), A16 (feature pruning). 12 stale claims vaulted. 46 P1 gaps closed.
 

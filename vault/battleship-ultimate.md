@@ -88,7 +88,7 @@
 | B08 | No VWAP proximity | Features | ⚪ | ⏳ | Relative position vs VWAP is a known alpha signal. |
 | B09 | No realized volatility ratio (short/long vol) | Features | ⚪ | ⏳ | Ratio of 5-min to 1-hour volatility shows regime changes. |
 | B10 | No skew / kurtosis features | Features | ⚪ | ⏳ | Higher moments of returns distribution missing. |
-| B11 | No seasonal/time-of-day features | Features | 🟡 | ⏳ | Hour-of-day, day-of-week, month-of-year effects unmodeled. |
+| B11 | No seasonal/time-of-day features | Features | 🟡 | ✅ | **FIXED**: hour_of_day_norm (F28) + day_of_week_norm (F29). Computed from localtime, no collector needed. |
 | B12 | No macro regime feature for equity correlation | Features | 🟡 | ⏳ | BTC correlation to SP500 changes in crisis vs calm regimes. |
 | B13 | No on-chain feature beyond BTC dominance | Features | 🟡 | ⏳ | MVRV Z-score, Puell Multiple, SOPR all available from coingecko but not used. |
 | B14 | No funding rate feature | Features | 🟡 | ✅ | **FIXED**: funding_signal (F19) loaded from funding_features.json. Collector runs every 30min via collector_runner. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 18 | 0 | 36 | 0 |
-| B: Features | 45 | 0 | 10 | 0 | 31 | 0 |
+| B: Features | 45 | 0 | 9 | 0 | 32 | 0 |
 | C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
 | D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **130** | **0** | **225** | **0** |
+|| **TOTAL** | **365** | **1** | **129** | **0** | **226** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 130 major gaps | ⚪ P3: 225 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 129 major gaps | ⚪ P3: 226 minor/feature gaps
