@@ -1,6 +1,6 @@
 {
-  "generated_at": 1780303201,
-  "generated_at_iso": "Mon Jun  1 04:40:01 2026\n",
+  "generated_at": 1780303501,
+  "generated_at_iso": "Mon Jun  1 04:45:01 2026\n",
   "engine": {
     "cycle": 1.0,
     "capital": 0.0,
@@ -20,8 +20,8 @@
       "schedule": "Every minute",
       "status": "stale",
       "healthy": false,
-      "age_seconds": 293,
-      "last_run": 1780302908,
+      "age_seconds": 294,
+      "last_run": 1780303207,
       "file_size": 61281288
     },
     {
@@ -31,8 +31,8 @@
       "schedule": "On demand",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 2,
-      "last_run": 1780303199,
+      "age_seconds": 4,
+      "last_run": 1780303497,
       "file_size": 59186512
     },
     {
@@ -43,8 +43,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 0,
-      "last_run": 1780303201,
-      "file_size": 243029933
+      "last_run": 1780303501,
+      "file_size": 249002513
     },
     {
       "id": "collector_runner",
@@ -53,7 +53,7 @@
       "schedule": "Every 1-15 min",
       "status": "stale",
       "healthy": false,
-      "age_seconds": 14397,
+      "age_seconds": 14697,
       "last_run": 1780288804,
       "file_size": 656537
     },
@@ -64,9 +64,9 @@
       "schedule": "Every minute",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 263,
-      "last_run": 1780302938,
-      "file_size": 90812
+      "age_seconds": 218,
+      "last_run": 1780303283,
+      "file_size": 91032
     },
     {
       "id": "money_c",
@@ -75,9 +75,9 @@
       "schedule": "Every 5 min",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 0,
+      "age_seconds": 300,
       "last_run": 1780303201,
-      "file_size": 0
+      "file_size": 753
     },
     {
       "id": "room_watchdog",
@@ -87,8 +87,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 300,
-      "last_run": 1780302901,
-      "file_size": 216261
+      "last_run": 1780303201,
+      "file_size": 216420
     },
     {
       "id": "ws_feed",
@@ -98,8 +98,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 60,
-      "last_run": 1780303141,
-      "file_size": 394951
+      "last_run": 1780303441,
+      "file_size": 395571
     },
     {
       "id": "health_monitor",
@@ -108,7 +108,7 @@
       "schedule": "Every 15 min",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 600,
+      "age_seconds": 900,
       "last_run": 1780302601,
       "file_size": 410
     },
@@ -119,9 +119,9 @@
       "schedule": "Every 5 min",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 291,
-      "last_run": 1780302910,
-      "file_size": 355
+      "age_seconds": 292,
+      "last_run": 1780303209,
+      "file_size": 356
     },
     {
       "id": "teacher_watchdog",
@@ -130,9 +130,9 @@
       "schedule": "Every 5 min",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 300,
-      "last_run": 1780302901,
-      "file_size": 104
+      "age_seconds": 0,
+      "last_run": 1780303501,
+      "file_size": 0
     },
     {
       "id": "btc_csv",
@@ -141,7 +141,7 @@
       "schedule": "Weekly refresh",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 14999,
+      "age_seconds": 15299,
       "last_run": 1780288202,
       "file_size": 40116357
     },
@@ -152,7 +152,7 @@
       "schedule": "Daily at 6:00",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 5942,
+      "age_seconds": 6242,
       "last_run": 1780297259,
       "file_size": 1492369
     },
@@ -163,7 +163,7 @@
       "schedule": "Daily at 6:30",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 5941,
+      "age_seconds": 6241,
       "last_run": 1780297260,
       "file_size": 366359
     },
@@ -201,7 +201,7 @@
       "schedule": "Every 6 hours",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 38400,
+      "age_seconds": 38700,
       "last_run": 1780264801,
       "file_size": 211
     },
@@ -212,8 +212,8 @@
       "schedule": "Live engine",
       "status": "stale",
       "healthy": false,
-      "age_seconds": 293,
-      "last_run": 1780302908,
+      "age_seconds": 294,
+      "last_run": 1780303207,
       "file_size": 61281288
     },
     {
@@ -223,7 +223,7 @@
       "schedule": "Daily at 7:00",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 5941,
+      "age_seconds": 6241,
       "last_run": 1780297260,
       "file_size": 4096
     }

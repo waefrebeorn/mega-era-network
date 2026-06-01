@@ -144,9 +144,16 @@ tr:hover{background:rgba(0,229,255,0.03)}
         <div class="summary-card"><div class="num green" id="pfProfitFactor">—</div><div class="label">Profit Factor</div></div>
         <div class="summary-card"><div class="num orange" id="pfVar95">—</div><div class="label">VaR 95%</div></div>
         <div class="summary-card"><div class="num orange" id="pfEs95">—</div><div class="label">ES 95%</div></div>
+        <div class="summary-card"><div class="num accent" id="pfWR">—</div><div class="label">Win Rate</div></div>
+        <div class="summary-card"><div class="num orange" id="pfSurvivors">—</div><div class="label">Survivors</div></div>
       </div>
+      <div class="section-title">📊 Risk Metrics</div>
       <table><thead><tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Verdict</th></tr></thead>
         <tbody id="perfBody"></tbody>
+      </table>
+      <div class="section-title">🧬 Agent Survival</div>
+      <table><thead><tr><th>Metric</th><th>Value</th></tr></thead>
+        <tbody id="survivalBody"></tbody>
       </table>
       <p id="perfTimestamp" style="color:var(--dim);font-size:0.75rem;margin-top:12px;font-family:'JetBrains Mono',monospace"></p>
     </div>
@@ -157,7 +164,7 @@ tr:hover{background:rgba(0,229,255,0.03)}
 
 <script>
 // ── State ──
-let pipelineData = null, qualityData = null, perfData = null;
+let pipelineData = null, qualityData = null, perfData = null, survivalData = null, stressData = null;
 let pipeFilter = 'all', qualFilter = 'all';
 let activeTab = 'pipeline';
 
@@ -266,6 +273,28 @@ function renderPerformance() {
     return;
   }
   const d = perfData;
+  // Survival stats
+  const sv = survivalData;
+  if (sv && sv.status === 'ok') {
+    document.getElementById('pfWR').textContent = sv.win_rate_mean ? sv.win_rate_mean.toFixed(1) + '%' : '—';
+    document.getElementById('pfWR').className = 'num ' + (sv.win_rate_mean >= 50 ? 'green' : sv.win_rate_mean >= 45 ? 'orange' : 'red');
+    document.getElementById('pfSurvivors').textContent = sv.agents_alive ? sv.agents_alive.toLocaleString() : '—';
+    document.getElementById('pfSurvivors').className = 'num ' + (sv.agents_alive >= 2000 ? 'green' : 'orange');
+    // Survival table
+    const survRows = [
+      { metric: 'Agents Alive', value: sv.agents_alive ? sv.agents_alive.toLocaleString() : '—' },
+      { metric: 'Never Traded', value: sv.never_traded ? sv.never_traded.toLocaleString() : '—' },
+      { metric: 'Win Rate (mean)', value: sv.win_rate_mean ? sv.win_rate_mean.toFixed(2) + '%' : '—' },
+      { metric: 'WR Stddev', value: sv.win_rate_stddev ? sv.win_rate_stddev.toFixed(2) + '%' : '—' },
+      { metric: 'Total Capital', value: sv.capital_total ? '$' + Number(sv.capital_total).toLocaleString(undefined,{minimumFractionDigits:2}) : '—' },
+      { metric: 'Mean Capital', value: sv.capital_mean ? '$' + Number(sv.capital_mean).toFixed(2) : '—' },
+      { metric: 'Darwin Epoch', value: sv.darwin_epoch !== undefined ? sv.darwin_epoch : '—' },
+    ];
+    document.getElementById('survivalBody').innerHTML = survRows.map(r => '<tr><td><strong>' + r.metric + '</strong></td><td class="mono">' + r.value + '</td></tr>').join('');
+  } else {
+    document.getElementById('survivalBody').innerHTML = '<tr><td colspan="2" class="error-state">⚠️ No survival data. Run survival_stats first.</td></tr>';
+  }
+
   document.getElementById('pfCycle').textContent = d.cycle || '—';
   document.getElementById('pfTrades').textContent = d.trades ? d.trades.toLocaleString() : '—';
 
@@ -332,7 +361,14 @@ async function loadAll() {
   else if (activeTab === 'quality') document.getElementById('qualityBody').innerHTML =
     '<tr><td colspan="5" class="error-state">⚠️ Cannot connect. Run data_quality first.</td></tr>';
 
+  // Survival data
+  try {
+    const r = await fetch('data/survival_stats.json?_=' + t0);
+    survivalData = await r.json();
+  } catch(e) { survivalData = null; }
+
   if (perfData) renderPerformance();
+  if (survivalData) renderPerformance();
 
   const ts = (pipelineData && pipelineData.generated_at) || (qualityData && qualityData.generated_at);
   if (ts) {
