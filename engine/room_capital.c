@@ -257,10 +257,10 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
             float wr = trades[i].won ? 1.0f : 0.0f;
             agents[aid].win_rate_ema = agents[aid].win_rate_ema * 0.9f + wr * 0.1f;
 
-            // ── v2: Online SGD update ──
+            // ── A19: Mini-batch SGD update ──
             // REINFORCE: w += lr * (actual - predicted) * feature
-            // actual = 1.0 (won) or 0.0 (lost)
-            // predicted = last_conviction (what agent predicted before trade)
+            // Accumulates gradients then applies as batch to reduce variance.
+            // actual = 1.0 (won) or 0.0 (lost), predicted = last_conviction
             int sgd_regime = (int)(agents[aid].last_features[11] + 0.5f);
             if (sgd_regime < 0) sgd_regime = 0;
             if (sgd_regime >= N_REGS) sgd_regime = N_REGS - 1;
@@ -273,16 +273,31 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                 // Clamp step to prevent wild updates
                 if (step > 0.1f) step = 0.1f;
                 if (step < -0.1f) step = -0.1f;
-                // Update each feature weight (P22: per-regime, based on regime at trade time)
+                // Accumulate gradient for each feature weight
                 for (int fi = 0; fi < N_FEATURES; fi++) {
-                    agents[aid].genome.regime_weight[sgd_regime][fi] += step * agents[aid].last_features[fi];
-                    if (agents[aid].genome.regime_weight[sgd_regime][fi] > 1.0f)
-                        agents[aid].genome.regime_weight[sgd_regime][fi] = 1.0f;
-                    if (agents[aid].genome.regime_weight[sgd_regime][fi] < -1.0f)
-                        agents[aid].genome.regime_weight[sgd_regime][fi] = -1.0f;
+                    agents[aid].grad_accum[sgd_regime][fi] += step * agents[aid].last_features[fi];
                 }
-                // Update regime bias too
-                agents[aid].genome.regime_bias[sgd_regime] += step * 1.0f;
+                agents[aid].bias_accum[sgd_regime] += step;
+                agents[aid].batch_count++;
+
+                // Apply accumulated gradients as mini-batch when batch is full
+                if (agents[aid].batch_count >= SGD_BATCH_SIZE) {
+                    float inv_batch = 1.0f / agents[aid].batch_count;
+                    for (int fi = 0; fi < N_FEATURES; fi++) {
+                        agents[aid].genome.regime_weight[sgd_regime][fi]
+                            += agents[aid].grad_accum[sgd_regime][fi] * inv_batch;
+                        if (agents[aid].genome.regime_weight[sgd_regime][fi] > 1.0f)
+                            agents[aid].genome.regime_weight[sgd_regime][fi] = 1.0f;
+                        if (agents[aid].genome.regime_weight[sgd_regime][fi] < -1.0f)
+                            agents[aid].genome.regime_weight[sgd_regime][fi] = -1.0f;
+                    }
+                    agents[aid].genome.regime_bias[sgd_regime]
+                        += agents[aid].bias_accum[sgd_regime] * inv_batch;
+                    // Reset accumulators for this regime
+                    memset(agents[aid].grad_accum[sgd_regime], 0, sizeof(float) * N_FEATURES);
+                    agents[aid].bias_accum[sgd_regime] = 0.0f;
+                    agents[aid].batch_count = 0;
+                }
             }
 
             // ── P16: Feature importance tracking ──

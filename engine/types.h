@@ -45,13 +45,15 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D37  // "ROM7" — bumped for B23 VIX history in RoomState
+#define STATE_MAGIC       0x524F4D38  // "ROM8" — bumped for A19 mini-batch SGD accumulators
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
 #define MATCH_FEE    0.002f   // Match fee on loser pool (0.2%)
 // ── T97: Minimum trade size ──
 #define MIN_TRADE_STAKE   1.0f    // Minimum $1 stake per trade (skip smaller)
+// ── A19: Mini-batch SGD batch size ──
+#define SGD_BATCH_SIZE    8       // Trades per mini-batch gradient update
 // ── T20: Slippage model ──
 #define SLIPPAGE_BPS          5.0f    // 5 bps = 0.05% baseline slippage
 #define SLIPPAGE_VOL_SCALE   5.0f    // Additional bps per $100 of position (market impact)
@@ -213,6 +215,10 @@ typedef struct {
     float    conv_lo_total;     // Trades when conviction < 0.3
     // ── C19: Weight diversity contribution ──
     float    weight_mag;        // ||feat_weight|| L2 norm (for diversity calc)
+    // ── A19: Mini-batch SGD accumulators ──
+    float    grad_accum[N_REGS][N_FEATURES];  // Accumulated gradient per (regime, feature)
+    float    bias_accum[N_REGS];              // Accumulated bias gradient per regime
+    int      batch_count;                     // Trades accumulated in current batch
 } AgentState;
 
 // ── Trade record (for post-hoc analysis) ──

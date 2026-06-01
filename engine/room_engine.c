@@ -560,6 +560,10 @@ static void init_agents(AgentState *agents, int n) {
         agents[i].conv_lo_total = 0;
         // C19: Initialize weight diversity
         agents[i].weight_mag = 0;
+        // A19: Clear mini-batch accumulators
+        memset(agents[i].grad_accum, 0, sizeof(agents[i].grad_accum));
+        memset(agents[i].bias_accum, 0, sizeof(agents[i].bias_accum));
+        agents[i].batch_count = 0;
 
         // Random genome within bounds
         agents[i].genome.position_size     = 0.01f + (float)rand() / RAND_MAX * 0.49f;
