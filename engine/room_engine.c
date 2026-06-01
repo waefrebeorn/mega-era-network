@@ -1369,7 +1369,9 @@ skip_trading:
             if (std_r > 1e-10f) {
                 // Annualized for 1-min data: 525600 cycles/year
                 float periods_per_year = 525600.0f;
-                s->sharpe_ratio = (mean_r / std_r) * sqrtf(periods_per_year);
+                // D51: Subtract risk-free rate (T-bill ~4.5% annualized)
+                float rf_per_period = 0.045f / periods_per_year;
+                s->sharpe_ratio = ((mean_r - rf_per_period) / std_r) * sqrtf(periods_per_year);
             }
         }
 

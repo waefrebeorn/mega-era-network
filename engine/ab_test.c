@@ -65,7 +65,9 @@ static double calc_sharpe(RoomState *s) {
     double mean = sum / limit;
     double var = (sum_sq / limit) - (mean * mean);
     if (var <= 0) return 0;
-    return (mean / sqrt(var)) * sqrt(525600.0); /* annualized for 1-min data */
+    // D51: Subtract risk-free rate (T-bill ~4.5% annualized)
+    double rf_per_period = 0.045 / 525600.0;  // 4.5% annual / minutes per year
+    return ((mean - rf_per_period) / sqrt(var)) * sqrt(525600.0); /* annualized for 1-min data */
 }
 
 /* ─── Print side-by-side metric row ─── */
