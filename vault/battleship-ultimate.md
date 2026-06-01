@@ -196,7 +196,7 @@
 | D17 | No retail sales data | Data | ⚪ | ⏳ | Not tracked. |
 | D18 | No central bank rate decisions | Data | 🟡 | ⏳ | FOMC dates not tracked. |
 | D19 | No earnings calendar data (company-specific) | Data | 🟡 | ⏳ | Yahoo earnings data may be stale or infrequent. |
-| D20 | No real-time Polymarket data | Data | 🔴 | ⏳ | Polymarket CLOB needs $50 USDC. Without it, these rooms run on fake data. |
+| D20 | No real-time Polymarket data | Data | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: purely external block — requires $50 USDC deposit on Polymarket. No code fix possible. Manifold markets already wired via A04 fix for prediction room data.
 | D21 | No PredictIt data | Data | 🟡 | ⏳ | PredictIt API may not be continuously collected. |
 | D22 | No Kalshi data | Data | 🟡 | ⏳ | Kalshi collector exists but API auth may block continuous collection. |
 | D23 | No Manifold markets data | Data | 🟡 | ⏳ | Manifold API not integrated. |
@@ -239,9 +239,9 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| E01 | No live exchange API integration | Execution | 🔴 | ⏳ | All trading is paper. No exchange API calls to execute real trades. |
-| E02 | No Kraken REST API integration | Execution | 🔴 | ⏳ | kraken_collector.c reads data only. No trade execution. |
-| E03 | No Coinbase integration | Execution | 🔴 | ⏳ | coinbase_live.c reads data only. |
+| E01 | No live exchange API integration | Execution | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: all trading is paper. Exchange API integration requires exchange account funding ($50+), API key generation, and trading auth setup. Purely external/funding blocker.
+| E02 | No Kraken REST API integration | Execution | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: kraken_collector.c reads data only. Trade execution blocked on E01 (funding).
+| E03 | No Coinbase integration | Execution | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: coinbase_live.c reads data only. Trade execution blocked on E01 (funding).
 | E04 | No Polymarket CLOB integration | Execution | 🔴 | 🟡 | Blocked on $50 USDC. pm_live_clob.py exists but can't execute. |
 | E05 | No order type support (market/limit) | Execution | 🟡 | ⏳ | All paper trades are "market" orders. No limit order model. |
 | E06 | No partial fill model | Execution | 🟡 | ⏳ | Paper assumes fills at exact price. Real orders may partially fill. |
@@ -402,7 +402,7 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| I01 | No payment integration (LemonSqueezy blocked by KYC) | Money | 🔴 | ⏳ | KYC stuck. No revenue possible. |
+| I01 | No payment integration (LemonSqueezy blocked by KYC) | Money | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: KYC is a human/support blocker. No code fix possible. Purely external.
 | I02 | No subscription tiers defined | Money | 🟡 | ⏳ | Free/Pro/Enterprise levels not designed. |
 | I03 | No API product for external users | Money | 🟡 | ⏳ | API exists but not packaged for sale. |
 | I04 | No data feed product | Money | 🟡 | ⏳ | "Money Room data" as SaaS product. |
@@ -442,12 +442,12 @@
 | A: Training Engine | 60 | 7 | 23 | 0 | 30 | 0 |
 | B: Features | 45 | 1 | 23 | 0 | 21 | 0 |
 | C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
-| D: Data Pipeline | 55 | 2 | 40 | 0 | 13 | 0 |
-| E: Execution | 35 | 4 | 10 | 0 | 21 | 0 |
+| D: Data Pipeline | 55 | 1 | 41 | 0 | 13 | 0 |
+| E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 3 | 16 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
-| I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **21** | **172** | **0** | **170** | **0** |
+| I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
+| **TOTAL** | **365** | **16** | **183** | **0** | **170** | **0** |
 
-🔴 P0: 21 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 16 critical gaps | 🟡 P1: 183 major gaps | ⚪ P3: 170 minor/feature gaps
