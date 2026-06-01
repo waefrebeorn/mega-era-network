@@ -5,7 +5,14 @@
   1. Infinite 1s-sleep loop on static JSON feed (room_engine.c:701-708) — exit after 3 consecutive duplicate window_ts
   2. trade_count reset to 0 every restart (room_engine.c:657) — removed boot-time reset; corrupted-value guard retained
 - **A04: Snapshot precision** — room_bridge.c:56-60: %.2f→%.4f for OHLC so binary markets show real variation
-- **Claims verified/resolved:** A03 (by-design), A05 (sp500 correct), A06 (feed_gen works), A10 (cron active), A48 (resolved by A02), B01 (18 features), B03 (phi computed)
+- **A03: Single binary by design** — verified room_feed_gen.c reads ROOM_DIR per-room config/feed/state (room_feed_gen.c:67-85). Not a gap.
+- **A05: eco/macro get sp500** — verified room_feed_gen.c:133-136 uses sp500 for macro domain. economic close=7473==sp500, macro close=7580==sp500.
+- **A06: Feed generator works** — ran feed_gen for consensus (exit=0, close=0.499958). Generated JSON has window_ts, domain-close, OHLC.
+- **A10: Trainer wired into cron** — verified `crontab -l`: daily 7am multi_market_trainer, */15min auto_retrain_c. 17 genome .bin files exist.
+- **A48: Darwin epoch=0** — resolved by A02 trade_count persistence fix (room_engine.c:657).
+- **B01: 18 features computed** — verified room_features.c: all 18 features populated (price_delta→tail_risk).
+- **B03: phi features populated** — verified room_features.c:364 calls compute_phi_features every cycle.
+- **B02: DFT root cause found** — price_history[mt] is static array, resets per engine restart. DFT requires len>=10 (room_features.c:159). Fix: persist in mmap'd RoomState.
 - **28 🔴 P0 remaining** (was 35 at session start)
 - All room binaries rebuilt and deployed to 16 rooms + c_room
 

@@ -2,7 +2,7 @@ WALKWAY: battleship-ultimate → homework-list → go
 
 365 cells. 9 domains. 28 🔴P0 killers.
 
-Reality: 16 rooms, 1 binary, 7 fake feeds, 0 evolution. Darwin never fired.
+Reality: 16 rooms, 1 binary, 7 fake feeds. A02 fixed (dup-loop exit + trade_count persist). Darwin can now fire across cron runs.
 
 Pick lowest undone 🔴 in vault/battleship-ultimate.md.
 Verify claim against source (function-level, not filenames).
