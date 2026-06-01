@@ -9,6 +9,7 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 3. ~~A03: All 16 rooms identical binary~~ — DONE: confirmed by-design architecture, not a gap
 4. ~~A04 (partial): snapshot display~~ — DONE: room_bridge.c:56-60 %.2f→%.4f precision
 5. ~~A05: BTC-clone in eco/macro~~ — DONE: FALSE CLAIM, feeds use sp500 correctly
+6. ~~A06: Feed generator may not work~~ — DONE: FALSE CLAIM, feed_gen runs correctly with valid output
 
 ## Next Cell
-A06: Room feed generator may not work
+A08: No market-specific feature calibration

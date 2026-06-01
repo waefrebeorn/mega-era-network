@@ -16,7 +16,7 @@
 || A03 | All 16 rooms share identical binary (same md5) | Training | 🔴 | ✅ | **BY DESIGN**: single-binary architecture reads ROOM_DIR per-room config/feed/state. Differentiation comes from market_feed.json and room_feed_gen. Not a gap. Real issues: A04 (fake 0.50 prices), A05 (wrong data types). |
 || A04 | Rooms 7 (consensus, elections, manifold, etc.) show 0.50 price | Training | 🔴 | ⏳ | Snapshot display at room_bridge.c:56-60 rounded OHLC to %.2f, masking binary variation (0.4986→0.50). Changed to %.4f for clarity. Feeds DO generate random ~0.50 probabilities, just appeared identical in display. Root gap: random data, not real prediction market prices. |
 || A05 | BTC-clone data fed to economic/macro rooms | Training | 🔴 | ✅ | **FALSE CLAIM**: verified room_feed_gen.c:133-136 uses sp500 for macro domain. economic close=7473.47 == sp500=7473.47; macro close=7580.06 == sp500=7580.06. These are sp500 index values, not BTC (BTC was 73598). Feeds correctly differentiated. |
-|| A06 | Room feed generator may not work | Training | 🔴 | ⏳ | FEED_GEN binary exists but per-room feed generation quality unknown. |
+|| A06 | Room feed generator may not work | Training | 🔴 | ✅ | **FALSE CLAIM**: verified by running feed_gen for consensus room (exit=0, close=0.499958). Generated JSON has window_ts, domain-appropriate close, OHLC. Valid per-room feed at market_feed.json. The feed_gen works correctly. |
 || A07 | No per-market-type genome initialization | Training | 🔴 | ✅ | init_agent now takes MarketType param. Crypto→momentum, Equity→macro, Forex→trend-follow, Binary→consensus-skeptic, Bond→slow/horizon, Vol→mean-revert, Commod→vol-aware. |
 | A08 | No market-specific feature calibration | Training | 🔴 | ⏳ | RSI=50 means different things for 0.50 binary markets vs crypto. No per-market scaling. |
 | A09 | No per-asset volatility normalization | Training | 🟡 | ⏳ | BTC at $75K and binary at $0.50 use same feature computation. Price-based features broken. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-| A: Training Engine | 60 | 11 | 22 | 0 | 27 | 0 |
+| A: Training Engine | 60 | 10 | 22 | 0 | 28 | 0 |
 | B: Features | 45 | 3 | 23 | 0 | 19 | 0 |
 | C: Risk Management | 40 | 4 | 21 | 0 | 15 | 0 |
 | D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **32** | **172** | **0** | **161** | **0** |
+| **TOTAL** | **365** | **31** | **172** | **0** | **162** | **0** |
 
-🔴 P0: 32 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 161 minor/feature gaps
+🔴 P0: 31 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 162 minor/feature gaps
