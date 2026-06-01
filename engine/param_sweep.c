@@ -98,7 +98,7 @@ static void sweep_param(RoomState *state, int param_idx, int n_steps, int top_pc
     int n = 0;
     AgentRec *agents = malloc(max_agents * sizeof(AgentRec));
     if (!agents) return;
-    
+
     for (int i = 0; i < max_agents; i++) {
         if (state->agents[i].trades > 0) {
             agents[n].agent_id = i;
@@ -137,7 +137,7 @@ static void sweep_param(RoomState *state, int param_idx, int n_steps, int top_pc
         int end = start + per_bin;
         if (end > n) end = n;
         if (start >= n) break;
-        
+
         float lo = agents[start].param_val;
         float hi = agents[end-1].param_val;
         float sum_pnl = 0, sum_wr = 0, sum_sharpe = 0;
@@ -156,7 +156,7 @@ static void sweep_param(RoomState *state, int param_idx, int n_steps, int top_pc
     qsort(agents, n, sizeof(AgentRec), cmp_pnl_desc);
     int n_top = n * top_pct / 100;
     if (n_top < 5) n_top = 5;
-    
+
     float top_pnl_sum = 0, top_param_sum = 0, top_param_min = agents[0].param_val, top_param_max = agents[0].param_val;
     for (int i = 0; i < n_top; i++) {
         top_pnl_sum += agents[i].pnl_pct;
@@ -164,7 +164,7 @@ static void sweep_param(RoomState *state, int param_idx, int n_steps, int top_pc
         if (agents[i].param_val < top_param_min) top_param_min = agents[i].param_val;
         if (agents[i].param_val > top_param_max) top_param_max = agents[i].param_val;
     }
-    
+
     /* Bottom decile */
     int n_bot = n * top_pct / 100;
     if (n_bot < 5) n_bot = 5;
@@ -192,7 +192,7 @@ static void cmd_quick(RoomState *state) {
     int n = 0;
     AgentRec *agents = malloc(max_agents * sizeof(AgentRec));
     if (!agents) return;
-    
+
     for (int i = 0; i < max_agents; i++) {
         if (state->agents[i].trades > 0) {
             agents[n].agent_id = i;
@@ -206,7 +206,7 @@ static void cmd_quick(RoomState *state) {
     qsort(agents, n, sizeof(AgentRec), cmp_pnl_desc);
     int n_top = n / 10;
     if (n_top < 5) n_top = 5;
-    
+
     printf("\n=== Parameter Sweep (quick): %d agents, top/bottom %d%% ===\n", n, 10);
     printf("  %-22s %-12s %-12s %s\n", "Parameter", "Top-10% avg", "Bot-10% avg", "Direction");
     printf("  %s\n", "─────────────────────────────────────────────────────────────");
@@ -241,11 +241,11 @@ static void cmd_recommend(RoomState *state) {
     int max_agents = state->stats.active_agents > 0 && state->stats.active_agents < MAX_AGENTS
                      ? state->stats.active_agents : MAX_AGENTS;
     if (max_agents > MAX_AGENTS) max_agents = MAX_AGENTS;
-    
+
     int n = 0;
     AgentRec *agents = malloc(max_agents * sizeof(AgentRec));
     if (!agents) return;
-    
+
     for (int i = 0; i < max_agents; i++) {
         if (state->agents[i].trades > 0) {
             agents[n].agent_id = i;
@@ -265,7 +265,7 @@ static void cmd_recommend(RoomState *state) {
     printf("  Based on top %d/%d agents by total PnL\n\n", n_top, n);
     printf("  %-22s %-10s %-10s %-10s\n", "Parameter", "Optimal", "Min", "Max");
     printf("  %s\n", "───────────────────────────────────────────────────");
-    
+
     for (int p = 0; p < MAX_GENOME_PARAMS; p++) {
         float sum = 0, min_v = 1e10, max_v = -1e10;
         for (int i = 0; i < n_top; i++) {

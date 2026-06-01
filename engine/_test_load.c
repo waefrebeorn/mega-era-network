@@ -17,7 +17,7 @@ int main() {
     if (sqlite3_open("/home/wubu2/.hermes/pm_logs/timeline.db", &db) != SQLITE_OK) {
         printf("FAILED\n"); return 1;
     }
-    
+
     // Single query, no CAST
     printf("Querying SP500...\n"); fflush(stdout);
     TSPoint sp[50000];
@@ -27,7 +27,7 @@ int main() {
         "SELECT ts, data FROM timeline WHERE source='fred_sp500' ORDER BY ts ASC",
         -1, &stmt, NULL);
     if (rc != SQLITE_OK) { printf("SQL error: %s\n", sqlite3_errmsg(db)); return 1; }
-    
+
     printf("Stepping...\n"); fflush(stdout);
     int count = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && n < 50000) {
@@ -41,13 +41,13 @@ int main() {
     }
     sqlite3_finalize(stmt);
     printf("Loaded %d SP500 rows\n", n); fflush(stdout);
-    
+
     // Now walk the data
     printf("Walking %d points...\n", n); fflush(stdout);
     double X[MAX_SAMPLES][MAX_FEATURES];
     double y[MAX_SAMPLES];
     int ns = 0;
-    
+
     for (int i = 60; i < n - 1 && ns < MAX_SAMPLES; i++) {
         double val = 0;
         // Try extracting value from the 6th comma (approx position)
@@ -59,7 +59,7 @@ int main() {
         ns++;
         if (ns % 5000 == 0) { printf("  %d samples...\n", ns); fflush(stdout); }
     }
-    
+
     printf("Generated %d features for %d samples\n", 1, ns); fflush(stdout);
     sqlite3_close(db);
     printf("Done\n");

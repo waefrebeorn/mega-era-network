@@ -4,9 +4,9 @@
  * trade flow direction, size distribution, VWAP vs TWAP, kill zone detection,
  * large lot detection, CLOB flow imbalance, cumulative delta, delta divergence,
  * footprint chart, volume profile (HVN/POC/VA), TPO count.
- * 
+ *
  * Reads from exchange_data in timeline.db, computes analytics.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o market_microstructure market_microstructure.c -lcurl -lsqlite3 -lm -ljansson
  */
 
@@ -156,7 +156,7 @@ static void volume_profile(sqlite3 *db) {
 int main(int argc, char **argv) {
     sqlite3 *db = open_db();
     if(!db) { fprintf(stderr,"Can't open DB\n"); return 1; }
-    
+
     if(argc>1) {
         if(strcmp(argv[1],"fees")==0)            { fee_comparison(db); }
         else if(strcmp(argv[1],"imbalance")==0)  { ob_imbalance(db); }
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
     } else {
         trade_flow_analysis(db);
     }
-    
+
     sqlite3_close(db);
     return 0;
 }

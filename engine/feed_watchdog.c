@@ -81,50 +81,50 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "status") == 0) mode = 1;
         else if (strcmp(argv[i], "force") == 0) mode = 2;
     }
-    
+
     printf("FEED WATCHDOG — %s\n", ctime(&(time_t){time(NULL)}));
-    
+
     /* Check c_room feed freshness */
     char feed_path[MAX_PATH];
     snprintf(feed_path, sizeof(feed_path), "%s/%s", C_ROOM_DIR, "market_feed.json");
     int feed_age = file_age(feed_path);
-    
+
     if (feed_age < 0) {
         printf("C_ROOM feed: MISSING\n");
     } else {
         printf("C_ROOM feed: %ds old %s\n", feed_age,
                feed_age > STALE_SECS ? "⚠ STALE" : "✅ FRESH");
     }
-    
+
     /* Scan rooms */
     DIR *dir = opendir(ROOMS_DIR);
     if (!dir) return 1;
-    
+
     struct dirent *entry;
     int total = 0, paused = 0, stale = 0, fresh = 0;
-    
+
     printf("\nROOM             FEED     STATE    ACTION\n");
     printf("---------------  -------  -------  ------\n");
-    
+
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_name[0] == '.') continue;
         char room_dir[MAX_PATH];
         snprintf(room_dir, sizeof(room_dir), "%s/%s", ROOMS_DIR, entry->d_name);
-        
+
         /* Check feed */
         char rf[MAX_PATH];
         snprintf(rf, sizeof(rf), "%s/%s", room_dir, "market_feed.json");
         int fa = file_age(rf);
         const char *feed_status = fa < 0 ? "MISSING" :
                                   (fa > STALE_SECS ? "STALE" : "fresh");
-        
+
         /* Check state */
         int sa = has_fresh_state(room_dir);
         const char *state_status = sa ? "fresh" : "STALE";
-        
+
         /* Check pause */
         int pp = is_paused(room_dir);
-        
+
         const char *action = "OK";
         if (fa > STALE_SECS || !sa) {
             if (mode == 0 || mode == 2) {
@@ -149,15 +149,15 @@ int main(int argc, char **argv) {
                 fresh++;
             }
         }
-        
+
         printf("%-15s  %-7s  %-7s  %s\n",
                entry->d_name, feed_status, state_status, action);
         total++;
     }
     closedir(dir);
-    
+
     printf("\n%d rooms, %d fresh, %d stale/paused\n", total, fresh, stale);
     printf("Feed threshold: %ds (%.0f min)\n", STALE_SECS, STALE_SECS/60.0);
-    
+
     return stale > 0 ? 1 : 0;
 }

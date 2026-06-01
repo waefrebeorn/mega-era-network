@@ -1,7 +1,7 @@
 /**
  * opensky_collector.c — OpenSky Network flight tracking (T1450)
  * Free API, no key needed for limited access. Tracks global air traffic.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o opensky_collector opensky_collector.c -lcurl -lsqlite3 -lm -ljansson
  */
 
@@ -21,7 +21,7 @@ static sqlite3 *odb(){
     sqlite3*db;if(sqlite3_open(DB_PATH,&db)!=SQLITE_OK)return NULL;
     sqlite3_exec(db,
         "CREATE TABLE IF NOT EXISTS opensky_flights("
-        "  obs_time INTEGER, ac_count INTEGER, total INTEGER," 
+        "  obs_time INTEGER, ac_count INTEGER, total INTEGER,"
         "  created_at TEXT DEFAULT(datetime('now')),"
         "  PRIMARY KEY(obs_time)"
         ");CREATE TABLE IF NOT EXISTS opensky_routes("

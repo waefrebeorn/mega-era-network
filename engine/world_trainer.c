@@ -1,6 +1,6 @@
 /**
  * world_trainer.c — Virtual World Model Training Engine v3.0
- * 
+ *
  * Generates simulated market data with configurable dynamics (trend, volatility, liquidity)
  * and trains mixed-archetype agent populations through curriculum phases.
  *
@@ -13,7 +13,7 @@
  *   + synthetic proxies for remaining 50 features from world state
  * - Added learning rate per-agent (not global)
  * - Added fitness tracking for Darwin selection
- * 
+ *
  * Build: gcc world_trainer.c -o world_trainer -lm -O2
  * Run:   ./world_trainer [cycles=10000] [output_dir=./training_output]
  */
@@ -97,15 +97,15 @@ static float frand_signed(void) {
 int main(int argc, char **argv) {
     int total_cycles = (argc > 1) ? atoi(argv[1]) : 10000;
     const char *out_dir = (argc > 2) ? argv[2] : "./training_output";
-    
+
     mkdir(out_dir, 0755);
-    
+
     RoomState *state = calloc(1, sizeof(RoomState));
     if (!state) { perror("calloc"); return 1; }
-    
+
     float price_hist[PRICE_HISTORY_LEN];
     int hist_len = 0, hist_idx = 0;
-    
+
     srand(time(NULL));
     state->magic = STATE_MAGIC;
     state->sim.curriculum_phase = CURR_NOISE;
@@ -115,39 +115,39 @@ int main(int argc, char **argv) {
     state->sim.world_volatility = 0.15f;
     state->sim.world_liquidity = 0.8f;
     state->sim.world_regime_remain = 200.0f;
-    
+
     char log_path[512], agents_path[512];
     snprintf(log_path, sizeof(log_path), "%s/training_log.csv", out_dir);
     snprintf(agents_path, sizeof(agents_path), "%s/agents_final.json", out_dir);
-    
+
     FILE *log = fopen(log_path, "w");
     if (!log) { perror("fopen log"); free(state); return 1; }
     fprintf(log, "cycle,phase,trend,volatility,liquidity,price,traders,bettors,speculators,hedgers,noise,avg_conviction,win_rate,room_pnl_pct,sharpe,agents_voted,agent_count,total_trades\n");
-    
+
     printf("Virtual World Training v3.0 — %d cycles\n", total_cycles);
     printf("  v3.0 fixes: no-lookahead features BEFORE price advance\n");
     printf("             Darwin by fitness (not capital threshold)\n");
     printf("             ~30 derived features + 50 synthetic proxies (no random noise)\n");
     printf("  Taker fee: %.1f%% | Slippage: %.1fbps | Darwin every %d cycles\n\n",
            TAKER_FEE * 100, SLIPPAGE_BPS, DARWIN_INTERVAL);
-    
+
     int next_report = 500;
     int total_wins = 0, total_losses = 0;
     float total_pnl = 0.0f;
-    
+
     // Bootstrap: run a few ticks to fill price history with enough data for features
     for (int b = 0; b < 20; b++) {
         world_advance(state, price_hist, &hist_len, &hist_idx);
     }
-    
+
     // Store the price BEFORE feature computation to use for resolution
-    float prev_close_for_resolve = (hist_len > 0) ? 
+    float prev_close_for_resolve = (hist_len > 0) ?
         price_hist[(hist_idx - 1 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN] : 100.0f;
-    
+
     for (int cycle = 1; cycle <= total_cycles; cycle++) {
         state->cycle = cycle;
         state->sim.phase_cycles++;
-        
+
         // ── Check phase transition ──
         if (state->sim.phase_cycles >= state->sim.phase_transition_at && state->sim.curriculum_phase < CURR_FULL) {
             int old_phase = state->sim.curriculum_phase;
@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
             state->sim.curriculum_phase++;
             state->sim.phase_cycles = 0;
             state->sim.phase_transition_at = PHASE_LENGTHS[state->sim.curriculum_phase];
-            
+
             // Re-initialize agents for new phase
             int next_id = 0;
             for (int a = 0; a < ARCH_COUNT; a++) {
@@ -169,36 +169,36 @@ int main(int argc, char **argv) {
                 init_archetype_population(state->agents, ARCH_NOISE, 1, next_id);
                 next_id++;
             }
-            
+
             state->sim.n_traders = (int)(PHASE_DISTRIBUTION[state->sim.curriculum_phase][ARCH_TRADER] * MAX_AGENTS);
             state->sim.n_bettors = (int)(PHASE_DISTRIBUTION[state->sim.curriculum_phase][ARCH_BETTOR] * MAX_AGENTS);
             state->sim.n_speculators = (int)(PHASE_DISTRIBUTION[state->sim.curriculum_phase][ARCH_SPECULATOR] * MAX_AGENTS);
             state->sim.n_hedgers = (int)(PHASE_DISTRIBUTION[state->sim.curriculum_phase][ARCH_HEDGER] * MAX_AGENTS);
             state->sim.n_noise = MAX_AGENTS - state->sim.n_traders - state->sim.n_bettors - state->sim.n_speculators - state->sim.n_hedgers;
-            
+
             printf("  Phase %d (%s)\n", state->sim.curriculum_phase,
                    PHASE_NAMES[state->sim.curriculum_phase]);
         }
-        
+
         // ═══ STEP 1: Compute features from EXISTING price history (no lookahead) ═══
         FeatureVector fv;
         memset(&fv, 0, sizeof(fv));
         world_generate_features(state, price_hist, hist_len, hist_idx, &fv);
-        
+
         // ═══ STEP 2: Agent votes using features that do NOT contain current tick ═══
         int votes_cast = 0;
         float total_conviction = 0.0f;
-        
+
         for (int i = 0; i < MAX_AGENTS; i++) {
             if (!state->agents[i].alive) continue;
             if (state->agents[i].capital < MIN_CAPITAL) continue;
-            
+
             VoteRecord vote;
             memset(&vote, 0, sizeof(vote));
             vote.agent_id = i;
-            
+
             archetype_vote(&state->agents[i], &fv, state, &vote);
-            
+
             if (vote.voted) {
                 float hedge = archetype_hedge_factor(&state->agents[i], state);
                 vote.position_size *= hedge;
@@ -208,10 +208,10 @@ int main(int argc, char **argv) {
             }
         }
         state->vote_count = votes_cast;
-        
+
         // ═══ STEP 3: Advance world (NEW price) ═══
         world_advance(state, price_hist, &hist_len, &hist_idx);
-        
+
         // ═══ STEP 4: Compute price change from prev_close → new_close ═══
         float curr_close = price_hist[(hist_idx - 1 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN];
         float price_change = 0.0f;
@@ -221,29 +221,29 @@ int main(int argc, char **argv) {
                 price_change = clampf(raw_change, -MAX_RETURN_CAP, MAX_RETURN_CAP);
             }
         }
-        
+
         // ═══ STEP 5: Resolve trades against this tick's price change ═══
         int cycle_wins = 0, cycle_losses = 0;
         float cycle_pnl = 0.0f;
-        
+
         if (fabsf(price_change) > 0.0001f) {
             for (int v = 0; v < votes_cast; v++) {
                 int aid = state->votes[v].agent_id;
                 AgentState *agent = &state->agents[aid];
-                
+
                 bool predicted_up = state->votes[v].direction;
                 bool won = (price_change > 0 && predicted_up) ||
                            (price_change < 0 && !predicted_up);
-                
+
                 // Realistic position sizing
                 float capital = agent->capital;
                 float position_frac = clampf(state->votes[v].position_size, 0.001f, MAX_POSITION);
                 float stake = capital * position_frac;
-                
+
                 // Fee model: taker fee + slippage on entry AND exit
                 float entry_cost = stake * (TAKER_FEE + SLIPPAGE_BPS / 10000.0f);
                 float effective_stake = stake - entry_cost;
-                
+
                 float pnl;
                 if (won) {
                     float gross_return = effective_stake * fabsf(price_change);
@@ -252,31 +252,31 @@ int main(int argc, char **argv) {
                 } else {
                     pnl = -effective_stake;
                 }
-                
+
                 pnl = clampf(pnl, -capital * 0.5f, capital * 0.5f);
-                
+
                 agent->capital += pnl;
                 if (agent->capital < 0) agent->capital = 0;
                 if (agent->capital > agent->peak_capital) agent->peak_capital = agent->capital;
-                
+
                 agent->trades++;
                 if (won) agent->wins++; else agent->losses++;
                 agent->total_pnl += pnl;
                 agent->win_rate_ema = 0.9f * agent->win_rate_ema + 0.1f * (won ? 1.0f : 0.0f);
-                
+
                 // ── SGD update: agent learns from features it SAW before voting ──
                 float lr = clampf(agent->genome.learning_rate, 0.0001f, 0.1f);
                 sgd_update(agent, &fv, won, lr);
-                
+
                 if (won) cycle_wins++; else cycle_losses++;
                 cycle_pnl += pnl;
             }
         }
-        
+
         total_wins += cycle_wins;
         total_losses += cycle_losses;
         total_pnl += cycle_pnl;
-        
+
         // ── Update stats ──
         state->stats.cycle_count = cycle;
         state->stats.voted_this_cycle = votes_cast;
@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
         state->stats.avg_conviction = (votes_cast > 0) ? total_conviction / votes_cast : 0.5f;
         state->stats.win_rate = (total_wins + total_losses > 0) ?
             (float)total_wins / (total_wins + total_losses) : 0.5f;
-        
+
         float total_cap = 0;
         int alive_count = 0;
         for (int i = 0; i < MAX_AGENTS; i++) {
@@ -294,18 +294,18 @@ int main(int argc, char **argv) {
             }
         }
         state->stats.room_pnl_pct = (total_cap / (alive_count * 1.0f) - 1.0f) * 100.0f;
-    
+
         // ── Darwin evolution every N cycles ──
         if (cycle % DARWIN_INTERVAL == 0 && cycle > 0 &&
             state->sim.curriculum_phase >= CURR_TREND) {
             darwin_evolve(state->agents);
         }
-    
+
         // ── Write log snapshot ──
         if (cycle % 100 == 0) {
             write_training_snapshot(state, cycle, log);
         }
-    
+
         // ── Report progress ──
         if (cycle >= next_report) {
             printf("  Cycle %6d | Ph %d | Trend %+.2f | Vol %.2f | WR %.1f%% | PnL %+.2f%% | Alive %d | Votes %d | Trades %d\n",
@@ -314,7 +314,7 @@ int main(int argc, char **argv) {
                    alive_count, votes_cast, total_wins + total_losses);
             next_report += 500;
         }
-        
+
         // ── Store current close for next cycle's resolution ──
         prev_close_for_resolve = curr_close;
 
@@ -322,9 +322,9 @@ int main(int argc, char **argv) {
         struct timespec ts = {0, DEFAULT_RUN_SPEED};
         nanosleep(&ts, NULL);
     }
-    
+
     fclose(log);
-    
+
     // ── Write final agent state ──
     FILE *af = fopen(agents_path, "w");
     if (af) {
@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
             AgentState *a = &state->agents[i];
             if (!a->alive) continue;
             float wr = (a->wins + a->losses > 0) ? (float)a->wins / (a->wins + a->losses) : 0.0f;
-            float sharpe = (a->wins + a->losses > 2) ? 
+            float sharpe = (a->wins + a->losses > 2) ?
                 (wr - 0.5f) * sqrtf(a->wins + a->losses) : 0.0f;
             fprintf(af, "    {\"id\":%d,\"arch\":\"%s\",\"capital\":%.4f,\"trades\":%d,\"wr\":%.4f,\"pnl\":%.4f,\"sharpe\":%.2f}%s\n",
                     i, ARCHETYPE_NAMES[a->genome.archetype], a->capital,
@@ -359,7 +359,7 @@ int main(int argc, char **argv) {
         fprintf(af, "  }\n}\n");
         fclose(af);
     }
-    
+
     // ── Summary ──
     int final_alive = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
@@ -374,7 +374,7 @@ int main(int argc, char **argv) {
     printf("Fees collected:  taker %.1f%% + slippage %.1fbps\n", TAKER_FEE * 100, SLIPPAGE_BPS);
     printf("All agents use per-genome learning rates (0.001-0.1)\n");
     printf("\nOutput:\n  Log:   %s\n  Agents: %s\n", log_path, agents_path);
-    
+
     free(state);
     return 0;
 }
@@ -385,26 +385,26 @@ int main(int argc, char **argv) {
 
 static void sgd_update(AgentState *agent, const FeatureVector *fv, bool won, float lr) {
     Genome *g = &agent->genome;
-    
+
     // Compute signal: weighted sum of features + bias
     double signal = g->bias;
     for (int f = 0; f < N_FEATURES; f++) {
         signal += g->feat_weight[f] * ((float*)fv)[f];
     }
     signal = clampf(signal, -10.0f, 10.0f);
-    
+
     // Sigmoid activation (predicted probability of "up")
     float pred = 1.0f / (1.0f + expf((float)-signal));
-    
+
     // Target: 1.0 for win, 0.0 for loss
     float target = won ? 1.0f : 0.0f;
-    
+
     // Gradient of binary cross-entropy loss w.r.t. signal
     float grad = (pred - target);  // dL/dz
-    
+
     // Update bias
     g->bias -= lr * grad * 0.01f;
-    
+
     // Update feature weights
     for (int f = 0; f < N_FEATURES; f++) {
         float feat_val = ((float*)fv)[f];
@@ -435,26 +435,26 @@ static void darwin_evolve(AgentState *agents) {
     AgentState sorted[MAX_AGENTS];
     memcpy(sorted, agents, sizeof(sorted));
     qsort(sorted, MAX_AGENTS, sizeof(AgentState), sort_by_fitness);
-    
+
     // Count actually alive sorted agents
     int sorted_alive = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (sorted[i].alive) sorted_alive++;
     }
     if (sorted_alive < 10) return;
-    
+
     int n_cull = sorted_alive / 10;       // Bottom 10%
     int n_clone = sorted_alive / 10;       // Top 10%
     if (n_cull < 1) n_cull = 1;
     if (n_clone < 1) n_clone = 1;
-    
+
     // Cull bottom 10% by setting capital=0 (DOESN'T depend on capital threshold)
     for (int i = 0; i < n_cull; i++) {
         int idx = sorted_alive - 1 - i;  // From end of alive list
         sorted[idx].capital = 0;
         sorted[idx].total_pnl = -999.0f; // Ensures they stay at bottom next epoch
     }
-    
+
     // Find the culled indexes in the original agents array and track dead slots
     int dead_slots[MAX_AGENTS];
     int n_dead = 0;
@@ -464,16 +464,16 @@ static void darwin_evolve(AgentState *agents) {
         }
     }
     if (n_dead < 1) return;
-    
+
     // Clone top agents (indexed through sorted) into dead slots
     int cloned = 0;
     for (int d = 0; d < n_dead && cloned < n_clone; d++) {
         int slot = dead_slots[d];
         int parent_idx = d % n_clone;  // Cycle through top agents
-        
+
         // Copy the top agent's state (including genome, feat_weight, etc.)
         memcpy(&agents[slot], &sorted[parent_idx], sizeof(AgentState));
-        
+
         // Offspring gets half the parent's capital (not zero)
         agents[slot].capital = sorted[parent_idx].capital * 0.3f;
         agents[slot].starting_capital = agents[slot].capital;
@@ -483,7 +483,7 @@ static void darwin_evolve(AgentState *agents) {
         agents[slot].wins = 0;
         agents[slot].losses = 0;
         agents[slot].win_rate_ema = 0.5f;
-        
+
         // Mutate genome params
         Genome *g = &agents[slot].genome;
         g->position_size *= 0.8f + frand() * 0.4f;
@@ -494,7 +494,7 @@ static void darwin_evolve(AgentState *agents) {
         g->conviction_threshold = clampf(g->conviction_threshold, 0.08f, 0.80f);
         g->risk_tolerance = clampf(g->risk_tolerance, 0.05f, 1.0f);
         g->time_horizon = clampf(g->time_horizon, 0.1f, 10.0f);
-        
+
         // Mutate feat_weight
         for (int f = 0; f < N_FEATURES; f++) {
             g->feat_weight[f] += frand_signed() * 0.05f;
@@ -503,7 +503,7 @@ static void darwin_evolve(AgentState *agents) {
         g->bias += frand_signed() * 0.02f;
         g->bias = clampf(g->bias, -1.0f, 1.0f);
         g->learning_rate = clampf(g->learning_rate + frand_signed() * 0.005f, 0.001f, 0.1f);
-        
+
         cloned++;
     }
 }
@@ -516,7 +516,7 @@ static void world_advance(RoomState *state, float *price_hist, int *hist_len, in
     float trend = state->sim.world_trend;
     float vol = state->sim.world_volatility;
     float liq = state->sim.world_liquidity;
-    
+
     switch (state->sim.curriculum_phase) {
         case CURR_NOISE:
             trend = 0.0f;
@@ -562,18 +562,18 @@ static void world_advance(RoomState *state, float *price_hist, int *hist_len, in
             state->sim.world_regime_remain -= 1.0f;
             break;
     }
-    
+
     state->sim.world_trend = trend;
     state->sim.world_volatility = vol;
     state->sim.world_liquidity = clampf(liq + frand_signed() * 0.05f, 0.2f, 1.0f);
-    
+
     float prev_price = (*hist_len > 0) ? price_hist[(*hist_idx - 1 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN] : 100.0f;
     float ret = trend * 0.01f + vol * 0.03f * frand_signed();
     if (frand() < 0.01f) ret += frand_signed() * vol * 0.15f;
     float new_price = prev_price * (1.0f + ret);
     if (new_price < 50.0f) new_price = 50.0f;
     if (new_price > 500.0f) new_price = 500.0f;
-    
+
     state->current_market.close = new_price;
     state->current_market.open = prev_price;
     state->current_market.high = fmaxf(prev_price, new_price) * (1.0f + vol * 0.2f * frand());
@@ -581,7 +581,7 @@ static void world_advance(RoomState *state, float *price_hist, int *hist_len, in
     state->current_market.volume = 1000.0f * (1.0f + frand_signed() * liq);
     state->current_market.vix = 15.0f + vol * 60.0f;
     state->current_market.btc_30d_volatility = vol;
-    
+
     price_hist[*hist_idx] = new_price;
     *hist_idx = (*hist_idx + 1) % PRICE_HISTORY_LEN;
     if (*hist_len < PRICE_HISTORY_LEN) (*hist_len)++;
@@ -589,19 +589,19 @@ static void world_advance(RoomState *state, float *price_hist, int *hist_len, in
 
 static void world_generate_features(const RoomState *state, const float *price_hist, int hist_len, int hist_idx, FeatureVector *fv) {
     if (hist_len < 2) return;
-    
+
     // v3.0: Compute features from EXISTING price history (hist_len BEFORE current tick)
     // Get the TWO most recent prices in the history (which are t-1 and t-2)
     float curr = price_hist[(hist_idx - 1 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN];
     float prev = price_hist[(hist_idx - 2 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN];
-    
+
     // ── Base features (all from existing history, no lookahead) ──
     fv->price_delta_pct = (curr - prev) / prev * 100.0f;  // Last known change
-    fv->micro_momentum = (hist_len >= 3) ? 
+    fv->micro_momentum = (hist_len >= 3) ?
         (curr / price_hist[(hist_idx - 3 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN] - 1.0f) * 100.0f : 0.0f;
     fv->regime_indicator = (float)state->sim.curriculum_phase;
     fv->risk_on_score = state->sim.world_liquidity;
-    
+
     // ── RSI(7) from price history ──
     if (hist_len >= 8) {
         float gains = 0, losses = 0;
@@ -618,7 +618,7 @@ static void world_generate_features(const RoomState *state, const float *price_h
     } else {
         fv->rsi_7 = 50.0f;
     }
-    
+
     // ── EMA fast(3), slow(8), MACD ──
     if (hist_len >= 3) {
         float ema3 = 0, ema8 = 0;
@@ -637,7 +637,7 @@ static void world_generate_features(const RoomState *state, const float *price_h
         fv->ema_slow = ema8 / 100.0f;
         fv->macd_hist = (ema3 - ema8) / prev * 100.0f;  // MACD as % of price
     }
-    
+
     // ── Bollinger %b ──
     if (hist_len >= 20) {
         float mean = 0, sum_sq = 0;
@@ -660,13 +660,13 @@ static void world_generate_features(const RoomState *state, const float *price_h
     } else {
         fv->bollinger_pct = 0.5f;
     }
-    
+
     // ── Volume proxy from world liquidity ──
     fv->volume_surge_ratio = state->sim.world_liquidity;
-    
+
     // ── Divergence: bull/bear based on world trend ──
     fv->divergence_score = clampf(state->sim.world_trend, -1.0f, 1.0f);
-    
+
     // ── Features that need price history lookback ──
     if (hist_len >= 5) {
         float p5 = price_hist[(hist_idx - 5 + PRICE_HISTORY_LEN) % PRICE_HISTORY_LEN];
@@ -674,11 +674,11 @@ static void world_generate_features(const RoomState *state, const float *price_h
     } else {
         fv->pump_score = 0.0f;
     }
-    
+
     // ── Consensus proxy: estimate from world volatility ──
     // In high vol, agents tend to disagree more
     fv->herd_consensus = 0.6f - state->sim.world_volatility * 0.3f;
-    
+
     // ── GAAD φ-interval features (synthetic from price history) ──
     if (hist_len >= 10) {
         // φ^1 (~1.6 ticks), φ^2 (~2.6), φ^3 (~4.2)
@@ -702,7 +702,7 @@ static void world_generate_features(const RoomState *state, const float *price_h
         fv->phi_vol = clampf(fv->phi_vol, 0.0f, 1.0f);
         fv->phi_momentum = clampf(fv->phi_momentum, -2.0f, 2.0f);
     }
-    
+
     // ── DFT dominant frequency (simple FFT proxy from recent returns) ──
     if (hist_len >= 5) {
         float freq_power = 0;
@@ -713,7 +713,7 @@ static void world_generate_features(const RoomState *state, const float *price_h
         }
         fv->dft_dominant = clampf(freq_power / (prev * 0.05f), 0.0f, 1.0f);
     }
-    
+
     // ── Tail risk from realized volatility clustering ──
     if (hist_len >= 10) {
         float recent_vol = 0, older_vol = 0;
@@ -734,10 +734,10 @@ static void world_generate_features(const RoomState *state, const float *price_h
     } else {
         fv->tail_risk_score = clampf(state->sim.world_volatility * 3.0f, 0.0f, 1.0f);
     }
-    
+
     // ── Cross-asset features (from price history divergence) ──
     // In a simulation, cross-asset divergence is derived from recent price volatility
-    fv->cross_asset_div = (hist_len >= 10) ? 
+    fv->cross_asset_div = (hist_len >= 10) ?
         clampf((price_hist[(hist_idx-1+PRICE_HISTORY_LEN)%PRICE_HISTORY_LEN] /
                 price_hist[(hist_idx-5+PRICE_HISTORY_LEN)%PRICE_HISTORY_LEN] - 1.0f) * 2.0f, -1.0f, 1.0f) : 0.0f;
     fv->macro_momentum = fv->micro_momentum * 0.1f;
@@ -873,10 +873,10 @@ static void init_archetype_population(AgentState *agents, int archetype, int cou
         a->starting_capital = 1.0f;
         a->peak_capital = 1.0f;
         a->win_rate_ema = 0.5f;
-        
+
         Genome *g = &a->genome;
         g->archetype = archetype;
-        
+
         switch (archetype) {
             case ARCH_TRADER:
                 g->position_size = 0.05f + frand() * 0.15f;
@@ -919,7 +919,7 @@ static void init_archetype_population(AgentState *agents, int archetype, int cou
                 g->time_horizon = 0.1f + frand() * 10.0f;
                 break;
         }
-        
+
         // Initialize feat_weight with small random values (all 80 features)
         for (int f = 0; f < N_FEATURES; f++) {
             g->feat_weight[f] = frand_signed() * 0.05f;
@@ -932,15 +932,15 @@ static void init_archetype_population(AgentState *agents, int archetype, int cou
 static void archetype_vote(AgentState *agent, const FeatureVector *fv, const RoomState *state, VoteRecord *vote) {
     Genome *g = &agent->genome;
     (void)state;
-    
+
     // Compute signal from ALL N_FEATURES features
     double signal = g->bias;
     for (int f = 0; f < N_FEATURES; f++) {
         signal += g->feat_weight[f] * ((float*)fv)[f];
     }
-    
+
     float sigmoid = 1.0f / (1.0f + expf(-clampf(signal, -10.0f, 10.0f)));
-    
+
     switch (g->archetype) {
         case ARCH_TRADER: {
             vote->direction = sigmoid > 0.5f;
@@ -1015,7 +1015,7 @@ static void write_training_snapshot(const RoomState *state, int cycle, FILE *log
     }
     float wr = (total_wins + total_losses > 0) ? (float)total_wins / (total_wins + total_losses) : 0.5f;
     float sharpe = (wr - 0.5f) * 4.0f;  // Simple Sharpe approximation
-    
+
     fprintf(log, "%d,%d,%.4f,%.4f,%.4f,%.2f,%d,%d,%d,%d,%d,%.4f,%.4f,%.4f,%.4f,%d,%d,%d\n",
             cycle, state->sim.curriculum_phase,
             state->sim.world_trend, state->sim.world_volatility, state->sim.world_liquidity,

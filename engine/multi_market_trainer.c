@@ -1,8 +1,8 @@
 /**
  * multi_market_trainer.c — Train agent populations across ALL market types
- * 
+ *
  * Self-contained: loads CSV/DB data, trains agents, outputs genomes.
- * 
+ *
  * Compile:
  *   gcc -O3 -o multi_market_trainer multi_market_trainer.c -lsqlite3 -ljansson -lm -I.
  * Usage:
@@ -391,32 +391,32 @@ static int load_all(MarketDataSet *ds) {
 static int load_sports_json(MarketData *md) {
     char path[512];
     snprintf(path, sizeof(path), "%s/multi_market/sports_data.json", OUT_DIR);
-    
+
     json_error_t err;
     json_t *root = json_load_file(path, 0, &err);
     if (!root || !json_is_array(root)) {
         fprintf(stderr, "[DATA] Cannot load sports: %s (%s)\n", path, err.text);
         return -1;
     }
-    
+
     int n = (int)json_array_size(root);
     int loaded = 0;
-    
+
     for (int i = 0; i < n; i++) {
         json_t *ev = json_array_get(root, i);
         if (!ev) continue;
-        
+
         json_t *jfeats = json_object_get(ev, "features");
         json_t *joutcome = json_object_get(ev, "outcome");
         json_t *jts = json_object_get(ev, "timestamp");
         json_t *jleague = json_object_get(ev, "league");
-        
+
         if (!jfeats || !joutcome || !jts || !json_is_array(jfeats)) continue;
-        
+
         double outcome = json_number_value(joutcome);
         int64_t ts = json_integer_value(jts);
         const char *league = jleague ? json_string_value(jleague) : "sports";
-        
+
         // Pack features into OHLCV fields
         double f[N_FEATURES];
         for (int f_idx = 0; f_idx < N_FEATURES; f_idx++) {
@@ -425,11 +425,11 @@ static int load_sports_json(MarketData *md) {
             else
                 f[f_idx] = 0.5;
         }
-        
+
         // Store full feature vector for training
         if (md_add_full(md, ts, f, outcome) == 0) loaded++;
     }
-    
+
     json_decref(root);
     fprintf(stderr, "[DATA] Sports: %d games\n", loaded);
     return loaded;
@@ -439,40 +439,40 @@ static int load_sports_json(MarketData *md) {
 static int load_weather_json(MarketData *md) {
     char path[512];
     snprintf(path, sizeof(path), "%s/multi_market/weather_data.json", OUT_DIR);
-    
+
     json_error_t err;
     json_t *root = json_load_file(path, 0, &err);
     if (!root || !json_is_array(root)) {
         fprintf(stderr, "[DATA] Cannot load weather: %s (%s)\n", path, err.text);
         return -1;
     }
-    
+
     int n = (int)json_array_size(root);
     int loaded = 0;
-    
+
     for (int i = 0; i < n; i++) {
         json_t *ev = json_array_get(root, i);
         if (!ev) continue;
-        
+
         json_t *jfeats = json_object_get(ev, "features");
         json_t *joutcome = json_object_get(ev, "outcome");
         json_t *jts = json_object_get(ev, "timestamp");
         const char *city = json_string_value(json_object_get(ev, "city"));
-        
+
         if (!jfeats || !joutcome || !jts || !json_is_array(jfeats) || !city) continue;
-        
+
         double outcome = json_number_value(joutcome);
         int64_t ts = json_integer_value(jts);
-        
+
         // Pack features into OHLCV fields
         double f[N_FEATURES] = {0};
         for (int f_idx = 0; f_idx < N_FEATURES && f_idx < (int)json_array_size(jfeats); f_idx++)
             f[f_idx] = json_number_value(json_array_get(jfeats, f_idx));
-        
+
         // Store full feature vector for training
         if (md_add_full(md, ts, f, outcome) == 0) loaded++;
     }
-    
+
     json_decref(root);
     fprintf(stderr, "[DATA] Weather: %d entries\n", loaded);
     return loaded;
@@ -485,39 +485,39 @@ static int load_prediction_market(MarketData *md) {
         fprintf(stderr, "[DATA] Cannot open %s\n", PM_DB);
         return -1;
     }
-    
+
     sqlite3_stmt *stmt = NULL;
     const char *sql = "SELECT timestamp, outcome, volume, feat_0,feat_1,feat_2,feat_3,feat_4,"
                        "feat_5,feat_6,feat_7,feat_8,feat_9,feat_10,feat_11,feat_12,"
                        "feat_13,feat_14,feat_15,feat_16,feat_17,feat_18,feat_19 "
                        "FROM polymarket_events WHERE outcome IS NOT NULL";
-    
+
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         sqlite3_close(db); return -1;
     }
-    
+
     int loaded = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int64_t ts = sqlite3_column_int64(stmt, 0);
         double outcome = sqlite3_column_double(stmt, 1);
         double volume = sqlite3_column_double(stmt, 2);
-        
+
         double f0 = sqlite3_column_double(stmt, 3);
         double f1 = sqlite3_column_double(stmt, 4);
         double f2 = sqlite3_column_double(stmt, 5);
         double f3 = sqlite3_column_double(stmt, 6);
         double f4 = sqlite3_column_double(stmt, 7);
         double f5 = sqlite3_column_double(stmt, 8);
-        
+
         // Build full feature array
         double feats[N_FEATURES];
         memset(feats, 0, sizeof(feats));
         feats[0] = f0; feats[1] = f1; feats[2] = f2;
         feats[3] = f3; feats[4] = f4; feats[5] = f5;
-        
+
         if (md_add_full(md, ts, feats, outcome) == 0) loaded++;
     }
-    
+
     sqlite3_finalize(stmt);
     sqlite3_close(db);
     fprintf(stderr, "[DATA] Polymarket: %d events\n", loaded);
@@ -527,28 +527,28 @@ static int load_prediction_market(MarketData *md) {
 // Load ALL binary markets (sports, weather, prediction)
 static int load_binary_markets(MarketDataSet *ds) {
     int total = 0;
-    
+
     // Sports
     if (ds->n_markets < MAX_MARKETS) {
         MarketData *s = &ds->markets[ds->n_markets];
         md_init(s, MARKET_SPORTS, "SPORTS", "GAMES");
         if (load_sports_json(s) > 0) { ds->n_markets++; total++; }
     }
-    
+
     // Weather
     if (ds->n_markets < MAX_MARKETS) {
         MarketData *w = &ds->markets[ds->n_markets];
         md_init(w, MARKET_WEATHER, "WEATHER", "WX");
         if (load_weather_json(w) > 0) { ds->n_markets++; total++; }
     }
-    
+
     // Prediction market
     if (ds->n_markets < MAX_MARKETS) {
         MarketData *pm = &ds->markets[ds->n_markets];
         md_init(pm, MARKET_PREDICTION, "PMARKET", "PM");
         if (load_prediction_market(pm) > 0) { ds->n_markets++; total++; }
     }
-    
+
     return total;
 }
 
@@ -586,7 +586,7 @@ static void to_tick(const MarketData *md, int idx, MarketTick *tick) {
 static void build_features(const MarketData *md, int idx, float *feats) {
     for (int i = 0; i < N_FEATURES; i++) feats[i] = 0.5f;
     if (idx < 10) return;
-    
+
     // F0: Price position in 20-period range
     double hi = -1e9, lo = 1e9;
     int s = idx - 20; if (s < 0) s = 0;
@@ -595,7 +595,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
         if (md->lows[i] < lo) lo = md->lows[i];
     }
     feats[0] = (hi - lo) > 0 ? (float)((md->closes[idx] - lo) / (hi - lo)) : 0.5f;
-    
+
     // F1-F3: Returns
     if (idx > 0 && md->closes[idx-1] > 0)
         feats[1] = (float)((md->closes[idx] - md->closes[idx-1]) / md->closes[idx-1] * 100.0);
@@ -603,7 +603,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
         feats[2] = (float)((md->closes[idx] - md->closes[idx-5]) / md->closes[idx-5] * 100.0);
     if (idx >= 20 && md->closes[idx-20] > 0)
         feats[3] = (float)((md->closes[idx] - md->closes[idx-20]) / md->closes[idx-20] * 100.0);
-    
+
     // F4: Volume ratio (20-period avg)
     double vs = 0; int vc = 0;
     int vs2 = idx - 20; if (vs2 < 0) vs2 = 0;
@@ -611,7 +611,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
     double av = vc > 0 ? vs / vc : 0;
     feats[4] = av > 0 ? (float)(md->volumes[idx] / av) : 1.0f;
     if (feats[4] > 5.0f) feats[4] = 5.0f; feats[4] /= 5.0f;
-    
+
     // F5: Volatility (10-period ATR / price)
     double atr = 0; int ac = 0;
     for (int i = idx - 10; i < idx; i++) {
@@ -620,7 +620,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
     atr = ac > 0 ? atr / ac : 0;
     feats[5] = md->closes[idx] > 0 ? (float)(atr / md->closes[idx] * 100.0) : 0;
     if (feats[5] > 10.0f) feats[5] = 10.0f; feats[5] /= 10.0f;
-    
+
     // F6: RSI-like (14 period)
     if (idx >= 14) {
         double gains = 0, losses = 0;
@@ -631,7 +631,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
         double ag = gains / 14.0, al = losses / 14.0;
         feats[6] = al > 0 ? (float)(100.0 - 100.0 / (1.0 + ag / al)) / 100.0f : 1.0f;
     }
-    
+
     // F7: EMA crossover
     if (idx >= 8) {
         double ef = md->closes[idx-7], es = md->closes[idx-7];
@@ -645,7 +645,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
         if (feats[7] < -1.0f) feats[7] = -1.0f;
         feats[7] = (feats[7] + 1.0f) / 2.0f;
     }
-    
+
     // F8: Bollinger %B
     if (idx >= 20) {
         double sum = 0, sq = 0;
@@ -653,10 +653,10 @@ static void build_features(const MarketData *md, int idx, float *feats) {
         double mn = sum / 20.0, sd = sqrt(fmax(0, sq / 20.0 - mn * mn));
         if (sd > 0) { feats[8] = (float)((md->closes[idx] - (mn - 2.0 * sd)) / (4.0 * sd)); if (feats[8] < 0) feats[8] = 0; if (feats[8] > 1) feats[8] = 1; }
     }
-    
+
     // F9: Normalized volatility
     feats[9] = feats[5];  // Reuse ATR-based vol
-    
+
     // F10-F16: Market type indicator (one-hot)
     feats[10] = md->type == MARKET_CRYPTO ? 1.0f : 0.0f;
     feats[11] = md->type == MARKET_EQUITY ? 1.0f : 0.0f;
@@ -665,7 +665,7 @@ static void build_features(const MarketData *md, int idx, float *feats) {
     feats[14] = md->type == MARKET_BOND ? 1.0f : 0.0f;
     feats[15] = md->type == MARKET_VOLATILITY ? 1.0f : 0.0f;
     feats[16] = md->type == MARKET_PREDICTION ? 1.0f : 0.0f;
-    
+
     // F17: Normalized fear-greed
     feats[17] = feats[1] > 0 ? 0.5f + feats[1] * 0.05f : 0.5f + feats[1] * 0.05f;
     if (feats[17] < 0) feats[17] = 0; if (feats[17] > 1) feats[17] = 1;
@@ -690,12 +690,12 @@ static void init_agent(AgentState *a, MarketType market_type) {
     a->genome.mean_reversion_bias = -1.0f + (float)rand() / RAND_MAX * 2.0f;
     a->genome.bias = ((float)rand() / RAND_MAX - 0.5f) * 0.3f;
     a->genome.learning_rate = 0.005f + (float)rand() / RAND_MAX * 0.015f;
-    
+
     // ── Market-type-specific feat_weight priors ──
     // Base random weights
     for (int w = 0; w < N_FEATURES; w++)
         a->genome.feat_weight[w] = ((float)rand() / RAND_MAX - 0.5f) * 2.0f;
-    
+
     // Apply market-specific bias to feat_weights
     switch (market_type) {
         case MARKET_CRYPTO:
@@ -753,7 +753,7 @@ static void init_agent(AgentState *a, MarketType market_type) {
         default:
             break;
     }
-    
+
     for (int r = 0; r < N_REGS; r++) {
         for (int w = 0; w < N_FEATURES; w++)
             a->genome.regime_weight[r][w] = a->genome.feat_weight[w] + ((float)rand() / RAND_MAX - 0.5f) * 0.5f;
@@ -858,14 +858,14 @@ static int train_market(MarketPop *pop, const MarketData *md) {
     int train_end = max_idx * 70 / 100;
     int start = train_end > 200 ? rand() % (train_end - 100) : 20;
     int cycles = train_end - start; if (cycles < 50) cycles = 50; if (cycles > 200) cycles = 200;
-    
+
     // Detect binary outcome market
-    int is_binary = (md->type == MARKET_SPORTS || md->type == MARKET_WEATHER || 
+    int is_binary = (md->type == MARKET_SPORTS || md->type == MARKET_WEATHER ||
                      md->type == MARKET_PREDICTION || md->type == MARKET_ELECTION);
-    
+
     int *tcount = calloc(n, sizeof(int));
     int *wcount = calloc(n, sizeof(int));
-    
+
     // Reset agent stats for this epoch (tcount/wcount track per-epoch)
     for (int i = 0; i < n; i++) {
         if (pop->agents[i].alive) {
@@ -875,11 +875,11 @@ static int train_market(MarketPop *pop, const MarketData *md) {
             pop->agents[i].total_pnl = 0.0f;
         }
     }
-    
+
     for (int c = 0; c < cycles; c++) {
         int idx = start + c;
         if (idx >= max_idx) break;
-        
+
         // Build features differently for binary vs OHLCV markets
         float feats[N_FEATURES];
         if (is_binary) {
@@ -897,12 +897,12 @@ static int train_market(MarketPop *pop, const MarketData *md) {
         } else {
             build_features(md, idx, feats);
         }
-        
+
         for (int i = 0; i < n; i++) {
             if (!pop->agents[i].alive) continue;
             bool dir; float conv;
             if (!agent_vote(&pop->agents[i], feats, &dir, &conv)) continue;
-            
+
             // Resolve direction vs outcome
             bool won;
             if (is_binary) {
@@ -914,10 +914,10 @@ static int train_market(MarketPop *pop, const MarketData *md) {
                 bool was_up = md->closes[idx] >= md->opens[idx];
                 won = (dir == was_up);
             }
-            
+
             float pos = pop->agents[i].genome.position_size * pop->agents[i].capital;
             float pnl = won ? pos * 0.01f : -pos * 0.01f;
-            
+
             // ── SGD weight update from BCE loss ──
             // loss = -(y*log(p) + (1-y)*log(1-p))
             // d(loss)/dw = (p - y) * (feat - 0.5)
@@ -932,7 +932,7 @@ static int train_market(MarketPop *pop, const MarketData *md) {
             for (int w = 0; w < N_FEATURES; w++)
                 pop->agents[i].genome.feat_weight[w] -= lr * err * (feats[w] - 0.5f);
             pop->agents[i].genome.bias -= lr * err;
-            
+
             tcount[i]++; if (won) wcount[i]++;
             pop->agents[i].capital += pnl;
             pop->agents[i].trades++;
@@ -942,7 +942,7 @@ static int train_market(MarketPop *pop, const MarketData *md) {
         }
         pop->n_cycles++;
     }
-    
+
     int total_t = 0, total_w = 0;
     float wr_sum = 0; int alive = 0;
     float best_pnl = -1e9f;
@@ -955,7 +955,7 @@ static int train_market(MarketPop *pop, const MarketData *md) {
     pop->best_pnl = best_pnl;
     pop->best_wr = total_t > 0 ? (float)total_w / total_t : 0.5f;
     pop->avg_wr = alive > 0 ? wr_sum / alive : 0.5f;
-    
+
     free(tcount); free(wcount);
     return total_t;
 }
@@ -973,7 +973,7 @@ static void evolve(MarketPop *pop) {
     for (int i = 0; i < n - 1; i++)
         for (int j = i + 1; j < n; j++)
             if (fits[j].fit > fits[i].fit) { Fit t = fits[i]; fits[i] = fits[j]; fits[j] = t; }
-    
+
     int elite = n * 10 / 100;
     int mutate = n * 30 / 100;
     AgentState *new_a = malloc(n * sizeof(AgentState));
@@ -983,7 +983,7 @@ static void evolve(MarketPop *pop) {
         memcpy(&new_a[ei], &pop->agents[src_idx], sizeof(AgentState));
     }
     int ni = elite;
-    
+
     srand(time(NULL) ^ (int)(pop->generation * 12345));
     for (int i = 0; i < mutate && ni < n; i++) {
         int p = rand() % elite;
@@ -1177,10 +1177,10 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
     MarketPop *pops = malloc(ds->n_markets * sizeof(MarketPop));
     for (int m = 0; m < ds->n_markets; m++)
         init_pop(&pops[m], ds->markets[m].type, ds->markets[m].name, n_agents);
-    
+
     printf("\n═══ MULTI-MARKET TRAINING ═══\n");
     printf("Markets: %d  Agents/market: %d  Epochs: %d\n\n", ds->n_markets, n_agents, epochs);
-    
+
     for (int e = 0; e < epochs; e++) {
         printf("─── Epoch %d/%d ───\n", e + 1, epochs);
         int total = 0;
@@ -1195,11 +1195,11 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
         for (int m = 0; m < ds->n_markets; m++) evolve(&pops[m]);
         printf("  Total: %d trades\n\n", total);
     }
-    
+
     // Output
     printf("═══ RESULTS ═══\n\n");
     mkdir(OUT_DIR, 0755);
-    
+
     // Write JSON
     FILE *out = fopen(GENOME_OUT, "w");
     if (out) {
@@ -1212,7 +1212,7 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
                 fit *= sqrtf((float)(pops[m].agents[i].trades + 1));
                 if (fit > bf) { bf = fit; bi = i; }
             }
-            fprintf(out, "    {\"market\":\"%s\",\"type\":\"%s\",\"wr\":%.3f,\"trades\":%d,\"wins\":%d,\"pnl\":%.2f,\"pos\":%.4f,\"bias\":%.4f}", 
+            fprintf(out, "    {\"market\":\"%s\",\"type\":\"%s\",\"wr\":%.3f,\"trades\":%d,\"wins\":%d,\"pnl\":%.2f,\"pos\":%.4f,\"bias\":%.4f}",
                     pops[m].name, MARKET_TYPE_NAMES[pops[m].market_type],
                     pops[m].agents[bi].trades > 0 ? (float)pops[m].agents[bi].wins / pops[m].agents[bi].trades : 0,
                     pops[m].agents[bi].trades, pops[m].agents[bi].wins,
@@ -1220,7 +1220,7 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
                     pops[m].agents[bi].genome.position_size,
                     pops[m].agents[bi].genome.bias);
             fprintf(out, "%s\n", (m < ds->n_markets - 1) ? "," : "");
-            
+
             printf("  [%s] %-8s Best: WR=%.1f%% (%d/%d) PnL=$%.2f\n",
                    MARKET_TYPE_NAMES[pops[m].market_type], pops[m].name,
                    pops[m].agents[bi].trades > 0 ? (float)pops[m].agents[bi].wins / pops[m].agents[bi].trades * 100 : 0,
@@ -1255,7 +1255,7 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
         printf("\n[TRAIN] Genomes: %s\n", GENOME_OUT);
         printf("[TRAIN] Summary: %s\n", SUMMARY_OUT);
     }
-    
+
     // Write binary genomes per market
     char dpath[512]; snprintf(dpath, sizeof(dpath), "%s/multi_market", OUT_DIR); mkdir(dpath, 0755);
     for (int m = 0; m < ds->n_markets; m++) {
@@ -1268,15 +1268,15 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
         char path[512];
         snprintf(path, sizeof(path), "%s/multi_market/%s.bin", OUT_DIR, pops[m].name);
         FILE *bfp = fopen(path, "wb");
-        if (bfp) { 
+        if (bfp) {
             fwrite(&pops[m].agents[bi].genome, sizeof(Genome), 1, bfp);
             int mtype = (int)pops[m].market_type;
             fwrite(&mtype, sizeof(int), 1, bfp);
-            fclose(bfp); 
+            fclose(bfp);
         }
     }
     printf("[TRAIN] Binary genomes: %s/multi_market/*.bin\n", OUT_DIR);
-    
+
     for (int m = 0; m < ds->n_markets; m++) free(pops[m].agents);
     free(pops);
     return ds->n_markets;
@@ -1301,21 +1301,21 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
-    
+
     srand(time(NULL));
     printf("[TRAIN] Multi-Market Trainer v2\n[%s] Agents: %d  Epochs: %d\n", __DATE__, n_agents, epochs);
-    
+
     MarketDataSet ds;
     int n = load_all(&ds);
     if (n == 0) { fprintf(stderr, "[TRAIN] No markets loaded!\n"); return 1; }
     print_summary(&ds);
-    
+
     if (!validate_only) {
         int r = train_all(&ds, n_agents, epochs);
         printf("[TRAIN] Done. %d markets trained.\n", r);
         if (r <= 0) { free_md(&ds); return 1; }
     }
-    
+
     if (do_validate) {
         printf("\n═══ WALK-FORWARD VALIDATION ═══\n");
         printf("Validating %d markets...\n\n", ds.n_markets);
@@ -1334,7 +1334,7 @@ int main(int argc, char **argv) {
             printf("  Avg OOS WR:        %.1f%%\n", total_oos / vcount * 100);
         }
     }
-    
+
     free_md(&ds);
     return 0;
 }

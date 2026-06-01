@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     } else {
         start_ts = find_latest(db);
         if (start_ts > 0)
-            printf("[KRAKEN_BACKFILL] Resuming from %ld (%s)", 
+            printf("[KRAKEN_BACKFILL] Resuming from %ld (%s)",
                    (long)start_ts, ctime(&start_ts));
     }
     if (start_ts == 0) {
@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
         }
 
         printf("\r  [%3d%%] ts=%ld (%d candles, %d remaining, %d requests)",
-               pct, (long)since, inserted, 
+               pct, (long)since, inserted,
                (int)((now - since) / 60), total_requests);
         fflush(stdout);
 

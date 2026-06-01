@@ -73,24 +73,24 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "smooth") == 0) smooth = 1;
         else path = argv[i];
     }
-    
+
     FILE *f = fopen(path, "r");
     if (!f) { fprintf(stderr, "Error: cannot open %s\n", path); return 1; }
-    
+
     double *buf = malloc(sizeof(double) * WINDOW);
     int bidx = 0, bcnt = 0;
-    
+
     RegimeData reg[3] = {0};
     long long total = 0, valid = 0, hdr = 0, fail = 0;
     char line[MAX_LINE];
     if (!fgets(line, sizeof(line), f)) { fclose(f); return 1; }
-    
+
     long long first_ts = 0;
-    
+
     while (fgets(line, sizeof(line), f) && total < MAX_ROWS) {
         total++;
         if (is_header(line)) { hdr++; continue; }
-        
+
         long long ts;
         int votes, active, trades;
         double wr, sharpe, dd, consensus, pnl, room_wr, cap;
@@ -100,12 +100,12 @@ int main(int argc, char **argv) {
         }
         if (first_ts == 0) first_ts = ts;
         valid++;
-        
+
         /* Compute rolling volatility from rets */
         buf[bidx] = pnl; /* room_pnl_pct */
         bidx = (bidx + 1) % WINDOW;
         if (bcnt < WINDOW) bcnt++;
-        
+
         if (bcnt >= 10) {
             double mean = 0;
             for (int i = 0; i < bcnt; i++) mean += buf[i];
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
                 var += d * d;
             }
             double vol = sqrt(var / bcnt);
-            
+
             /* Regime: low < 0.3σ, high > 1.0σ, else normal */
             int ri = (vol < 0.01) ? 0 : (vol < 0.05 ? 1 : 2);
             /* Adaptive thresholds from data */
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
                 else if (vol > avg * 2.0) ri = 2;
                 else ri = 1;
             }
-            
+
             reg[ri].count++;
             reg[ri].wr_sum += wr;
             reg[ri].sharpe_sum += sharpe;
@@ -141,10 +141,10 @@ int main(int argc, char **argv) {
     }
     fclose(f);
     free(buf);
-    
+
     printf("ECO REGIME — %lld valid from %lld total (hdr=%lld fail=%lld)\n",
            valid, total, hdr, fail);
-    
+
     printf("\n=== REGIME ANALYSIS ===\n");
     printf("REGIME      CYCLES  AVG_WR%%  AVG_VOTES  AVG_SHARPE  AVG_ACTIVE  AVG_CAP    AVG_PNL\n");
     printf("----------- ------  --------  ---------  ----------  ----------  ---------  --------\n");
@@ -161,19 +161,19 @@ int main(int argc, char **argv) {
                regime_names[i], reg[i].count, a_wr, a_vt, a_sh, a_ac, a_cp, a_pn);
         if (a_wr > best_wr) { best_wr = a_wr; best_r = i; }
     }
-    
+
     /* Transition analysis: how many regime switches */
     printf("\n=== REGIME TRANSITIONS ===\n");
     printf("Transitions are between LOW_VOL, NORMAL, HIGH_VOL regimes.\n");
     printf("(computed over %d-cycle rolling vol window)\n", WINDOW);
-    
+
     double total_pct = reg[0].count + reg[1].count + reg[2].count;
     if (total_pct > 0) {
         printf("LOW_VOL:  %.1f%% of cycles\n", reg[0].count / total_pct * 100);
         printf("NORMAL:   %.1f%% of cycles\n", reg[1].count / total_pct * 100);
         printf("HIGH_VOL: %.1f%% of cycles\n", reg[2].count / total_pct * 100);
-        
-        double best_wr_pct = reg[best_r].count > 0 ? 
+
+        double best_wr_pct = reg[best_r].count > 0 ?
             reg[best_r].wr_sum / reg[best_r].count * 100 : 0;
         double worst_wr = 1e9;
         int worst_r = 0;
@@ -193,6 +193,6 @@ int main(int argc, char **argv) {
         else
             printf("  ~ No significant regime effect (spread <2%%)\n");
     }
-    
+
     return 0;
 }

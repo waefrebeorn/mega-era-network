@@ -562,7 +562,7 @@ static double get_puell_multiple(double current_price) {
 
 /* ─── P48: Pi Cycle proxy — short MA / long MA ratio ─── */
 static double get_pi_cycle_ratio(double current_price) {
-    /* 
+    /*
      * Pi Cycle Top = when 111d MA price > 350d MA × 2
      * With only ~85d data, use 30d / 60d MA ratio as proxy
      * Rising ratio = short-term momentum outpacing long-term (bullish)
@@ -1049,17 +1049,17 @@ static int write_feed(void) {
             json_t *of = json_loadf(f, 0, &err);
             fclose(f);
             if (of) {
-                json_object_set_new(feed, "btc_market_cap", 
+                json_object_set_new(feed, "btc_market_cap",
                     json_real(json_number_value(json_object_get(of, "btc_market_cap"))));
-                json_object_set_new(feed, "btc_dominance_pct", 
+                json_object_set_new(feed, "btc_dominance_pct",
                     json_real(json_number_value(json_object_get(of, "btc_dominance_pct"))));
-                json_object_set_new(feed, "btc_dominance_signal", 
+                json_object_set_new(feed, "btc_dominance_signal",
                     json_real(json_number_value(json_object_get(of, "btc_dominance_signal"))));
-                json_object_set_new(feed, "btc_mcap_to_ath", 
+                json_object_set_new(feed, "btc_mcap_to_ath",
                     json_real(json_number_value(json_object_get(of, "btc_mcap_to_ath"))));
-                json_object_set_new(feed, "btc_vol_signal", 
+                json_object_set_new(feed, "btc_vol_signal",
                     json_real(json_number_value(json_object_get(of, "btc_vol_signal"))));
-                json_object_set_new(feed, "btc_price_7d_chg", 
+                json_object_set_new(feed, "btc_price_7d_chg",
                     json_real(json_number_value(json_object_get(of, "btc_price_7d_chg"))));
                 /* P42: Stock-to-flow model — read circ supply, compute S2F ratio */
                 double circ_supply = json_number_value(json_object_get(of, "btc_circulating_supply"));

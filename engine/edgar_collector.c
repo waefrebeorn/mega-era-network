@@ -1,7 +1,7 @@
 /**
  * edgar_collector.c — SEC EDGAR 10-K/13F scraper (T442-T452)
  * Free SEC API (data.sec.gov), no key needed.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o edgar_collector edgar_collector.c -lcurl -lsqlite3 -lm -ljansson
  */
 
@@ -73,21 +73,21 @@ static void ins_filing(sqlite3 *db, int cik, const char *co, const char *form,
 static int fetch_company(sqlite3 *db, const Company *co, MB *b) {
     char url[256]; snprintf(url,sizeof(url),"https://data.sec.gov/submissions/CIK%010d.json",co->cik);
     if(http(url,b)!=0) return -1;
-    
+
     json_t *j=json_loads(b->d,0,0); if(!j) return -1;
     json_t *filings=json_object_get(j,"filings"); if(!filings){json_decref(j);return -1;}
     json_t *recent=json_object_get(filings,"recent"); if(!recent){json_decref(j);return -1;}
-    
+
     json_t *forms=json_object_get(recent,"form");
     json_t *dates=json_object_get(recent,"filingDate");
     json_t *desc=json_object_get(recent,"primaryDocument");
     json_t *accs=json_object_get(recent,"accessionNumber");
-    
+
     if(!json_is_array(forms)||!json_is_array(dates)){json_decref(j);return -1;}
-    
+
     int n=(int)json_array_size(forms), count=0;
     int max= n<100 ? n : 100;
-    
+
     for(int i=0;i<max;i++) {
         const char *form = json_string_value(json_array_get(forms,i));
         const char *date = json_string_value(json_array_get(dates,i));
@@ -114,7 +114,7 @@ static void print_stats(sqlite3 *db) {
         printf("%-25s %-12s %4d %16s\n",sqlite3_column_text(s,0),sqlite3_column_text(s,1),
                sqlite3_column_int(s,2),sqlite3_column_text(s,3));
     sqlite3_finalize(s);
-    
+
     sqlite3_prepare_v2(db,"SELECT COUNT(*) FROM edgar_filings",-1,&s,0);
     if(sqlite3_step(s)==SQLITE_ROW)
         printf("\nTOTAL filings: %d\n",sqlite3_column_int(s,0));
@@ -124,7 +124,7 @@ static void print_stats(sqlite3 *db) {
 int main(int argc, char **argv) {
     sqlite3 *db=odb(); if(!db) return 1;
     if(argc>1&&strcmp(argv[1],"stats")==0){print_stats(db);sqlite3_close(db);return 0;}
-    
+
     curl_global_init(CURL_GLOBAL_DEFAULT);
     MB b={0}; int total=0, ok=0, fail=0;
     for(int i=0;i<N_COMP;i++) {

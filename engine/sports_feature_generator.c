@@ -45,7 +45,7 @@ static json_t *find_team(json_t *arr, const char *name) {
     return NULL;
 }
 
-// Find H2H matchup 
+// Find H2H matchup
 static json_t *find_h2h(json_t *arr, const char *home, const char *away) {
     if (!arr || !json_is_array(arr)) return NULL;
     size_t i;

@@ -150,7 +150,7 @@ static void watcher_main(int paper_pid) {
     char ts_str[64];
     strftime(ts_str, sizeof(ts_str), "%Y%m%d_%H%M%S", tm);
     snprintf(backup_path, sizeof(backup_path), "%s/room_state_paper_%s.bin", LOG_DIR, ts_str);
-    
+
     if (file_exists(STATE_BIN)) {
         char cp_cmd[1024];
         snprintf(cp_cmd, sizeof(cp_cmd), "cp \"%s\" \"%s\"", STATE_BIN, backup_path);
@@ -176,7 +176,7 @@ static void watcher_main(int paper_pid) {
 
 int main(void) {
     time_t start_ts = time(NULL);
-    
+
     // ── PID lock check ──
     FILE *pf = fopen(PIDFILE, "r");
     if (pf) {
@@ -235,17 +235,17 @@ int main(void) {
 
     // ── Step 1: Build paper engine + distiller ──
     printf("\n  [1/4] Building paper engine + distiller...\n");
-    
+
     char cwd[1024];
     getcwd(cwd, sizeof(cwd));
     chdir(ENGINE_DIR);
-    
+
     // make clean + make paper
     char *make_clean[] = {"make", "clean", NULL};
     run_cmd_silent("/usr/bin/make", make_clean, 30);
     char *make_paper[] = {"make", "paper", NULL};
     run_cmd_silent("/usr/bin/make", make_paper, 60);
-    
+
     // Build distiller
     char *gcc_dist[] = {"gcc", "-O2", "-o", "genome_distiller", "genome_distiller.c", "-lm", NULL};
     run_cmd_silent("/usr/bin/gcc", gcc_dist, 30);

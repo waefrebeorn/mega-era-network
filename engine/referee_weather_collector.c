@@ -42,18 +42,18 @@ int main(int argc,char**argv){
     for(int d=0;d<days;d++){
         time_t ts=now-(time_t)d*86400;struct tm*tp=gmtime(&ts);
         char date[16];snprintf(date,sizeof(date),"%04d%02d%02d",tp->tm_year+1900,tp->tm_mon+1,tp->tm_mday);
-        
+
         char url[256];snprintf(url,sizeof(url),"https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=%s",date);
         char*r=get(url);if(!r)continue;
         json_error_t err;json_t*j=json_loads(r,0,&err);free(r);if(!j)continue;
         json_t*ev=json_object_get(j,"events");if(!ev||!json_is_array(ev)){json_decref(j);continue;}
-        
+
         size_t ei;json_t*e;
         json_array_foreach(ev,ei,e){
             json_t*cmp_a=json_object_get(e,"competitions");
             json_t*cmp=(cmp_a&&json_array_size(cmp_a)>0)?json_array_get(cmp_a,0):NULL;
             if(!cmp)continue;
-            
+
             // Referees/officials
             json_t*officials=json_object_get(cmp,"officials");
             const char*ref="";
@@ -61,11 +61,11 @@ int main(int argc,char**argv){
                 json_t*off=json_array_get(officials,0);
                 ref=sstr(off,"displayName");
             }
-            
+
             // Venue for weather lookup
             const char*venue=sstr(json_object_get(cmp,"venue"),"fullName");
             const char*vcity=sstr(json_object_get(cmp,"venue"),"city");
-            
+
             // Weather - some ESPN events have weather data
             json_t*wx=json_object_get(cmp,"weather");
             const char*wx_str="";double temp=0,wind=0;
@@ -74,7 +74,7 @@ int main(int argc,char**argv){
                 temp=json_number_value(json_object_get(wx,"temperature"));
                 wind=json_number_value(json_object_get(wx,"windSpeed"));
             }
-            
+
             const char*game_id=sstr(e,"id");
             json_t*entry=json_pack("{s:s,s:s,s:s,s:s,s:f,s:f,s:s}",
                 "game_id",game_id,"referee",ref,
@@ -82,7 +82,7 @@ int main(int argc,char**argv){
                 "temp_c",temp,"wind_kmh",wind,
                 "city",vcity);
             json_array_append_new(root,entry);
-            
+
             sqlite3_stmt*st;
             if(sqlite3_prepare_v2(db,"INSERT OR REPLACE INTO referee_weather VALUES(?,?,?,?,?,?)",-1,&st,NULL)==SQLITE_OK){
                 sqlite3_bind_text(st,1,game_id,-1,SQLITE_STATIC);sqlite3_bind_text(st,2,ref,-1,SQLITE_STATIC);

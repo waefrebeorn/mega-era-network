@@ -69,7 +69,7 @@ static double calc_sharpe(RoomState *s) {
 }
 
 /* ─── Print side-by-side metric row ─── */
-static void print_metric(const char *name, double ctrl, double exp, 
+static void print_metric(const char *name, double ctrl, double exp,
                          const char *fmt, int higher_is_better) {
     double delta = exp - ctrl;
     double pct = ctrl != 0 ? (delta / fabs(ctrl)) * 100.0 : 0;
@@ -114,7 +114,7 @@ static int cmd_compare(const char *a_path, const char *b_path) {
     /* Performance metrics — higher is better */
     printf("\n  Performance (^ = better)\n");
     print_metric("Win Rate", a->stats.win_rate * 100, b->stats.win_rate * 100, "%.2f%%", 1);
-    
+
     double sharpe_a = calc_sharpe(a);
     double sharpe_b = calc_sharpe(b);
     print_metric("Sharpe Ratio (ann.)", sharpe_a, sharpe_b, "%.4f", 1);
@@ -136,7 +136,7 @@ static int cmd_compare(const char *a_path, const char *b_path) {
     print_metric("Total Trades", (double)a->stats.trades_total, (double)b->stats.trades_total, "%.0f", 0);
     print_metric("Trades Won", (double)a->stats.trades_won, (double)b->stats.trades_won, "%.0f", 1);
     print_metric("Trades Lost", (double)a->stats.trades_lost, (double)b->stats.trades_lost, "%.0f", 0);
-    
+
     double pf_a = a->stats.trades_lost > 0 ? (double)a->stats.trades_won / a->stats.trades_lost : 0;
     double pf_b = b->stats.trades_lost > 0 ? (double)b->stats.trades_won / b->stats.trades_lost : 0;
     print_metric("Profit Factor", pf_a, pf_b, "%.4f", 1);
@@ -170,13 +170,13 @@ static int cmd_compare(const char *a_path, const char *b_path) {
     printf("\n  Top 3 Agents (by capital)\n");
     int top_a[3] = {-1, -1, -1};
     int top_b[3] = {-1, -1, -1};
-    int max_a = a->stats.active_agents > 0 && a->stats.active_agents < MAX_AGENTS 
+    int max_a = a->stats.active_agents > 0 && a->stats.active_agents < MAX_AGENTS
                 ? a->stats.active_agents : 100;
-    int max_b = b->stats.active_agents > 0 && b->stats.active_agents < MAX_AGENTS 
+    int max_b = b->stats.active_agents > 0 && b->stats.active_agents < MAX_AGENTS
                 ? b->stats.active_agents : 100;
     if (max_a > MAX_AGENTS) max_a = MAX_AGENTS;
     if (max_b > MAX_AGENTS) max_b = MAX_AGENTS;
-    
+
     for (int i = 0; i < max_a; i++) {
         float ca = a->agents[i].capital;
         for (int j = 0; j < 3; j++) {
@@ -195,7 +195,7 @@ static int cmd_compare(const char *a_path, const char *b_path) {
             }
         }
     }
-    
+
     for (int j = 0; j < 3; j++) {
         const char *lbl = j == 0 ? "Agent 1 (top)" : (j == 1 ? "Agent 2" : "Agent 3");
         double ca = top_a[j] >= 0 ? a->agents[top_a[j]].capital : 0;
@@ -282,7 +282,7 @@ static int cmd_info(const char *path) {
     printf("  Room PnL:        %.4f%%\n", s->stats.room_pnl_pct);
     printf("  Room capital:    $%.2f\n", s->room_capital);
     printf("  Capital peak:    $%.2f\n", s->stats.capital_peak);
-    printf("  Total trades:    %d (W:%d L:%d)\n", 
+    printf("  Total trades:    %d (W:%d L:%d)\n",
            s->stats.trades_total, s->stats.trades_won, s->stats.trades_lost);
     printf("  Room trades:     %d (W:%d L:%d)\n",
            s->room_trades, s->room_wins, s->room_losses);

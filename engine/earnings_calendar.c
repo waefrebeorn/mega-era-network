@@ -51,7 +51,7 @@ struct MemBuf { char *data; size_t len; };
 static size_t write_cb(void *ptr, size_t sz, size_t nm, void *ud) {
     size_t total = sz * nm; struct MemBuf *b = (struct MemBuf *)ud;
     char *nd = realloc(b->data, b->len + total + 1);
-    if (!nd) return 0; 
+    if (!nd) return 0;
     b->data = nd;
     memcpy(b->data + b->len, ptr, total);
     b->len += total; b->data[b->len] = '\0';

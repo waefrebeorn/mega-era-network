@@ -2,7 +2,7 @@
  * exchange_market_collector.c — Unified exchange public market data (T1184-T1215)
  * Fetches order books, candles, trades, tickers from 7 exchanges
  * All public REST APIs, no API keys needed.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o exchange_market_collector exchange_market_collector.c -lcurl -lsqlite3 -lm -ljansson
  */
 
@@ -353,7 +353,7 @@ static int kucoin_ticker(sqlite3 *db) {
     double vol = atof(json_string_value(json_object_get(data,"size")));
     time_t now = time(NULL);
     // Get 24h stats
-    MemBuf b2 = {0}; 
+    MemBuf b2 = {0};
     r = http_get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", &b2, 10);
     double chg=0;
     if(r==0) {
@@ -372,7 +372,7 @@ static int kucoin_ticker(sqlite3 *db) {
 
 int main(int argc, char **argv) {
     int opt_all = 1;
-    
+
     if(argc > 1) {
         if(strcmp(argv[1],"stats")==0) {
             sqlite3 *db = open_db(); if(!db) return 1;
@@ -390,13 +390,13 @@ int main(int argc, char **argv) {
         }
         opt_all = 0; /* specific exchange requested */
     }
-    
+
     sqlite3 *db = open_db(); if(!db) return 1;
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    
+
     time_t start = time(NULL);
     int ok=0, fail=0;
-    
+
     if(opt_all || (argc>1 && strcmp(argv[1],"binance")==0)) {
         sleep(1);
         if(binance_ticker(db)==0) ok++; else fail++;
@@ -427,11 +427,11 @@ int main(int argc, char **argv) {
     if(opt_all || (argc>1 && strcmp(argv[1],"kucoin")==0)) {
         if(kucoin_ticker(db)==0) ok++; else fail++;
     }
-    
+
     time_t elapsed = time(NULL) - start;
     sqlite3_close(db);
     curl_global_cleanup();
-    
+
     printf("\n=== EXCHANGE COLLECTOR RESULT ===\n");
     printf("OK: %d, FAIL: %d, Time: %lds\n", ok, fail, (long)elapsed);
     return 0;

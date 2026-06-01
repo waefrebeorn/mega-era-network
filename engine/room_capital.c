@@ -1,9 +1,9 @@
 /**
  * room_capital.c — L4: Peer-to-Peer Capital Allocation
- * 
+ *
  * Zero-sum P2P matching. YES votes matched vs NO votes.
  * Winners split losers' stake. Fees deducted from matched portion only.
- * 
+ *
  * Flow per cycle:
  *   1. Count YES total stake vs NO total stake
  *   2. Match min(YES, NO) — unmatched portion never leaves agent's capital
@@ -89,7 +89,7 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
     // NOTE: Unmatched surplus stays in agent's capital (never deducted).
     // We only deduct what's actually matched.
     int trade_idx = start_offset;
-    
+
     for (int i = 0; i < ny && trade_idx < start_offset + max_new; i++) {
         float matched_stake = yes[i].stake * yes_ratio;  // Portion at risk
         float fee = matched_stake * TAKER_FEE;
@@ -289,7 +289,7 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
 
         trades[i].exit_price = resolution_tick->close;
         trades[i].resolved_at = resolution_tick->window_ts;
-        
+
         // ── T16: Log resolved trade to CSV for post-hoc audit ──
         FILE *tlog = fopen("/home/wubu2/.hermes/pm_logs/c_room/trade_log.csv", "a");
         if (tlog) {

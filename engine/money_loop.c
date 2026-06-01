@@ -119,7 +119,7 @@ static int load_gene_pool(const char *path, Genome *pool, int max_genomes) {
 
     /* Read magic + version (6 bytes magic + 2 bytes version) */
     char magic[6];
-    if (fread(magic, 1, 6, f) != 6 || magic[0] != (char)0x93 || 
+    if (fread(magic, 1, 6, f) != 6 || magic[0] != (char)0x93 ||
         memcmp(magic+1, "NUMPY", 5) != 0) {
         fprintf(stderr, "[money_loop] Invalid .npy file: %s\n", path);
         fclose(f);

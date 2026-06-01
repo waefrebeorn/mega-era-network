@@ -54,7 +54,7 @@ static const char *sstr(const json_t *o, const char *k) {
 
 int main(void) {
     curl_global_init(CURL_GLOBAL_ALL);
-    
+
     sqlite3 *db;
     sqlite3_open(DB_PATH, &db);
     sqlite3_exec(db,
@@ -64,19 +64,19 @@ int main(void) {
         NULL, NULL, NULL);
 
     json_t *root = json_array();
-    
+
     char *resp = get("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams");
     if (!resp) { fprintf(stderr, "No team list\n"); return 1; }
-    
+
     json_error_t err;
     json_t *j = json_loads(resp, 0, &err);
     free(resp);
     if (!j) return 1;
-    
+
     json_t *tl = json_object_get(j, "sports");
     json_t *ll = json_object_get(json_array_get(tl, 0), "leagues");
     json_t *ta = json_object_get(json_array_get(ll, 0), "teams");
-    
+
     int ids[100], n = 0;
     size_t ti; json_t *te;
     json_array_foreach(ta, ti, te) {
@@ -90,7 +90,7 @@ int main(void) {
     for (int t = 0; t < n; t++) {
         char url[256];
         snprintf(url, sizeof(url), "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/%d/statistics", ids[t]);
-        
+
         char *tr = get(url);
         if (!tr) continue;
         json_t *tj = json_loads(tr, 0, &err);
@@ -107,7 +107,7 @@ int main(void) {
 
         json_t *entry = json_object();
         json_object_set_new(entry, "team", json_string(tn));
-        
+
         size_t ci; json_t *cat;
         json_array_foreach(cats, ci, cat) {
             json_t *cs = json_object_get(cat, "stats");

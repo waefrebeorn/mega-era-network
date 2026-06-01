@@ -1,12 +1,12 @@
 /**
  * paper_live_bridge.c — Daytime paper trading with real-time stats
- * 
- * Reads live market_feed.json (same as engine), runs paper-mode 
+ *
+ * Reads live market_feed.json (same as engine), runs paper-mode
  * trading, outputs stats every 60s to docs/data/paper_stats.json.
- * 
+ *
  * Compile:
  *   gcc -O2 -o paper_live_bridge paper_live_bridge.c -ljansson -lm -I.
- * 
+ *
  * Usage:
  *   ./paper_live_bridge              # Single cycle
  *   ./paper_live_bridge --continuous # Run continuously (60s cycles)
@@ -68,7 +68,7 @@ static int load_trained_genome(Genome *out) {
 static void init_agents(void) {
     Genome trained;
     int has_trained = load_trained_genome(&trained);
-    
+
     for (int i = 0; i < N_AGENTS; i++) {
         g_agents[i].alive = true;
         g_agents[i].capital = SEED_CAPITAL;
@@ -78,7 +78,7 @@ static void init_agents(void) {
         g_agents[i].losses = 0;
         g_agents[i].total_pnl = 0.0f;
         g_agents[i].win_rate = 0.5f;
-        
+
         if (has_trained == 0) {
             // Start from trained genome + aggressive noise for directional diversity
             g_agents[i].genome = trained;
@@ -112,14 +112,14 @@ static int read_feed(MarketTick *tick) {
     size_t n = fread(buf, 1, sz, f);
     fclose(f);
     buf[n] = '\0';
-    
+
     json_error_t err;
     json_t *root = json_loads(buf, 0, &err);
     free(buf);
     if (!root) return -1;
-    
+
     memset(tick, 0, sizeof(MarketTick));
-    
+
     json_t *jts = json_object_get(root, "window_ts");
     json_t *jclose = json_object_get(root, "close");
     json_t *jopen = json_object_get(root, "open");
@@ -127,7 +127,7 @@ static int read_feed(MarketTick *tick) {
     json_t *jlow = json_object_get(root, "low");
     json_t *jvol = json_object_get(root, "volume");
     json_t *jfng = json_object_get(root, "fear_greed");
-    
+
     if (jts) tick->window_ts = json_integer_value(jts);
     if (jclose) tick->close = (float)json_number_value(jclose);
     if (jopen) tick->open = (float)json_number_value(jopen);
@@ -137,7 +137,7 @@ static int read_feed(MarketTick *tick) {
     if (jfng) tick->fear_greed = (float)json_number_value(jfng);
     tick->market_type = MARKET_CRYPTO;
     strncpy(tick->asset, "BTC", sizeof(tick->asset) - 1);
-    
+
     json_decref(root);
     return (tick->close > 0) ? 0 : -1;
 }
@@ -171,7 +171,7 @@ static void write_stats(void) {
     float best_cap = 0, worst_cap = 1e9;
     int best_idx = 0, worst_idx = 0;
     float wr_sum = 0;
-    
+
     for (int i = 0; i < N_AGENTS; i++) {
         if (!g_agents[i].alive) continue;
         alive++;
@@ -181,12 +181,12 @@ static void write_stats(void) {
         if (g_agents[i].capital > best_cap) { best_cap = g_agents[i].capital; best_idx = i; }
         if (g_agents[i].capital < worst_cap) { worst_cap = g_agents[i].capital; worst_idx = i; }
     }
-    
+
     float avg_cap = alive > 0 ? total_cap / alive : 0;
     float avg_wr = alive > 0 ? wr_sum / alive : 0;
     float room_pnl = (total_cap - SEED_CAPITAL * alive) / (SEED_CAPITAL * alive) * 100.0f;
     g_active = alive;
-    
+
     json_t *stats = json_object();
     json_object_set_new(stats, "timestamp", json_integer((int64_t)time(NULL)));
     json_object_set_new(stats, "cycle", json_integer(g_cycle));
@@ -202,7 +202,7 @@ static void write_stats(void) {
     json_object_set_new(stats, "best_agent", json_integer(best_idx));
     json_object_set_new(stats, "worst_capital", json_real(worst_cap));
     json_object_set_new(stats, "worst_agent", json_integer(worst_idx));
-    
+
     // Top 10 leaderboard
     json_t *top10 = json_array();
     // Simple selection sort for top 10
@@ -227,7 +227,7 @@ static void write_stats(void) {
         json_array_append_new(top10, entry);
     }
     json_object_set_new(stats, "leaderboard", top10);
-    
+
     // Distribution (capital deciles)
     json_t *dist = json_array();
     // Count agents in capital ranges
@@ -241,7 +241,7 @@ static void write_stats(void) {
         json_array_append_new(dist, json_integer(cnt));
     }
     json_object_set_new(stats, "capital_distribution", dist);
-    
+
     // Write
     char *out = json_dumps(stats, JSON_INDENT(2));
     if (out) {
@@ -254,18 +254,18 @@ static void write_stats(void) {
 
 int main(int argc, char **argv) {
     int continuous = (argc > 1 && strcmp(argv[1], "--continuous") == 0);
-    
+
     setbuf(stdout, NULL);  // Unbuffer stdout for real-time log
-    
+
     srand((unsigned)time(NULL));
     init_agents();
-    
+
     int64_t last_ts = 0;
     int run_cycles = continuous ? 1000000 : 1;
-    
+
     printf("[PAPER] Starting paper live bridge (%s mode)\n",
            continuous ? "continuous" : "single-cycle");
-    
+
     // Debug: verify first 3 agents
     printf("[PAPER] Debug: agent[0] cap=%.2f pos=%.4f bias=%.4f\n",
            g_agents[0].capital, g_agents[0].genome.position_size, g_agents[0].genome.bias);
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
            g_agents[1].capital, g_agents[1].genome.position_size);
     printf("[PAPER] Debug: agent[2] cap=%.2f pos=%.4f\n",
            g_agents[2].capital, g_agents[2].genome.position_size);
-    
+
     for (int c = 0; c < run_cycles; c++) {
         MarketTick tick;
         if (read_feed(&tick) != 0) {
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
             if (continuous) sleep(5);
             continue;
         }
-        
+
         // ── Warmup: bypass duplicate-check during warmup so we always get past it ──
         g_warmup_cycles++;
         if (g_warmup_cycles < 2) {
@@ -290,7 +290,7 @@ int main(int argc, char **argv) {
             printf("[PAPER] warmup=%d\n", g_warmup_cycles);
             if (continuous) { sleep(1); continue; } else break;
         }
-        
+
         // Skip duplicate timestamps but STILL write stats to keep website current
         if (tick.window_ts == last_ts) {
             if (continuous) {
@@ -300,24 +300,24 @@ int main(int argc, char **argv) {
             continue;
         }
         last_ts = tick.window_ts;
-        
+
         g_cycle++;
-        
+
         // Write stats immediately on first cycle for debug
         if (g_cycle == 1) write_stats();
-        
+
         // Compute features
         float feats[N_FEATURES];
         compute_features(&tick, feats);
-        
+
         // Run vote
         int voted = 0, up = 0, down = 0;
         float total_conv = 0;
         float room_drawdown = 0;
-        
+
         for (int i = 0; i < N_AGENTS; i++) {
             if (!g_agents[i].alive) continue;
-            
+
             // ── Circuit breaker: reset agents with absurd capital ──
             if (g_agents[i].capital > MAX_CAPITAL) {
                 printf("[PAPER] Agent %d reset: cap=$%.0f exceeded limit\n", i, g_agents[i].capital);
@@ -328,22 +328,22 @@ int main(int argc, char **argv) {
                 g_agents[i].losses = 0;
                 g_agents[i].total_pnl = 0;
             }
-            
+
             // ── Stop loss: death at 50% drawdown ──
             float dd = (g_agents[i].peak_capital - g_agents[i].capital) / fmax(g_agents[i].peak_capital, 0.01f);
             if (dd > 0.5f) { g_agents[i].alive = false; continue; }
-            
+
             bool dir; float conv;
             if (!agent_vote(&g_agents[i], feats, &dir, &conv)) continue;
-            
+
             voted++;
             if (dir) up++; else down++;
             total_conv += conv;
-            
+
             // Resolve trade: predict direction vs actual
             bool was_up = tick.close >= tick.open;
             bool won = (dir == was_up);
-            
+
             // Fixed position sizing: cap at 1% of capital
             float pos = fmin(g_agents[i].genome.position_size, MAX_POSITION_FRACTION) * g_agents[i].capital;
             float payout = won ? pos * 0.95f : -pos;
@@ -353,15 +353,15 @@ int main(int argc, char **argv) {
             if (won) { g_agents[i].wins++; g_total_wins++; }
             else { g_agents[i].losses++; }
             g_total_trades++;
-            
+
             // Update win rate
             g_agents[i].win_rate = g_agents[i].trades > 0 ? (float)g_agents[i].wins / g_agents[i].trades : 0.5f;
-            
+
             // Track peak
             if (g_agents[i].capital > g_agents[i].peak_capital)
                 g_agents[i].peak_capital = g_agents[i].capital;
         }
-        
+
         // Write stats every 60 cycles (or every cycle in non-continuous)
         if (c % 60 == 0 || !continuous) {
             write_stats();
@@ -370,12 +370,12 @@ int main(int argc, char **argv) {
                    g_total_trades > 0 ? (float)g_total_wins / g_total_trades * 100 : 0,
                    g_active > 0 ? g_agents[0].capital : 0);
         }
-        
+
         if (!continuous) break;
-        
+
         sleep(1);  // 1s cycle to match live engine
     }
-    
+
     printf("[PAPER] Done. %d cycles, %d trades, %d active agents\n",
            g_cycle, g_total_trades, g_active);
     return 0;

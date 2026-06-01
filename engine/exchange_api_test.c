@@ -7,7 +7,7 @@
 
 int main(void) {
     printf("=== Exchange API Test ===\n\n");
-    
+
     // Kraken BTC/USD
     printf("--- Kraken XBTUSD ---\n");
     ExchangeTicker kraken = fetch_kraken_ticker("XBTUSD", 10);
@@ -22,7 +22,7 @@ int main(void) {
     } else {
         printf("  FAILED\n");
     }
-    
+
     // Binance BTC/USDT
     printf("\n--- Binance BTCUSDT ---\n");
     ExchangeTicker binance = fetch_binance_ticker("BTCUSDT", 10);
@@ -37,7 +37,7 @@ int main(void) {
     } else {
         printf("  FAILED\n");
     }
-    
+
     // Coinbase BTC-USD
     printf("\n--- Coinbase BTC-USD ---\n");
     ExchangeTicker coinbase = fetch_coinbase_ticker("BTC-USD", 10);
@@ -49,12 +49,12 @@ int main(void) {
     } else {
         printf("  FAILED\n");
     }
-    
+
     // Cross-exchange spread
     printf("\n--- Cross-Exchange Spread ---\n");
     double spread = exchange_spread_pct(kraken.price, binance.price);
     printf("  Kraken-Binance spread: %.4f%%\n", spread);
-    
+
     printf("\n=== Test Complete ===\n");
     return 0;
 }

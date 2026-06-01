@@ -134,7 +134,7 @@ static int set_config(sqlite3 *db, const char *key, const char *value) {
 /* We mmap the binary and seek to room_capital.
  * From types.h, RoomState layout (approximately):
  *   uint32_t magic       (offset 0, 4B)
- *   int64_t last_updated (offset 4, 8B)  
+ *   int64_t last_updated (offset 4, 8B)
  *   int cycle            (offset 12, 4B)
  *   MarketTick current_market (offset 16, ~248B depending on members)
  *   FeatureVector features   (offset ~264, 76*4=304B)
@@ -241,7 +241,7 @@ static int read_capital_from_state(float *capital, float *peak, int *cycle, int 
      * float nested_prediction
      * FeatureImportance feat_importance
      *
-     * Since the struct is complex and version-dependent, 
+     * Since the struct is complex and version-dependent,
      * we read the last 8 floats from the file (room_capital and room_capital_peak
      * should be in the last ~1KB)
      */
@@ -264,7 +264,7 @@ static int read_capital_from_state(float *capital, float *peak, int *cycle, int 
 }
 
 /* ─── Compute scheduled withdrawal amount ─── */
-static double compute_withdrawal(double capital, double base, 
+static double compute_withdrawal(double capital, double base,
                                   double threshold_pct, double withdrawal_pct) {
     if (capital <= base) return 0.0;
     double profit = capital - base;
@@ -338,7 +338,7 @@ static int cmd_status(void) {
     printf("  Next withdrawal:  $%.2f %s\n", next_wd,
            can_withdraw ? "✅ READY" : "⏳ waiting");
     if (!can_withdraw && next_wd > 0) {
-        printf("    (need %d more cycles, %d elapsed)\n", 
+        printf("    (need %d more cycles, %d elapsed)\n",
                (int)cooldown, cycles_since_wd);
     }
 

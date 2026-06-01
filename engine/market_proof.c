@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 
     // Time to last market instance
     fclose(f);
-    
+
     printf("[MARKET] Use Python pre-resampler. Run:\n");
     printf("  python3 -c \"\n");
     printf("import csv\n");
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     printf("  with open('/tmp/btc_15min.json','w') as out:\n");
     printf("    json.dump(candles[::15], out)\n");
     printf("\" && echo 'Ready'\n");
-    
+
     printf("\n[MARKET] Instead, using Python wrapper for full simulation.\n");
     printf("[MARKET] See: p2p_ensemble_v3.py\n");
     return 0;

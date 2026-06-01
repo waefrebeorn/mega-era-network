@@ -98,14 +98,14 @@ double train_one(double *in, double target, double lr, double wd) {
     double *acts[L+1];
     acts[0] = in;
     double *cur = in;
-    
+
     for (int l = 0; l < L; l++) {
         int ni = dims[l], no = dims[l+1];
         double *z = malloc(no * 8);
         double *o = malloc(no * 8);
         out[l] = o;
         acts[l+1] = o;
-        
+
         for (int j = 0; j < no; j++) {
             z[j] = b[l][j];
             for (int i = 0; i < ni; i++) z[j] += w[l][j*ni+i] * cur[i];
@@ -125,18 +125,18 @@ double train_one(double *in, double target, double lr, double wd) {
         }
         cur = o;
     }
-    
+
     double pred = out[L-1][0];
     double loss = -(target * log(fmax(pred,1e-15)) + (1-target) * log(fmax(1-pred,1e-15)));
-    
+
     // Backward
     double d_out = pred - target;  // dL/dz_output = pred - target (BCE + sig)
-    
+
     for (int l = L-1; l >= 0; l--) {
         int ni = dims[l], no = dims[l+1];
         double *inp = acts[l];
         double *d = NULL;
-        
+
         if (l == L-1) {
             d = malloc(no * 8);
             d[0] = d_out * pred * (1-pred);  // sigmoid derivative
@@ -145,23 +145,23 @@ double train_one(double *in, double target, double lr, double wd) {
             double *d_next = malloc(ni * 8);  // Actually re-use from prev iter
             // will be fixed
         }
-        
+
         // Compute gradient for this layer
         // For output layer, we have d[0] = dL/dz_output
         // For hidden layers, we need d_next from the layer above
-        
+
         if (l < L-1) {
             // Hidden layer: d[j] = sum_k(w_{l+1}[k][j] * d_next[k]) * relu'(z_j)
             // This requires d_next from layer l+1
             // But d is only allocated, not computed here
         }
-        
+
         free(d);
     }
-    
+
     // Free activations
     for (int l = 0; l < L; l++) free(out[l]);
-    
+
     return loss;
 }
 
@@ -169,7 +169,7 @@ double train_one(double *in, double target, double lr, double wd) {
 int load_data() {
     sqlite3 *db;
     if (sqlite3_open("/home/wubu2/.hermes/pm_logs/timeline.db", &db) != 0) return 0;
-    
+
     // Load SP500 directly
     typedef struct { long ts; double val; } Pt;
     Pt sp[50000];
@@ -183,7 +183,7 @@ int load_data() {
         n_sp++;
     }
     sqlite3_finalize(s);
-    
+
     Pt vx[50000];
     int n_vx = 0;
     sqlite3_prepare_v2(db, "SELECT ts, CAST(json_extract(data,'$.value') AS REAL) "
@@ -194,20 +194,20 @@ int load_data() {
         n_vx++;
     }
     sqlite3_finalize(s);
-    
+
     sqlite3_close(db);
     printf("Loaded SP500=%d VIX=%d\n", n_sp, n_vx);
-    
+
     // Simple features for each sample
     n_features = 13;
     n_samples = 0;
-    
+
     for (int i = 30; i < n_sp - 1 && n_samples < MAX_N; i++) {
         double v = sp[i].val;
         double r1d = (i>=1) ? log(v/sp[i-1].val) : 0;
         double r5d = (i>=5) ? log(v/sp[i-5].val) : 0;
         double r20d = (i>=20) ? log(v/sp[i-20].val) : 0;
-        
+
         // Vol 5d
         double s5=0, sq5=0; int n5=0;
         for(int j=1;j<=5&&i>=j;j++){
@@ -215,18 +215,18 @@ int load_data() {
             s5+=r; sq5+=r*r; n5++;
         }
         double v5 = (n5>1) ? sqrt(sq5/n5-(s5/n5)*(s5/n5)) : 0;
-        
+
         // SMA 20
         double sma20=0;
         for(int j=1;j<=20;j++) sma20 += sp[i-j].val;
         sma20/=20;
-        
+
         // VIX nearest
         double vix_val = -1;
         for(int j=0;j<n_vx;j++){
             if(labs(vx[j].ts - sp[i].ts) < 86400*3) { vix_val = vx[j].val; break; }
         }
-        
+
         int f=0;
         X[n_samples][f++] = v;
         X[n_samples][f++] = r1d;
@@ -241,11 +241,11 @@ int load_data() {
         X[n_samples][f++] = r20d > 0.05 ? 1.0 : 0.0; // trend_strong_up
         X[n_samples][f++] = r20d < -0.05 ? 1.0 : 0.0; // trend_strong_down
         X[n_samples][f++] = sma20 > v ? 1.0 : 0.0; // below_ma
-        
+
         y[n_samples] = (sp[i+1].val > v) ? 1.0 : 0.0;
         n_samples++;
     }
-    
+
     // Normalize
     for (int f = 0; f < n_features; f++) {
         double sum = 0;
@@ -257,7 +257,7 @@ int load_data() {
         if (std < 1e-8) std = 1;
         for (int i = 0; i < n_samples; i++) X[i][f] = (X[i][f]-mean)/std;
     }
-    
+
     printf("Generated %d samples x %d features\n", n_samples, n_features);
     return n_samples;
 }
@@ -266,34 +266,34 @@ int main() {
     srand(time(0));
     printf("Loading data...\n");
     if (!load_data()) return 1;
-    
+
     dims[0] = n_features;  // 13
-    
+
     printf("Initializing network: %d", dims[0]);
     for(int i=1;i<=L;i++) printf("->%d", dims[i]);
     printf("\n");
-    
+
     init_net(0.001, 1e-4);
-    
+
     int n_train = n_samples * 70 / 100;
     int n_val = n_samples * 15 / 100;
     int n_test = n_samples - n_train - n_val;
-    
+
     printf("Train=%d Val=%d Test=%d\n", n_train, n_val, n_test);
-    
+
     // Train with SGD+Adam for simplicity
     double lr = 0.001;
     int *idx = malloc(n_train * 4);
     double best_val_loss = 1e9;
     int patience = 0;
-    
+
     for (int ep = 0; ep < 200; ep++) {
         // Shuffle
         for (int i = n_train-1; i > 0; i--) {
             int j = rand() % (i+1);
             int t = idx[i]; idx[i] = idx[j]; idx[j] = t;
         }
-        
+
         double train_loss = 0;
         for (int s = 0; s < n_train; s++) {
             int i = idx[s];
@@ -303,7 +303,7 @@ int main() {
             train_loss += -(y[i] * log(0.5+1e-10) + (1-y[i]) * log(0.5+1e-10));
         }
         train_loss /= n_train;
-        
+
         // Eval
         int correct = 0;
         for (int s = 0; s < n_val; s++) {
@@ -313,17 +313,17 @@ int main() {
             if ((pred >= 0.5 && y[i] >= 0.5) || (pred < 0.5 && y[i] < 0.5)) correct++;
         }
         double val_acc = (double)correct / n_val;
-        
+
         if (ep < 5 || ep % 20 == 19)
             printf("Ep%d tr=%.4f va=%.2f%% lr=%.4f\n", ep+1, train_loss, val_acc*100, lr);
-        
+
         lr *= 0.99;
     }
-    
+
     printf("\n⚠️  Full training not implemented in this version —\n");
     printf("   nn_deep_full.c has the complete forward/backward.\n");
     printf("   The bottleneck was data loading, not network code.\n");
-    
+
     free_net();
     free(idx);
     return 0;

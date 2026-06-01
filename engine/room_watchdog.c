@@ -1,11 +1,11 @@
 /**
  * room_watchdog.c — E6/E7: Room health watchdog + per-room heartbeats
- * 
- * All v3 engines (macro, momentum, polymarket) write to the same 
- * c_room snapshot via room_bridge.c (hardcoded path). 
+ *
+ * All v3 engines (macro, momentum, polymarket) write to the same
+ * c_room snapshot via room_bridge.c (hardcoded path).
  * This watchdog checks c_room snapshot freshness and cycles
  * any stale engine. Writes per-room heartbeats on successful cycle.
- * 
+ *
  * Runs every 5min via crontab.
  * Compile: gcc -O3 -o room_watchdog room_watchdog.c -lm
  */
@@ -55,7 +55,7 @@ static void cycle_engine(const char *name, const char *workdir, const char *engi
     char cmd[1024];
     snprintf(cmd, sizeof(cmd),
         "cd %s && timeout 10 %s > /dev/null 2>&1", workdir, engine);
-    
+
     char msg[128];
     if (system(cmd) == 0) {
         snprintf(msg, sizeof(msg), "%s cycled OK", name);
@@ -72,7 +72,7 @@ static void cycle_engines(void) {
         cycle_engine("btc_main",
                      "/home/wubu2/.hermes/pm_logs/rooms/btc_main",
                      "./room_engine");
-    
+
     // v3 rooms: macro, momentum, polymarket
     static const char *names[] = {"macro", "momentum", "polymarket"};
     static const char *dirs[] = {
@@ -80,7 +80,7 @@ static void cycle_engines(void) {
         "/home/wubu2/.hermes/pm_logs/rooms/momentum",
         "/home/wubu2/.hermes/pm_logs/rooms/polymarket"
     };
-    
+
     if (engine_exists(V3_ENGINE)) {
         for (int i = 0; i < 3; i++) {
             cycle_engine(names[i], dirs[i], "./room_engine_v3");
@@ -99,19 +99,19 @@ int main(void) {
         write_heartbeat("rooms");  // aggregate
         return 0;
     }
-    
+
     // Snapshot stale — cycle all engines
     struct stat st;
     int age_secs = -1;
     if (stat(C_ROOM_SNAP, &st) == 0)
         age_secs = (int)difftime(time(NULL), st.st_mtime);
-    
+
     char msg[256];
     snprintf(msg, sizeof(msg), "Snapshot stale (%ds) — cycling all engines", age_secs);
     log_msg(msg);
-    
+
     cycle_engines();
-    
+
     // Check if cycle fixed it
     if (snapshot_fresh()) {
         log_msg("Snapshot fresh after cycle — all healthy");
@@ -119,6 +119,6 @@ int main(void) {
     } else {
         log_msg("Still stale after cycle — cron may be failing");
     }
-    
+
     return 0;
 }

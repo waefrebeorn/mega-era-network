@@ -1,10 +1,10 @@
 /**
  * eco_runner.c — T2/E2: Money room ecosystem runner.
  * Replaces eco_runner.py (139 lines Python, runs every 5min).
- * 
+ *
  * Checks eco freshness, warms Kraken feed, cycles all 4 rooms.
  * Writes heartbeat on completion.
- * 
+ *
  * Compile: gcc -O3 -o eco_runner eco_runner.c -lcurl -ljansson -lm
  */
 
@@ -43,19 +43,19 @@ typedef struct {
 
 static EcoStatus check_eco_freshness(void) {
     EcoStatus eco = {1, 999, 0, 0, 0, "unknown"};
-    
+
     char path[512];
     snprintf(path, sizeof(path), "%s/minute_log.jsonl", ECO_DIR);
-    
+
     struct stat st;
     if (stat(path, &st) != 0) {
         snprintf(eco.reason, sizeof(eco.reason), "minute_log missing");
         return eco;
     }
-    
+
     time_t now = time(NULL);
     int age = (int)(now - st.st_mtime);
-    
+
     // Read last line for summary
     FILE *f = fopen(path, "r");
     if (f) {
@@ -64,7 +64,7 @@ static EcoStatus check_eco_freshness(void) {
         int n = fread(buf, 1, sizeof(buf)-1, f);
         fclose(f);
         buf[n] = '\0';
-        
+
         // Find last complete line
         char *last_newline = strrchr(buf, '\n');
         if (last_newline && last_newline > buf) {
@@ -72,7 +72,7 @@ static EcoStatus check_eco_freshness(void) {
             char *last_line = strrchr(buf, '\n');
             if (!last_line) last_line = buf;
             else last_line++;
-            
+
             json_error_t err;
             json_t *j = json_loads(last_line, 0, &err);
             if (j) {
@@ -85,14 +85,14 @@ static EcoStatus check_eco_freshness(void) {
                 json_decref(j);
             }
         }
-        
+
         eco.frozen = (age > 1800);  // 30 min threshold
         eco.age_min = age / 60;
         snprintf(eco.reason, sizeof(eco.reason), "%s", eco.frozen ? "stale" : "fresh");
     } else {
         snprintf(eco.reason, sizeof(eco.reason), "can't open minute_log");
     }
-    
+
     return eco;
 }
 
@@ -138,7 +138,7 @@ static json_t *warmup_kraken_feed(void) {
     // POST to Kraken OHLC endpoint
     CURL *curl = curl_easy_init();
     if (!curl) return NULL;
-    
+
     http_buf_t buf = {NULL, 0};
     curl_easy_setopt(curl, CURLOPT_URL, "https://api.kraken.com/0/public/OHLC");
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "pair=XBTUSD&interval=1");
@@ -146,22 +146,22 @@ static json_t *warmup_kraken_feed(void) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "eco-runner/1.0");
-    
+
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
     if (res != CURLE_OK || !buf.data) {
         free(buf.data);
         return NULL;
     }
-    
+
     json_error_t err;
     json_t *root = json_loads(buf.data, 0, &err);
     free(buf.data);
     if (!root) return NULL;
-    
+
     json_t *result = json_object_get(root, "result");
     if (!result) { json_decref(root); return NULL; }
-    
+
     // Find first key (the pair name from Kraken)
     const char *key;
     json_t *candles;
@@ -191,7 +191,7 @@ static json_t *warmup_kraken_feed(void) {
             return out;
         }
     }
-    
+
     json_decref(root);
     return NULL;
 }
@@ -216,17 +216,17 @@ static void cycle_rooms(void) {
     for (int i = 0; i < N_ROOMS; i++) {
         char engine_path[512];
         snprintf(engine_path, sizeof(engine_path), "%s/%s/room_engine", ROOMS_DIR, ROOMS[i]);
-        
+
         struct stat st;
         if (stat(engine_path, &st) != 0) continue;  // No engine in this room
-        
+
         char cmd[1024];
         char workdir[512];
         snprintf(workdir, sizeof(workdir), "%s/%s", ROOMS_DIR, ROOMS[i]);
         snprintf(cmd, sizeof(cmd),
                  "cd '%s' && timeout 15 '%s' 2>/dev/null | tail -c 80",
                  workdir, engine_path);
-        
+
         FILE *fp = popen(cmd, "r");
         if (fp) {
             char out[256] = {0};
@@ -253,7 +253,7 @@ static void cycle_rooms(void) {
 
 int main(void) {
     log_msg("Eco runner starting...");
-    
+
     // 1. Check eco freshness
     EcoStatus eco = check_eco_freshness();
     if (eco.frozen) {
@@ -267,7 +267,7 @@ int main(void) {
                  eco.age_min, eco.mean_pnl, eco.total_trades);
         log_msg(msg);
     }
-    
+
     // 2. Warm up Kraken feed
     json_t *candle = warmup_kraken_feed();
     if (candle) {
@@ -284,13 +284,13 @@ int main(void) {
     } else {
         log_msg("Kraken: no data");
     }
-    
+
     // 3. Cycle all rooms
     cycle_rooms();
-    
+
     // 4. Heartbeat
     write_heartbeat();
-    
+
     log_msg("Eco runner complete");
     return 0;
 }

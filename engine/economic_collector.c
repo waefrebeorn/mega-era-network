@@ -108,7 +108,7 @@ static char *sanitize(const char *ticker) {
 // Category keywords
 static const char *ECON_KEYWORDS[] = {"INFLATION", "CPI", "NFP", "PAYROLL", "FOMC", "FED", "RATE",
     "GDP", "UNEMPLOYMENT", "JOBLESS", "PPI", "PRODUCER", "RETAIL", "SENTIMENT", "CONSUMER", NULL};
-static const char *ELECTION_KEYWORDS[] = {"ELECTION", "SENATE", "HOUSE", "GOVERNOR", "PRESIDENT", 
+static const char *ELECTION_KEYWORDS[] = {"ELECTION", "SENATE", "HOUSE", "GOVERNOR", "PRESIDENT",
     "DEMOCRAT", "REPUBLICAN", "NOMINEE", "PRIMARY", NULL};
 static const char *CRYPTO_KEYWORDS[] = {"CRYPTO", "BITCOIN", "BTC", "ETHEREUM", "ETH", "SOLANA", "SOL", NULL};
 
@@ -121,48 +121,48 @@ static int matches_any(const char *ticker, const char *title, const char **keywo
 
 static void scan_category(const char *category_name, const char **keywords, const char *category_tag) {
     printf("  Scanning %s markets...\n", category_name);
-    
+
     char url[MAX_URL];
     int page = 0, total = 0;
     const char *cursor = NULL;
-    
+
     do {
         if (cursor) snprintf(url, sizeof(url), "%s/markets?limit=100&cursor=%s", KALSHI_API, cursor);
         else snprintf(url, sizeof(url), "%s/markets?limit=100", KALSHI_API);
-        
+
         HttpResponse resp = http_get(url);
         json_error_t err;
         json_t *root = json_loads(resp.data, 0, &err);
         free(resp.data);
-        
+
         if (!root) break;
-        
+
         json_t *markets = json_object_get(root, "markets");
         if (!markets || !json_is_array(markets)) { json_decref(root); break; }
-        
+
         int n = (int)json_array_size(markets);
         for (int i = 0; i < n; i++) {
             json_t *m = json_array_get(markets, i);
             const char *ticker = json_string_value(json_object_get(m, "ticker"));
             const char *title = json_string_value(json_object_get(m, "title"));
             if (!ticker) continue;
-            
+
             // Filter by keyword match if keywords provided
             if (keywords && !matches_any(ticker, title, keywords)) continue;
-            
+
             const char *status = json_string_value(json_object_get(m, "status"));
             const char *close_time = json_string_value(json_object_get(m, "close_time"));
             double yes_bid = json_number_value(json_object_get(m, "yes_bid"));
             double yes_ask = json_number_value(json_object_get(m, "yes_ask"));
             double volume = json_number_value(json_object_get(m, "volume"));
             double open_interest = json_number_value(json_object_get(m, "open_interest"));
-            
+
             long long ts = parse_ts(close_time);
             if (ts == 0) ts = time(NULL);
-            
+
             char source[256];
             snprintf(source, sizeof(source), "kalshi_%s", sanitize(ticker));
-            
+
             char data_json[1024];
             snprintf(data_json, sizeof(data_json),
                 "{\"ticker\":\"%s\",\"title\":\"%s\",\"status\":\"%s\","
@@ -171,44 +171,44 @@ static void scan_category(const char *category_name, const char **keywords, cons
                 ticker, title ? title : "", status ? status : "",
                 yes_bid, yes_ask, volume, open_interest,
                 (yes_bid + yes_ask) / 2.0);
-            
+
             db_insert(source, ts, category_tag, data_json);
             total++;
         }
-        
+
         json_t *pagination = json_object_get(root, "pagination");
         cursor = pagination ? json_string_value(json_object_get(pagination, "next_cursor")) : NULL;
         json_decref(root);
         page++;
     } while (cursor && page < 50);
-    
+
     printf("    ✅ %d %s markets\n", total, category_name);
 }
 
 int main(int argc, char *argv[]) {
     const char *mode = (argc > 1) ? argv[1] : "all";
-    
+
     printf("  ECONOMIC & ELECTION COLLECTOR\n");
     printf("  Source: Kalshi API | CFTC-regulated\n\n");
-    
+
     curl_global_init(CURL_GLOBAL_DEFAULT);
     db_init();
-    
+
     if (strcmp(mode, "all") == 0 || strcmp(mode, "economy") == 0)
         scan_category("Economic", ECON_KEYWORDS, "kalshi_economy");
-    
+
     if (strcmp(mode, "all") == 0 || strcmp(mode, "elections") == 0)
         scan_category("Election", ELECTION_KEYWORDS, "kalshi_elections");
-    
+
     if (strcmp(mode, "all") == 0 || strcmp(mode, "crypto") == 0)
         scan_category("Crypto", CRYPTO_KEYWORDS, "kalshi_crypto");
-    
+
     if (strcmp(mode, "all") == 0 || strcmp(mode, "all-markets") == 0)
         scan_category("All Markets", NULL, "kalshi_other");
-    
+
     db_close();
     curl_global_cleanup();
-    
+
     printf("\n  Done.\n");
     return 0;
 }

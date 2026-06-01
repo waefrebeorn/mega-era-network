@@ -58,7 +58,7 @@ static int find_or_create(const char *name) {
 static time_t parse_timestamp(const char *ts) {
     struct tm tm = {0};
     int tz_h = 0, tz_m = 0;
-    if (sscanf(ts, "[%d-%d-%dT%d:%d:%d", 
+    if (sscanf(ts, "[%d-%d-%dT%d:%d:%d",
                &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
                &tm.tm_hour, &tm.tm_min, &tm.tm_sec) >= 6) {
         tm.tm_year -= 1900;

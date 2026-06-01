@@ -106,14 +106,14 @@ static int check_json(const char *path, int *arr_len, const char *val_field, dou
     json_error_t err;
     json_t *root = json_load_file(path, 0, &err);
     if (!root) return -1;
-    
+
     if (json_is_array(root)) {
         *arr_len = (int)json_array_size(root);
     } else if (json_is_object(root) && val_field) {
         json_t *val = json_object_get(root, val_field);
         if (val && json_is_number(val)) *val_out = json_number_value(val);
     }
-    
+
     json_decref(root);
     return 0;
 }
@@ -134,29 +134,29 @@ static int count_bin(const char *dir) {
 
 int main(void) {
     time_t now = time(NULL);
-    
+
     json_t *root = json_object();
     json_object_set_new(root, "generated_at", json_integer(now));
-    
+
     json_t *checks = json_array();
     int passed = 0, failed = 0, warned = 0;
-    
+
     for (int i = 0; i < (int)N_CHECKS; i++) {
         json_t *c = json_object();
         json_object_set_new(c, "id", json_string(CHECKS[i].id));
         json_object_set_new(c, "name", json_string(CHECKS[i].name));
-        
+
         struct stat st;
         int exists = stat(CHECKS[i].path, &st);
         int age = exists == 0 ? (int)(now - st.st_mtime) : -1;
-        
+
         json_object_set_new(c, "exists", json_boolean(exists == 0));
         json_object_set_new(c, "age_seconds", json_integer(age));
-        
+
         // Quality result
         int result = 0; // 0=pass, 1=warn, 2=fail
         json_t *issues = json_array();
-        
+
         if (exists != 0) {
             result = 2;
             json_array_append_new(issues, json_string("file_missing"));
@@ -166,7 +166,7 @@ int main(void) {
                 json_array_append_new(issues, json_string("stale"));
                 if (result < 2) result = 1;
             }
-            
+
             // Check content
             switch (CHECKS[i].type) {
                 case CHECK_FILE: {
@@ -242,21 +242,21 @@ int main(void) {
                 }
             }
         }
-        
+
         const char *status;
         if (result == 0)      { status = "pass"; passed++; }
         else if (result == 1) { status = "warn"; warned++; }
         else                  { status = "fail"; failed++; }
-        
+
         json_object_set_new(c, "status", json_string(status));
         json_object_set_new(c, "result", json_integer(result));
         json_object_set_new(c, "issues", issues);
-        
+
         json_array_append_new(checks, c);
     }
-    
+
     json_object_set_new(root, "checks", checks);
-    
+
     json_t *summary = json_object();
     json_object_set_new(summary, "total", json_integer(N_CHECKS));
     json_object_set_new(summary, "passed", json_integer(passed));
@@ -265,14 +265,14 @@ int main(void) {
     json_object_set_new(summary, "score", json_real(
         N_CHECKS > 0 ? (double)(passed + warned) / N_CHECKS * 100.0 : 0.0));
     json_object_set_new(root, "summary", summary);
-    
+
     mkdir(DATA_DIR "/../docs/data", 0755);
     if (json_dump_file(root, OUTPUT, JSON_INDENT(2)) != 0) {
         fprintf(stderr, "[QUALITY] Failed to write %s\n", OUTPUT);
         json_decref(root);
         return 1;
     }
-    
+
     json_decref(root);
     printf("[QUALITY] %d pass, %d warn, %d fail → %s\n", passed, warned, failed, OUTPUT);
     return failed > 0 ? 1 : 0;

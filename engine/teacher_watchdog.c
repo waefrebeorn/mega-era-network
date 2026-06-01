@@ -4,7 +4,7 @@
  * E5: Teacher process monitoring — checks 10 teacher PIDs every 5min.
  * If any dead, kills old group and respawns all 10 via system().
  * Writes heartbeat on success. Logs every run for auditing.
- * 
+ *
  * Compile: gcc -O3 -o teacher_watchdog teacher_watchdog.c
  */
 
@@ -25,11 +25,11 @@
 static int read_pids(int *pids) {
     FILE *f = fopen(PID_FILE, "r");
     if (!f) return 0;
-    
+
     char buf[256];
     if (!fgets(buf, sizeof(buf), f)) { fclose(f); return 0; }
     fclose(f);
-    
+
     int n = 0;
     char *tok = strtok(buf, ",\n");
     while (tok && n < MAX_PIDS) {
@@ -53,7 +53,7 @@ static void write_heartbeat(void) {
     char dir[256];
     snprintf(dir, sizeof(dir), "/home/wubu2/.hermes/infra/heartbeats");
     mkdir(dir, 0755);
-    
+
     FILE *f = fopen(HB_PATH, "w");
     if (f) {
         fprintf(f, "%ld", (long)time(NULL));
@@ -90,18 +90,18 @@ static void spawn_teachers(void) {
 int main(void) {
     int pids[MAX_PIDS] = {0};
     int n = read_pids(pids);
-    
+
     if (n == 0) {
         log_msg("No PID file — teachers not started. Spawning...");
         spawn_teachers();
         return 0;
     }
-    
+
     // Check each PID
     int alive = 0;
     int dead_count = 0;
     int dead_ids[MAX_PIDS];
-    
+
     for (int i = 0; i < n; i++) {
         if (is_pid_alive(pids[i])) {
             alive++;
@@ -109,18 +109,18 @@ int main(void) {
             dead_ids[dead_count++] = pids[i];
         }
     }
-    
+
     if (dead_count > 0) {
         char msg[128];
         snprintf(msg, sizeof(msg), "Dead teachers (%d): respawning...", dead_count);
         log_msg(msg);
-        
+
         // Kill any remaining, respawn
         kill_old_teachers(pids, n);
         spawn_teachers();
         return 0;
     }
-    
+
     if (alive < 10) {
         char msg[128];
         snprintf(msg, sizeof(msg), "Only %d/10 teachers alive — respawning", alive);
@@ -129,7 +129,7 @@ int main(void) {
         spawn_teachers();
         return 0;
     }
-    
+
     // All good
     char msg[128];
     snprintf(msg, sizeof(msg), "All %d/10 teachers alive", alive);

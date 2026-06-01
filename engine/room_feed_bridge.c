@@ -87,7 +87,7 @@ int main(void) {
     // ── Attempt 1..MAX_ATTEMPTS with 2s backoff ──
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         int rc = run_binary(BRIDGE, TIMEOUT);
-        
+
         if (rc == 0) {
             // Success
             // Apply Q-learning reward

@@ -348,7 +348,7 @@ static int load_daily(const char *sp_path, const char *vix_path,
             }
         }
     }
-    
+
     // Load 10yr Treasury yield
     float yld_buf[MAX_DAYS];
     char yld_dates[MAX_DAYS][16];
@@ -371,7 +371,7 @@ static int load_daily(const char *sp_path, const char *vix_path,
         fclose(f);
     }
     printf("[DATA] DGS10: %d rows\n", n_yld);
-    
+
     // Load BTC daily prices
     float btc_buf[MAX_DAYS];
     char btc_dates[MAX_DAYS][16];
@@ -392,7 +392,7 @@ static int load_daily(const char *sp_path, const char *vix_path,
         fclose(f);
     }
     printf("[DATA] BTC: %d rows\n", n_btc);
-    
+
     // Re-merge with yield + BTC
     count = 0;
     for (int si = 0; si < n_sp && count < max; si++) {

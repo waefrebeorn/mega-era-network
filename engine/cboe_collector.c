@@ -1,7 +1,7 @@
 /**
  * cboe_collector.c — CBOE VIX futures, SKEW, put/call, 0DTE (T1248-T1260)
  * Free CBOE data: VIX index, futures curve, options data.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o cboe_collector cboe_collector.c -lcurl -lsqlite3 -lm -ljansson
  */
 
@@ -126,9 +126,9 @@ static void print_stats(sqlite3 *db) {
 int main(int argc, char **argv) {
     sqlite3 *db=odb(); if(!db) return 1;
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    
+
     if(argc>1 && strcmp(argv[1],"stats")==0) { print_stats(db); sqlite3_close(db); return 0; }
-    
+
     printf("=== CBOE DATA COLLECTOR ===\n");
     int ok=0,fail=0;
     if(vix_index(db)==0) ok++;else fail++;
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     if(put_call_ratio(db)==0) ok++;else fail++;
     if(zero_dte(db)==0) ok++;else fail++;
     printf("OK: %d, FAIL: %d\n",ok,fail);
-    
+
     sqlite3_close(db);
     curl_global_cleanup();
     return 0;

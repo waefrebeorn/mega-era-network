@@ -49,20 +49,20 @@ static int fng_cache_val = 50;
 static void load_fng_table(void) {
     FILE *f = fopen(FNG_CSV, "r");
     if (!f) { printf("[FEED] WARN: No F&G CSV at %s\n", FNG_CSV); return; }
-    
+
     // Count lines
     char buf[256];
     int lines = 0;
     while (fgets(buf, sizeof(buf), f)) lines++;
     lines--; // header
-    
+
     rewind(f);
     fng_table = (FngEntry *)malloc(lines * sizeof(FngEntry));
     if (!fng_table) { fclose(f); return; }
-    
+
     // Skip header
     fgets(buf, sizeof(buf), f);
-    
+
     fng_count = 0;
     while (fng_count < lines && fgets(buf, sizeof(buf), f)) {
         int64_t ts;
@@ -119,7 +119,7 @@ RoomError room_feeds_load(MarketTick *tick) {
         fgets(buf, sizeof(buf), btc_file);
         printf("[FEED] Reading BTC from CSV\n");
     }
-    
+
     char line[256];
     while (fgets(line, sizeof(line), btc_file)) {
         int64_t ts;
@@ -127,7 +127,7 @@ RoomError room_feeds_load(MarketTick *tick) {
         if (sscanf(line, "%ld,%f,%f,%f,%f,%f", &ts, &open, &high, &low, &close, &volume) < 6)
             continue;
         if (volume <= 0) continue;
-        
+
         // ── Aggregate candle window for timeframe ──
         // First candle in window: save open, initialize range
         float agg_open = open;
@@ -136,7 +136,7 @@ RoomError room_feeds_load(MarketTick *tick) {
         float agg_close = close;
         float agg_vol = volume;
         int64_t agg_ts = ts;
-        
+
         // Skip intermediate candles, accumulating range
         for (int skip = 0; skip < CANDLES_TO_SKIP; skip++) {
             if (!fgets(line, sizeof(line), btc_file)) break;
@@ -150,7 +150,7 @@ RoomError room_feeds_load(MarketTick *tick) {
                 }
             }
         }
-        
+
         memset(tick, 0, sizeof(MarketTick));
         strncpy(tick->asset, "BTC", 7);
         tick->window_ts = agg_ts;
@@ -160,13 +160,13 @@ RoomError room_feeds_load(MarketTick *tick) {
         tick->close = agg_close;
         tick->volume = agg_vol;
         tick->fear_greed = (float)get_fng(agg_ts);
-        
+
         // ── POPULATE aux fields from timeline.db (replaces old hardcoded constants) ──
         paper_load_aux(tick);
-        
+
         return ERR_OK;
     }
-    
+
     // All candles consumed
     printf("[FEED] All %d candles consumed\n", fng_count > 0 ? 722988 : 0);
     fclose(btc_file);
@@ -228,18 +228,18 @@ RoomError room_feeds_load(MarketTick *tick) {
     init_feeds_path();
     FILE *f = fopen(FEED_PATH, "r");
     if (!f) return ERR_FILE_READ;
-    
+
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     if (sz < 10) { fclose(f); return ERR_NO_DATA; }
     rewind(f);
-    
+
     char *buf = (char *)malloc(sz + 1);
     if (!buf) { fclose(f); return ERR_FILE_READ; }
     size_t read = fread(buf, 1, sz, f);
     fclose(f);
     buf[read] = '\0';
-    
+
     memset(tick, 0, sizeof(MarketTick));
     char asset[16] = {0};
     json_get_str(buf, "asset", asset, sizeof(asset));
@@ -290,7 +290,7 @@ RoomError room_feeds_load(MarketTick *tick) {
     json_get_float(buf, "btc_30d_mean", &tick->btc_30d_mean);
     json_get_float(buf, "btc_30d_high", &tick->btc_30d_high);
     json_get_float(buf, "btc_30d_low", &tick->btc_30d_low);
-    
+
     free(buf);
     if (tick->window_ts == 0) return ERR_NO_DATA;
     return ERR_OK;

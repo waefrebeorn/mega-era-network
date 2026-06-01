@@ -119,7 +119,7 @@ static int cmp_sharpe_desc(const void *a, const void *b) {
 static void compute_param_stats(AgentRecord *agents, int count,
                                  ParamRange *ranges, const char *label) {
     if (count == 0) return;
-    
+
     printf("\n=== %s (%d agents) ===\n", label, count);
     printf("%-22s %8s %8s %8s %8s %8s %8s\n",
            "Param", "Min", "Max", "Mean", "Std", "P10", "P90");
@@ -133,7 +133,7 @@ static void compute_param_stats(AgentRecord *agents, int count,
             sum += vals[i];
             sum2 += vals[i] * vals[i];
         }
-        
+
         /* Sort for percentiles */
         float sorted[count];
         memcpy(sorted, vals, sizeof(float) * count);

@@ -1,7 +1,7 @@
 /**
  * world_bank_collector.c — World Bank data API collector (T829-T830)
  * Free API, no key needed. Covers GDP, population, GINI, inflation, trade.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o world_bank_collector world_bank_collector.c -lcurl -lsqlite3 -lm -ljansson
  */
 

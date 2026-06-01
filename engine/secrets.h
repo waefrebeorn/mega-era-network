@@ -93,7 +93,7 @@ static void _load_secrets(void) {
         if (strlen(key) > 0 && strlen(val) > 0) {
             /* Remove optional quotes around value */
             size_t vlen = strlen(val);
-            if (vlen >= 2 && 
+            if (vlen >= 2 &&
                 ((val[0] == '"' && val[vlen-1] == '"') ||
                  (val[0] == '\'' && val[vlen-1] == '\''))) {
                 val[vlen-1] = '\0';

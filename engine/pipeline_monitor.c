@@ -87,7 +87,7 @@ static int read_stats_json(json_t *stats) {
     json_error_t err;
     json_t *root = json_load_file(STATS_JSON, 0, &err);
     if (!root) return -1;
-    
+
     // Copy relevant fields
     const char *keys[] = {"cycle", "capital", "win_rate", "trades_total", "agents",
                           "drawdown", "sharpe", "timestamp", "price", NULL};
@@ -95,7 +95,7 @@ static int read_stats_json(json_t *stats) {
         json_t *val = json_object_get(root, keys[i]);
         if (val) json_object_set(stats, keys[i], val);
     }
-    
+
     json_decref(root);
     return 0;
 }
@@ -117,31 +117,31 @@ static int count_genomes(void) {
 
 int main(void) {
     time_t now = time(NULL);
-    
+
     json_t *root = json_object();
     json_object_set_new(root, "generated_at", json_integer(now));
     json_object_set_new(root, "generated_at_iso", json_string(ctime(&now)));
-    
+
     // ── Engine stats ──
     json_t *engine_stats = json_object();
     read_stats_json(engine_stats);
     json_object_set_new(root, "engine", engine_stats);
-    
+
     // ── Pipeline components ──
     json_t *components = json_array();
     int total_healthy = 0, total_unhealthy = 0;
-    
+
     for (int i = 0; i < (int)N_PIPELINE; i++) {
         json_t *comp = json_object();
         json_object_set_new(comp, "id", json_string(PIPELINE[i].id));
         json_object_set_new(comp, "name", json_string(PIPELINE[i].name));
         json_object_set_new(comp, "category", json_string(PIPELINE[i].category));
         json_object_set_new(comp, "schedule", json_string(PIPELINE[i].schedule));
-        
+
         time_t mtime = 0;
         off_t size = 0;
         int exists = check_file(PIPELINE[i].log_path, now, &mtime, &size);
-        
+
         if (exists != 0) {
             json_object_set_new(comp, "status", json_string("missing"));
             json_object_set_new(comp, "healthy", json_false());
@@ -150,22 +150,22 @@ int main(void) {
         } else {
             int age = (int)(now - mtime);
             int healthy = (age <= PIPELINE[i].max_age_seconds);
-            
+
             json_object_set_new(comp, "status", json_string(healthy ? "ok" : "stale"));
             json_object_set_new(comp, "healthy", json_boolean(healthy));
             json_object_set_new(comp, "age_seconds", json_integer(age));
             json_object_set_new(comp, "last_run", json_integer(mtime));
             json_object_set_new(comp, "file_size", json_integer((long long)size));
-            
+
             if (healthy) total_healthy++;
             else total_unhealthy++;
         }
-        
+
         json_array_append_new(components, comp);
     }
-    
+
     json_object_set_new(root, "components", components);
-    
+
     // ── Summary ──
     json_t *summary = json_object();
     json_object_set_new(summary, "total", json_integer(N_PIPELINE));
@@ -173,12 +173,12 @@ int main(void) {
     json_object_set_new(summary, "unhealthy", json_integer(total_unhealthy));
     json_object_set_new(summary, "health_pct", json_real(
         N_PIPELINE > 0 ? (double)total_healthy / N_PIPELINE * 100.0 : 0.0));
-    
+
     // Genome count
     json_object_set_new(summary, "genome_count", json_integer(count_genomes()));
-    
+
     json_object_set_new(root, "summary", summary);
-    
+
     // ── Write output ──
     mkdir(DOCS_DATA, 0755);
     if (json_dump_file(root, OUTPUT, JSON_INDENT(2)) != 0) {
@@ -186,7 +186,7 @@ int main(void) {
         json_decref(root);
         return 1;
     }
-    
+
     json_decref(root);
     printf("[MONITOR] Pipeline status: %d/%d healthy → %s\n",
            total_healthy, (int)N_PIPELINE, OUTPUT);

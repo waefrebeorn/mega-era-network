@@ -1,7 +1,7 @@
 /**
  * fear_greed_collector.c — Alternative.me Fear & Greed Index (T370-T378 proxy)
  * Free API, no key needed. Crypto market sentiment indicator.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o fear_greed_collector fear_greed_collector.c -lcurl -lsqlite3 -lm -ljansson
  */
 

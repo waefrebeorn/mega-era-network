@@ -305,7 +305,7 @@ static int load_daily(const char *sp_path, const char *vix_path,
             }
         }
     }
-    
+
     // Load 10yr Treasury yield
     float yld_buf[MAX_DAYS];
     char yld_dates[MAX_DAYS][16];
@@ -328,7 +328,7 @@ static int load_daily(const char *sp_path, const char *vix_path,
         fclose(f);
     }
     printf("[DATA] DGS10: %d rows\n", n_yld);
-    
+
     // Re-merge with yield
     count = 0;
     for (int si = 0; si < n_sp && count < max; si++) {

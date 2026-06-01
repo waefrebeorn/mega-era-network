@@ -28,7 +28,7 @@ static size_t wcb(void *p, size_t s, size_t n, void *u) {
 
 int main(void) {
     curl_global_init(CURL_GLOBAL_ALL);
-    
+
     sqlite3 *db; sqlite3_open(DB_PATH, &db);
     sqlite3_exec(db,
         "CREATE TABLE IF NOT EXISTS economic_calendar ("
@@ -36,13 +36,13 @@ int main(void) {
         "importance TEXT, fetched_at INTEGER, "
         "PRIMARY KEY(event_date, event_name))",
         NULL, NULL, NULL);
-    
+
     json_t *root = json_array();
-    
+
     // Source: Nomics free API or similar. For now, use FRED known events
     // Key recurring economic events
     typedef struct { const char *date, *name, *country; int imp; } Event;
-    
+
     Event events[] = {
         {"2026-06-05", "Non-Farm Payrolls", "US", 3},
         {"2026-06-05", "Unemployment Rate", "US", 3},
@@ -64,7 +64,7 @@ int main(void) {
         {"2026-06-01", "BOJ Interest Rate Decision", "JP", 3},
         {NULL, NULL, NULL, 0}
     };
-    
+
     time_t now = time(NULL);
     for(int i=0; events[i].date; i++) {
         json_t *e = json_pack("{s:s, s:s, s:s, s:i, s:f}",
@@ -74,7 +74,7 @@ int main(void) {
             "importance", events[i].imp,
             "fetched_at", (double)now);
         json_array_append_new(root, e);
-        
+
         sqlite3_stmt *st;
         if(sqlite3_prepare_v2(db,
             "INSERT OR REPLACE INTO economic_calendar VALUES(?,?,?,?,?)",
@@ -88,10 +88,10 @@ int main(void) {
         }
         printf("[ECON] %s: %s (%s)\n", events[i].date, events[i].name, events[i].country);
     }
-    
+
     mkdir(OUT_DIR,0755); json_dump_file(root,OUT_FILE,JSON_INDENT(2));
     printf("[ECON] %zu events -> %s\n", json_array_size(root), OUT_FILE);
-    
+
     sqlite3_close(db);
     json_decref(root);
     curl_global_cleanup();

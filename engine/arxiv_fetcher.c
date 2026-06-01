@@ -1,7 +1,7 @@
 /**
  * arxiv_fetcher.c — ArXiv quant-fin paper fetcher (T1401-T1403)
  * Free API, no key needed. Fetches latest q-fin.ST, q-fin.CP, cs.CE papers.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o arxiv_fetcher arxiv_fetcher.c -lcurl -lsqlite3 -lm
  */
 
@@ -59,12 +59,12 @@ static int parse_and_store(sqlite3 *db, MB *b, const char *category) {
     sqlite3_stmt *s; sqlite3_prepare_v2(db,
         "INSERT OR IGNORE INTO arxiv_papers (paper_id,title,authors,published,category,abstract) "
         "VALUES(?1,?2,?3,?4,?5,?6)",-1,&s,0);
-    
+
     while((p=strstr(p,"<entry>"))!=NULL) {
         char entry[32768]; int n=0; char *e=strstr(p,"</entry>");
         if(!e) break; n=(int)(e-p+8); if(n>32767)n=32767;
         strncpy(entry,p,n); entry[n]=0;
-        
+
         char id[256]="", title[512]="", authors[4096]="", published[32]="", abstr[4096]="";
         extract(entry,"id",id,sizeof(id));       // http://arxiv.org/abs/XXXX.XXXXX
         char *slash=strrchr(id,'/'); if(slash) { char *tmp=slash+1; memmove(id,tmp,strlen(tmp)+1); }
@@ -74,12 +74,12 @@ static int parse_and_store(sqlite3 *db, MB *b, const char *category) {
         // Collapse spaces
         char *src=title,*dst=title; int sp=0;
         while(*src){if(*src==' '){if(!sp)*dst++=' ';sp=1;}else{*dst++=*src;sp=0;}src++;}*dst=0;
-        
+
         extract(entry,"published",published,sizeof(published));
         extract(entry,"summary",abstr,sizeof(abstr));
         // Clean abstract
         for(char *t=abstr;*t;t++) if(*t=='\n') *t=' ';
-        
+
         // Extract authors
         char *ap = entry; int first=1;
         while((ap=strstr(ap,"<author>"))!=NULL) {
@@ -88,7 +88,7 @@ static int parse_and_store(sqlite3 *db, MB *b, const char *category) {
             strcat(authors,aname); first=0;
             ap+=8;
         }
-        
+
         sqlite3_bind_text(s,1,id,-1,SQLITE_STATIC);
         sqlite3_bind_text(s,2,title,-1,SQLITE_STATIC);
         sqlite3_bind_text(s,3,authors,-1,SQLITE_STATIC);
@@ -97,7 +97,7 @@ static int parse_and_store(sqlite3 *db, MB *b, const char *category) {
         sqlite3_bind_text(s,6,abstr,-1,SQLITE_STATIC);
         if(sqlite3_step(s)==SQLITE_DONE) count++;
         sqlite3_reset(s);
-        
+
         p = e + 8;
     }
     sqlite3_finalize(s);
@@ -121,11 +121,11 @@ static void print_stats(sqlite3 *db) {
 int main(int argc, char **argv) {
     sqlite3 *db=odb(); if(!db) return 1;
     if(argc>1&&strcmp(argv[1],"stats")==0){print_stats(db);sqlite3_close(db);return 0;}
-    
+
     const char *cats[] = {"q-fin.ST","q-fin.CP","q-fin.GN","cs.CE","cs.AI","stat.ML"};
     const char *names[] = {"Statistical Finance","Computational Finance","General Finance","Computational Engineering","AI","ML"};
     int n = sizeof(cats)/sizeof(cats[0]);
-    
+
     curl_global_init(CURL_GLOBAL_DEFAULT);
     MB b={0}; int total=0;
     for(int i=0;i<n;i++) {

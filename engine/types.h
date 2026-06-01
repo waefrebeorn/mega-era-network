@@ -247,24 +247,24 @@ typedef struct {
     uint32_t magic;             // STATE_MAGIC for validation
     int64_t  last_updated;      // Unix ns
     int      cycle;             // Current cycle number
-    
+
     // Market currently being processed
     MarketTick current_market;
     FeatureVector features;
-    
+
     // Vote results for this tick
     int      vote_count;
     VoteRecord votes[MAX_AGENTS];
-    
+
     // Agent pool
     AgentState agents[MAX_AGENTS];
-    
+
     // Stats
     RoomStats stats;
     DarwinRecord darwin;
     int trade_count;
     TradeRecord trades[MAX_TRADE_HIST];
-    
+
     // Room-level trading ($50 seed, one consensus bet per cycle)
     float    room_capital;         // $50 seed
     float    room_capital_peak;
@@ -272,7 +272,7 @@ typedef struct {
     int      room_wins, room_losses;
     RoomTrade room_trade;          // current active room trade
     float    prev_room_capital;    // for room-level return tracking
-    
+
     // Lock flag (non-IPC — process owns, Python reader reads atomic)
     volatile int writing;       // 1 while C is writing, 0 when done
     float    nested_prediction;  // Latest cascade prediction from nested HT model (0-1)

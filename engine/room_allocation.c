@@ -49,16 +49,16 @@ static int read_snapshot(const char *path, RoomAlloc *ra) {
     json_error_t err;
     json_t *root = json_load_file(path, 0, &err);
     if (!root) return 0;
-    
+
     const char *p = strstr(path, "/rooms/");
     if (p) { p += 7; int len = 0;
         while (p[len] && p[len] != '/') len++;
         if (len > 63) len = 63;
         strncpy(ra->name, p, len); ra->name[len] = '\0'; }
-    
+
     json_t *j = json_object_get(root, "cycle");
     if (json_is_integer(j)) ra->cycle = (int)json_integer_value(j);
-    
+
     j = json_object_get(root, "vote_summary");
     if (json_is_object(j)) {
         int up = 0, down = 0, total = 0;
@@ -70,7 +70,7 @@ static int read_snapshot(const char *path, RoomAlloc *ra) {
         if (json_is_integer(v)) down = (int)json_integer_value(v);
         ra->signal = total > 0 ? (double)(up - down) / total : 0;
     }
-    
+
     j = json_object_get(root, "stats");
     if (json_is_object(j)) {
         json_t *s;
@@ -84,10 +84,10 @@ static int read_snapshot(const char *path, RoomAlloc *ra) {
         if (json_is_real(s)) ra->peak_capital = json_real_value(s);
     }
     json_decref(root);
-    
+
     if (ra->peak_capital > 0)
         ra->drawdown_pct = (ra->peak_capital - ra->capital) / ra->peak_capital;
-    
+
     return 1;
 }
 
@@ -97,23 +97,23 @@ static void read_log(const char *room_dir, RoomAlloc *ra) {
     snprintf(path, sizeof(path), "%s/room_log.csv", room_dir);
     FILE *f = fopen(path, "r");
     if (!f) return;
-    
+
     /* Count lines */
     int n = 0, ch;
     while ((ch = fgetc(f)) != EOF) if (ch == '\n') n++;
     rewind(f);
-    
+
     int start = n - 200;
     if (start < 1) start = 1;
-    
+
     char line[MAX_LINE];
     int cur = 0, count = 0;
     double pnl_sum = 0, pnl_sq = 0;
-    
+
     while (fgets(line, sizeof(line), f)) {
         cur++;
         if (cur < start || cur == 1) continue;
-        
+
         /* Extract pnl_pct (field 9) */
         int fld = 0;
         char *tok = strtok(line, ",");
@@ -128,7 +128,7 @@ static void read_log(const char *room_dir, RoomAlloc *ra) {
         }
     }
     fclose(f);
-    
+
     if (count > 0) {
         double mean = pnl_sum / count;
         double var = pnl_sq / count - mean * mean;
@@ -142,7 +142,7 @@ static void read_log(const char *room_dir, RoomAlloc *ra) {
 /* Risk metrics — E47 */
 static void print_risk(RoomAlloc *rooms, int n) {
     printf("=== PORTFOLIO RISK (E47) ===\n");
-    
+
     double worst_dd = 0, total_cap = 0;
     int dd_rooms = 0;
     for (int i = 0; i < n; i++) {
@@ -150,7 +150,7 @@ static void print_risk(RoomAlloc *rooms, int n) {
         if (rooms[i].drawdown_pct > worst_dd) worst_dd = rooms[i].drawdown_pct;
         if (rooms[i].drawdown_pct > 0.05) dd_rooms++;
     }
-    
+
     printf("ROOM             CAPITAL    PEAK_CAP   DD%%     VOL       CONC%%\n");
     printf("---------------  ---------  ---------  ------  --------  -----\n");
     for (int i = 0; i < n; i++) {
@@ -159,11 +159,11 @@ static void print_risk(RoomAlloc *rooms, int n) {
                rooms[i].name, rooms[i].capital, rooms[i].peak_capital,
                rooms[i].drawdown_pct * 100, rooms[i].volatility, conc);
     }
-    
+
     printf("\nTotal capital: $%.0f\n", total_cap);
     printf("Worst drawdown: %.1f%%\n", worst_dd * 100);
     printf("Rooms in drawdown (>5%%): %d/%d\n", dd_rooms, n);
-    
+
     /* Herfindahl concentration */
     double hhi = 0;
     for (int i = 0; i < n; i++)
@@ -175,7 +175,7 @@ static void print_risk(RoomAlloc *rooms, int n) {
 /* Optimal allocation — E48 */
 static void print_alloc(RoomAlloc *rooms, int n) {
     printf("\n=== CAPITAL ALLOCATION (E48) ===\n");
-    
+
     /* Score: (1+Sharpe) * (1+WR) * (1-|0.5-up_ratio|) */
     for (int i = 0; i < n; i++) {
         double sh = !isnan(rooms[i].sharpe) && rooms[i].sharpe > 0 ? rooms[i].sharpe : 0;
@@ -184,10 +184,10 @@ static void print_alloc(RoomAlloc *rooms, int n) {
         if (dd_penalty < 0.1) dd_penalty = 0.1;
         rooms[i].allocation = (1.0 + sh) * (0.5 + wr_bonus) * dd_penalty;
     }
-    
+
     double total_score = 0;
     for (int i = 0; i < n; i++) total_score += rooms[i].allocation;
-    
+
     printf("ROOM             SCORE    ALLOC%%  CONVICTION\n");
     printf("---------------  ------  -------  ----------\n");
     for (int i = 0; i < n; i++) {
@@ -203,20 +203,20 @@ static void print_alloc(RoomAlloc *rooms, int n) {
 static void print_perf_alloc(RoomAlloc *rooms, int n) {
     printf("\n=== PERFORMANCE ALLOCATION (E49) ===\n");
     printf("Ranked by recent PnL — top rooms get more capital\n\n");
-    
+
     /* Sort by recent PnL descending */
     for (int i = 0; i < n; i++)
         for (int j = i+1; j < n; j++)
             if (rooms[j].recent_pnl > rooms[i].recent_pnl) {
                 RoomAlloc t = rooms[i]; rooms[i] = rooms[j]; rooms[j] = t;
             }
-    
+
     printf("RANK ROOM             RECENT_PNL  SHARPE  ALLOC%%\n");
     printf("---- ---------------  ----------  ------  ------\n");
     double total_pnl = 0;
     for (int i = 0; i < n; i++) total_pnl += fmax(rooms[i].recent_pnl, 0);
     if (total_pnl <= 0) total_pnl = n;
-    
+
     double allocs[MAX_ROOMS];
     for (int i = 0; i < n; i++) {
         double pnl = fmax(rooms[i].recent_pnl, 0);
@@ -231,7 +231,7 @@ static void print_perf_alloc(RoomAlloc *rooms, int n) {
 static void print_drawdown(RoomAlloc *rooms, int n) {
     printf("\n=== DRAWDOWN PROTECTION (E50) ===\n");
     printf("Rooms exceeding drawdown thresholds\n\n");
-    
+
     int trig = 0;
     printf("ROOM             DD%%     THRESHOLD  ACTION\n");
     printf("---------------  ------  ---------  ------\n");
@@ -251,22 +251,22 @@ static void print_drawdown(RoomAlloc *rooms, int n) {
 static int find_rooms(RoomAlloc *rooms, int *n) {
     DIR *dir = opendir(ROOMS_DIR);
     if (!dir) return 0;
-    
+
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && *n < MAX_ROOMS) {
         if (entry->d_name[0] == '.') continue;
-        
+
         char snap_path[MAX_PATH];
         snprintf(snap_path, sizeof(snap_path), "%s/%s/room_snapshot.json",
                  ROOMS_DIR, entry->d_name);
-        
+
         RoomAlloc ra = {0};
         if (!read_snapshot(snap_path, &ra)) continue;
-        
+
         char room_path[MAX_PATH];
         snprintf(room_path, sizeof(room_path), "%s/%s", ROOMS_DIR, entry->d_name);
         read_log(room_path, &ra);
-        
+
         rooms[(*n)++] = ra;
     }
     closedir(dir);
@@ -275,7 +275,7 @@ static int find_rooms(RoomAlloc *rooms, int *n) {
 
 int main(int argc, char **argv) {
     int mode = 0; /* 0=all, 1=risk, 2=allocate, 3=perf, 4=drawdown */
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "risk") == 0) mode = 1;
         else if (strcmp(argv[i], "allocate") == 0) mode = 2;
@@ -283,20 +283,20 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "drawdown") == 0) mode = 4;
         else if (strcmp(argv[i], "all") == 0) mode = 0;
     }
-    
+
     RoomAlloc rooms[MAX_ROOMS];
     int n_rooms = 0;
     if (!find_rooms(rooms, &n_rooms)) {
         fprintf(stderr, "No rooms found\n");
         return 1;
     }
-    
+
     printf("ROOM ALLOCATOR — %d rooms\n", n_rooms);
-    
+
     if (mode == 0 || mode == 1) print_risk(rooms, n_rooms);
     if (mode == 0 || mode == 2) print_alloc(rooms, n_rooms);
     if (mode == 0 || mode == 3) print_perf_alloc(rooms, n_rooms);
     if (mode == 0 || mode == 4) print_drawdown(rooms, n_rooms);
-    
+
     return 0;
 }

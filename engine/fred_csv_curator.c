@@ -2,7 +2,7 @@
  * fred_csv_curator.c — FRED CSV Gateway curator (T1502-T1557)
  * Fetches 56 FRED economic series from ivo-welch.info cgi gateway
  * All free, no API key needed. Stores in SQLite.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o fred_csv_curator fred_csv_curator.c -lcurl -lsqlite3 -lm
  */
 
@@ -127,10 +127,10 @@ static int init_db(sqlite3 *db) {
 static int fetch_series(const FredSeries *s, MemBuf *buf, const char *base_url) {
     char url[512];
     snprintf(url, sizeof(url), "%s?symbol=%s", base_url, s->symbol);
-    
+
     CURL *curl = curl_easy_init();
     if (!curl) return -1;
-    
+
     buf->size = 0;
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
@@ -138,12 +138,12 @@ static int fetch_series(const FredSeries *s, MemBuf *buf, const char *base_url) 
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "MoneyRoom/1.0 FRED Curator");
-    
+
     CURLcode res = curl_easy_perform(curl);
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     curl_easy_cleanup(curl);
-    
+
     if (res != CURLE_OK) {
         fprintf(stderr, "  [FAIL] %s: curl error %d\n", s->symbol, res);
         return -1;
@@ -159,27 +159,27 @@ static int insert_data(sqlite3 *db, const FredSeries *s, MemBuf *buf) {
     sqlite3_stmt *stmt;
     const char *sql = "INSERT OR REPLACE INTO fred_data (series_id, obs_date, value, name, frequency) "
                       "VALUES (?1, ?2, ?3, ?4, ?5)";
-    
+
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) return -1;
-    
+
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    
+
     int n_rows = 0, n_skip = 0;
     char *line = buf->data;
     int line_num = 0;
-    
+
     while (line && *line) {
         char *next = strchr(line, '\n');
         if (next) *next = '\0';
-        
+
         line_num++;
-        
+
         /* Skip header line */
         if (line_num == 1) {
             if (next) { line = next + 1; continue; } else break;
         }
-        
+
         /* Parse: yyyymmdd,value */
         char date_str[16], val_str[64];
         if (sscanf(line, "%15[^,],%63s", date_str, val_str) >= 2) {
@@ -193,20 +193,20 @@ static int insert_data(sqlite3 *db, const FredSeries *s, MemBuf *buf) {
                 sqlite3_bind_double(stmt, 3, val);
                 sqlite3_bind_text(stmt, 4, s->name, -1, SQLITE_STATIC);
                 sqlite3_bind_text(stmt, 5, s->frequency, -1, SQLITE_STATIC);
-                
+
                 rc = sqlite3_step(stmt);
                 sqlite3_reset(stmt);
                 if (rc == SQLITE_DONE) n_rows++;
             }
         }
-        
+
         if (next) line = next + 1;
         else break;
     }
-    
+
     sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
-    
+
     printf("  %s: %d rows, %d skipped\n", s->symbol, n_rows, n_skip);
     return n_rows;
 }
@@ -218,19 +218,19 @@ static int update_all(const char *base_url) {
         fprintf(stderr, "Can't open DB: %s\n", sqlite3_errmsg(db));
         return -1;
     }
-    
+
     init_db(db);
-    
+
     MemBuf buf = {NULL, 0};
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    
+
     int total_ok = 0, total_fail = 0, total_rows = 0;
-    
+
     for (int i = 0; i < N_SERIES; i++) {
         printf("[%d/%d] %-15s %s\n", i+1, N_SERIES, SERIES[i].symbol, SERIES[i].name);
-        
+
         if (buf.data) { free(buf.data); buf.data = NULL; buf.size = 0; }
-        
+
         if (fetch_series(&SERIES[i], &buf, base_url) == 0) {
             int rows = insert_data(db, &SERIES[i], &buf);
             if (rows > 0) {
@@ -243,17 +243,17 @@ static int update_all(const char *base_url) {
             total_fail++;
         }
     }
-    
+
     free(buf.data);
     sqlite3_close(db);
     curl_global_cleanup();
-    
+
     printf("\n=== FRED CURATOR RESULT ===\n");
     printf("Series OK:  %d\n", total_ok);
     printf("Series FAIL: %d\n", total_fail);
     printf("Total rows: %d\n", total_rows);
     printf("===========================\n");
-    
+
     return total_fail;
 }
 
@@ -262,13 +262,13 @@ static void print_stats(sqlite3 *db) {
     const char *sql = "SELECT series_id, COUNT(*), MAX(obs_date), "
                       "ROUND(AVG(value), 2), name "
                       "FROM fred_data GROUP BY series_id ORDER BY series_id";
-    
+
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) return;
-    
+
     printf("\n%-15s %8s %14s %12s  %s\n", "SERIES", "ROWS", "LATEST", "MEAN", "NAME");
     printf("--------------- -------- -------------- ------------  --------------------------------\n");
-    
+
     int total = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char *sid = (const char*)sqlite3_column_text(stmt, 0);
@@ -286,7 +286,7 @@ static void print_stats(sqlite3 *db) {
 
 int main(int argc, char **argv) {
     const char *base_url = "https://www.ivo-welch.info/cgi-bin/fredwrap";
-    
+
     if (argc > 1) {
         if (strcmp(argv[1], "stats") == 0 || strcmp(argv[1], "status") == 0) {
             sqlite3 *db;
@@ -325,7 +325,7 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
-    
+
     printf("Usage: fred_csv_curator <command>\n");
     printf("  update  - Fetch all 56 FRED series into SQLite\n");
     printf("  stats   - Show summary statistics\n");

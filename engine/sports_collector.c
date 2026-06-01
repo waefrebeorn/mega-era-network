@@ -74,27 +74,27 @@ static void extract_player_stats(json_t *comp, json_t *game_json, const char *si
     if (!comp) return;
     json_t *athletes = json_object_get(comp, "athletes");
     if (!athletes || !json_is_array(athletes)) return;
-    
+
     size_t n = json_array_size(athletes);
     if (n == 0) return;
-    
+
     json_t *players = json_array();
-    
+
     for (size_t i = 0; i < n && i < 15; i++) {
         json_t *ath = json_array_get(athletes, i);
         if (!ath) continue;
-        
+
         json_t *athlete = json_object_get(ath, "athlete");
         if (!athlete) continue;
-        
+
         const char *name = safe_str(athlete, "fullName");
         if (!name[0]) continue;
-        
+
         const char *pos = safe_str(athlete, "position");
-        
+
         json_t *stats = json_object_get(ath, "stats");
         json_t *player = json_pack("{s:s,s:s}", "name", name, "position", pos);
-        
+
         if (stats && json_is_array(stats)) {
             for (size_t s = 0; s < json_array_size(stats); s++) {
                 json_t *stat = json_array_get(stats, s);
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
     const char *filter_league = NULL;
     int include_players = 1;
     int write_db = 1;
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--days") == 0 && i+1 < argc) days_back = atoi(argv[++i]);
         else if (strcmp(argv[i], "--league") == 0 && i+1 < argc) filter_league = argv[++i];
@@ -242,70 +242,70 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
-    
+
     curl_global_init(CURL_GLOBAL_ALL);
     json_t *root = json_array();
     int total_games = 0;
-    
+
     time_t now = time(NULL);
-    
+
     for (int l = 0; l < N_LEAGUES; l++) {
         if (filter_league && strcasecmp(filter_league, LEAGUES[l].name) != 0) continue;
-        
+
         printf("[SPORTS] %s... ", LEAGUES[l].name);
         fflush(stdout);
         int lg_games = 0;
-        
+
         for (int d = 0; d < days_back; d++) {
             time_t day_ts = now - (time_t)d * 86400;
             struct tm *tp = gmtime(&day_ts);
             char date_str[16];
             snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
                      tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday);
-            
+
             char url[512];
             snprintf(url, sizeof(url),
                 "https://site.api.espn.com/apis/site/v2/sports/%s/%s/scoreboard?dates=%s",
                 LEAGUES[l].sport, LEAGUES[l].league, date_str);
-            
+
             char *resp = http_get(url);
             if (!resp) continue;
-            
+
             json_error_t err;
             json_t *j = json_loads(resp, 0, &err);
             free(resp);
             if (!j) continue;
-            
+
             json_t *events = json_object_get(j, "events");
             if (events && json_is_array(events)) {
                 size_t n = json_array_size(events);
                 for (size_t e = 0; e < n; e++) {
                     json_t *ev = json_array_get(events, e);
                     if (!ev) continue;
-                    
+
                     const char *status = safe_str(
                         json_object_get(json_object_get(ev, "status"), "type"), "description");
                     if (strcmp(status, "Final") != 0) continue;
-                    
+
                     json_t *comp_a = json_object_get(ev, "competitions");
                     json_t *comp = (comp_a && json_array_size(comp_a) > 0)
                         ? json_array_get(comp_a, 0) : NULL;
                     if (!comp) continue;
-                    
+
                     json_t *compets = json_object_get(comp, "competitors");
                     if (!compets || json_array_size(compets) < 2) continue;
-                    
+
                     // Need at least valid score data
                     json_t *home = json_array_get(compets, 0);
                     json_t *away = json_array_get(compets, 1);
                     if (!home || !away) continue;
-                    
+
                     // Determine home/away based on homeAway field
                     const char *ha_home = safe_str(home, "homeAway");
                     if (strcmp(ha_home, "away") == 0) {
                         json_t *tmp = home; home = away; away = tmp;
                     }
-                    
+
                     double home_score = safe_num(home, "score");
                     double away_score = safe_num(away, "score");
                     const char *home_name = safe_str(
@@ -316,11 +316,11 @@ int main(int argc, char **argv) {
                         json_object_get(home, "team"), "abbreviation");
                     const char *away_abbr = safe_str(
                         json_object_get(away, "team"), "abbreviation");
-                    
+
                     // Venue info
                     const char *venue = safe_str(
                         json_object_get(comp, "venue"), "fullName");
-                    
+
                     // Odds
                     json_t *odds_a = json_object_get(comp, "odds");
                     double spread = 0, over_under = 0;
@@ -339,10 +339,10 @@ int main(int argc, char **argv) {
                             }
                         }
                     }
-                    
+
                     // Attendance
                     double attendance = safe_num(comp, "attendance");
-                    
+
                     // Build game entry
                     char game_label[256];
                     snprintf(game_label, sizeof(game_label), "%s vs %s", away_name, home_name);
@@ -370,7 +370,7 @@ int main(int argc, char **argv) {
                         "outcome", (home_score > away_score) ? 1.0 : 0.0,
                         "features", json_array()
                     );
-                    
+
                     // Add 20 features for the trainer
                     json_t *feats = json_object_get(game, "features");
                     double h_win_pct = 0.5, a_win_pct = 0.5;
@@ -379,7 +379,7 @@ int main(int argc, char **argv) {
                     double ou_norm = (over_under > 0) ? over_under / 300.0 : 0.5;
                     double score_diff = home_score - away_score;
                     double total_score = home_score + away_score;
-                    
+
                     json_array_append_new(feats, json_real(spread_norm));
                     json_array_append_new(feats, json_real(ou_norm));
                     json_array_append_new(feats, json_real(home_score / 150.0));
@@ -393,7 +393,7 @@ int main(int argc, char **argv) {
                     // Placeholder features (will be filled by sentiment/context)
                     for (int f = 10; f < 20; f++)
                         json_array_append_new(feats, json_real(0.5));
-                    
+
                     // Player stats (optional, makes response larger)
                     if (include_players) {
                         json_t *hp = json_object();
@@ -406,7 +406,7 @@ int main(int argc, char **argv) {
                             json_object_set(game, "away_players", json_object_get(ap, "players"));
                         json_decref(hp); json_decref(ap);
                     }
-                    
+
                     json_array_append_new(root, game);
                     lg_games++;
                 }
@@ -416,13 +416,13 @@ int main(int argc, char **argv) {
         total_games += lg_games;
         printf("%d games\n", lg_games);
     }
-    
+
     // Write output
     mkdir(OUT_DIR, 0755);
     json_dump_file(root, OUT_FILE, JSON_INDENT(2));
     printf("[SPORTS] Total: %d games across %d leagues -> %s\n",
            total_games, N_LEAGUES, OUT_FILE);
-    
+
     // Write to databases
     if (write_db) {
         size_t idx;
@@ -436,7 +436,7 @@ int main(int argc, char **argv) {
         }
         printf("[SPORTS] DB: %d written, %d failed\n", db_ok, db_fail);
     }
-    
+
     json_decref(root);
     curl_global_cleanup();
     return 0;

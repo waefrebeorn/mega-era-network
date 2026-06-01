@@ -1,12 +1,12 @@
 /**
  * btc_csv_refresher.c — Keep BTC 1-min CSV up to date
- * 
+ *
  * Fetches latest 1-min candles from Coinbase public API (no key needed),
  * reads the last timestamp from btc_1min_latest.csv, appends new candles.
- * 
+ *
  * Compile:
  *   gcc -O2 -o btc_csv_refresher btc_csv_refresher.c -lcurl -ljansson -lm
- * 
+ *
  * Usage:
  *   ./btc_csv_refresher              # Default: append new candles
  *   ./btc_csv_refresher --backfill   # Fetch full 300-candle history
@@ -87,7 +87,7 @@ static void append_candle(int64_t ts, double o, double h, double l, double c, do
 static int fetch_coinbase(int64_t last_ts) {
     char *resp = http_get(COINBASE_API, 15);
     if (!resp) { fprintf(stderr, "[REFRESH] Coinbase API failed\n"); return -1; }
-    
+
     json_error_t err;
     json_t *root = json_loads(resp, 0, &err);
     free(resp);
@@ -96,30 +96,30 @@ static int fetch_coinbase(int64_t last_ts) {
         if (root) json_decref(root);
         return -1;
     }
-    
+
     int n = (int)json_array_size(root);
     int appended = 0, skipped = 0;
-    
+
     // Coinbase returns [timestamp, low, high, open, close, volume]
     // Process in reverse (oldest first) to maintain chronological order
     for (int i = n - 1; i >= 0; i--) {
         json_t *c = json_array_get(root, i);
         if (!c || !json_is_array(c) || json_array_size(c) < 6) continue;
-        
+
         int64_t ts = (int64_t)json_number_value(json_array_get(c, 0));
         double low = json_number_value(json_array_get(c, 1));
         double high = json_number_value(json_array_get(c, 2));
         double open = json_number_value(json_array_get(c, 3));
         double close = json_number_value(json_array_get(c, 4));
         double volume = json_number_value(json_array_get(c, 5));
-        
+
         if (ts <= last_ts) { skipped++; continue; }
         if (close <= 0 || volume <= 0) continue;
-        
+
         append_candle(ts, open, high, low, close, volume);
         appended++;
     }
-    
+
     json_decref(root);
     printf("[REFRESH] Coinbase: %d new candles (skipped %d existing)\n", appended, skipped);
     return appended;
@@ -129,7 +129,7 @@ static int fetch_coinbase(int64_t last_ts) {
 static int fetch_kraken(int64_t last_ts) {
     char *resp = http_get(KRAKEN_API, 15);
     if (!resp) { fprintf(stderr, "[REFRESH] Kraken API failed\n"); return -1; }
-    
+
     json_error_t err;
     json_t *root = json_loads(resp, 0, &err);
     free(resp);
@@ -137,10 +137,10 @@ static int fetch_kraken(int64_t last_ts) {
         fprintf(stderr, "[REFRESH] Kraken: invalid JSON (%s)\n", err.text);
         return -1;
     }
-    
+
     json_t *jresult = json_object_get(root, "result");
     if (!jresult) { json_decref(root); return -1; }
-    
+
     // Find the XXBTZUSD key
     json_t *jcandles = NULL;
     const char *key; json_t *val;
@@ -150,34 +150,34 @@ static int fetch_kraken(int64_t last_ts) {
             break;
         }
     }
-    
+
     if (!jcandles || !json_is_array(jcandles)) {
         json_decref(root);
         return -1;
     }
-    
+
     int n = (int)json_array_size(jcandles);
     int appended = 0;
-    
+
     // Kraken: [ts, open, high, low, close, vwap, volume, count]
     for (int i = 0; i < n; i++) {
         json_t *c = json_array_get(jcandles, i);
         if (!c || !json_is_array(c) || json_array_size(c) < 8) continue;
-        
+
         int64_t ts = (int64_t)json_integer_value(json_array_get(c, 0));
         double open = atof(json_string_value(json_array_get(c, 1)));
         double high = atof(json_string_value(json_array_get(c, 2)));
         double low = atof(json_string_value(json_array_get(c, 3)));
         double close = atof(json_string_value(json_array_get(c, 4)));
         double volume = atof(json_string_value(json_array_get(c, 6)));
-        
+
         if (ts <= last_ts) continue;
         if (close <= 0) continue;
-        
+
         append_candle(ts, open, high, low, close, volume);
         appended++;
     }
-    
+
     json_decref(root);
     printf("[REFRESH] Kraken: %d new candles\n", appended);
     return appended;
@@ -185,29 +185,29 @@ static int fetch_kraken(int64_t last_ts) {
 
 int main(int argc, char **argv) {
     int backfill = (argc > 1 && strcmp(argv[1], "--backfill") == 0);
-    
+
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    
+
     int64_t last_ts = get_last_ts();
     if (last_ts == 0) {
         printf("[REFRESH] Creating new BTC CSV\n");
         FILE *f = fopen(BTC_CSV, "w");
         if (f) { fprintf(f, "ts,open,high,low,close,volume\n"); fclose(f); }
     } else {
-        char tb[32]; time_t t = last_ts; 
+        char tb[32]; time_t t = last_ts;
         strftime(tb, sizeof(tb), "%Y-%m-%d %H:%M:%S", gmtime(&t));
         printf("[REFRESH] Last candle: %s (ts=%ld)\n", tb, (long)last_ts);
     }
-    
+
     // Try Coinbase first (free, no key)
     int r = fetch_coinbase(last_ts);
     if (r <= 0) {
         printf("[REFRESH] Coinbase failed, trying Kraken...\n");
         r = fetch_kraken(last_ts);
     }
-    
+
     curl_global_cleanup();
-    
+
     // Re-read and show new last timestamp
     int64_t new_ts = get_last_ts();
     if (new_ts > last_ts) {
@@ -217,6 +217,6 @@ int main(int argc, char **argv) {
     } else {
         printf("[REFRESH] No new data (already up to date)\n");
     }
-    
+
     return r > 0 ? 0 : 1;
 }

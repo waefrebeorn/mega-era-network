@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     // Scenario 1: 2008-style crash (-50% over 20 days)
     // Scenario 2: 2020 flash crash (-30% in 1 day)
     // Scenario 3: Gradual bear (-20% over 60 days)
-    
+
     float scenarios[][4] = {
         {0.50f, 20, 0.025f, 2008},   // -50% over 20 days
         {0.30f, 1, 0.30f, 2020},     // -30% in 1 day

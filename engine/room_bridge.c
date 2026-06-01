@@ -38,17 +38,17 @@ static void init_bridge_paths(void) {
 RoomError room_bridge_write(RoomState *state) {
     init_bridge_paths();
     if (!state) return ERR_MMAP_FAIL;
-    
+
     FILE *f = fopen(JSON_SNAP, "w");
     if (!f) return ERR_FILE_READ;
-    
+
     fputs("{\n", f);
-    
+
     // General
     fprintf(f, "\"magic\": %u,\n", state->magic);
     fprintf(f, "\"cycle\": %d,\n", state->cycle);
     fprintf(f, "\"last_updated\": %ld,\n", state->last_updated);
-    
+
     // Current market
     fprintf(f, "\"market\": {\n");
     fprintf(f, "  \"asset\": \"%s\",\n", state->current_market.asset);
@@ -61,7 +61,7 @@ RoomError room_bridge_write(RoomState *state) {
     fprintf(f, "  \"pump_score\": %.4f,\n", state->current_market.pump_score);
     fprintf(f, "  \"fear_greed\": %.1f\n", state->current_market.fear_greed);
     fprintf(f, "},\n");
-    
+
     // Features
     fprintf(f, "\"features\": {\n");
     fprintf(f, "  \"price_delta_pct\": %.4f,\n", state->features.price_delta_pct);
@@ -75,7 +75,7 @@ RoomError room_bridge_write(RoomState *state) {
     fprintf(f, "  \"herd_consensus\": %.4f,\n", state->features.herd_consensus);
     fprintf(f, "  \"nested_prediction\": %.4f\n", state->nested_prediction);
     fprintf(f, "},\n");
-    
+
     // Vote summary
     int up = 0, down = 0;
     float conv_sum = 0;
@@ -91,7 +91,7 @@ RoomError room_bridge_write(RoomState *state) {
     fprintf(f, "  \"avg_conviction\": %.4f,\n", state->vote_count > 0 ? conv_sum / state->vote_count : 0);
     fprintf(f, "  \"consensus_spread\": %.4f\n", state->stats.consensus_spread);
     fprintf(f, "},\n");
-    
+
     // Stats
     fprintf(f, "\"stats\": {\n");
     fprintf(f, "  \"active_agents\": %d,\n", state->stats.active_agents);
@@ -142,7 +142,7 @@ RoomError room_bridge_write(RoomState *state) {
     fprintf(f, "  \"cloned\": %d,\n", state->darwin.cloned);
     fprintf(f, "  \"mutation_rate\": %.4f\n", state->darwin.mutation_rate);
     fprintf(f, "},\n");
-    
+
     // Top 10 agents by capital
     fprintf(f, "\"top_agents\": [\n");
     // Find top 10
@@ -172,9 +172,9 @@ RoomError room_bridge_write(RoomState *state) {
                 j < 9 && top_caps[j+1] > 0 ? "," : "");
     }
     fprintf(f, "]\n");
-    
+
     fputs("}\n", f);
     fclose(f);
-    
+
     return ERR_OK;
 }

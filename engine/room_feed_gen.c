@@ -1,7 +1,7 @@
 /**
  * room_feed_gen.c — Per-Room Feed Generator
  * Reads ROOM_DIR env var → room_config.json → generates room-specific market_feed.json
- * 
+ *
  * For non-BTC rooms, transforms the c_room feed into domain-appropriate data.
  * BTC/financial rooms use the same BTC data but get correctly marked.
  * A04: Prediction market rooms now pull real Manifold binary probabilities
@@ -104,14 +104,14 @@ static double get_manifold_prob(const char *room_name, int64_t window_ts) {
         "WHERE source='manifold' AND json_extract(data, '$.outcome_type')='BINARY' "
         "AND json_extract(data, '$.probability') > 0.01 "
         "AND json_extract(data, '$.probability') < 0.99";
-    
+
     sqlite3_stmt *st = NULL;
     int total = 0;
     if (sqlite3_prepare_v2(db, count_sql, -1, &st, 0) == SQLITE_OK) {
         if (sqlite3_step(st) == SQLITE_ROW) total = sqlite3_column_int(st, 0);
         sqlite3_finalize(st);
     }
-    
+
     if (total < 1) {
         fprintf(stderr, "[feed_gen] WARN: no manifold binary markets found (%d)\n", total);
         sqlite3_close(db);
@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
     // ── Write to ROOM_DIR ──
     char out_path[MAX_PATH];
     snprintf(out_path, sizeof(out_path), "%s/market_feed.json", dir);
-    
+
     if (json_dump_file(base, out_path, JSON_INDENT(2)) != 0) {
         fprintf(stderr, "[feed_gen] ERROR: write %s failed\n", out_path);
         json_decref(base);

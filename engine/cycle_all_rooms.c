@@ -92,11 +92,11 @@ int main(void) {
         for (int i = 0; ROOMS[i]; i++) {
             char room_dir[256];
             snprintf(room_dir, sizeof(room_dir), "%s/%s", ROOMS_DIR, ROOMS[i]);
-            
+
             // Check room directory exists
             struct stat rd;
             if (stat(room_dir, &rd) != 0 || !S_ISDIR(rd.st_mode)) continue;
-            
+
             int rc = run_cmd(FEED_GEN, room_dir, 5);
             total++;
             if (rc == 0 || rc == -1) ok++;
@@ -117,10 +117,10 @@ int main(void) {
         char eng_path[256], room_dir[256];
         snprintf(eng_path, sizeof(eng_path), "%s/%s/room_engine", ROOMS_DIR, ROOMS[i]);
         snprintf(room_dir, sizeof(room_dir), "%s/%s", ROOMS_DIR, ROOMS[i]);
-        
+
         struct stat rd;
         if (stat(room_dir, &rd) != 0 || !S_ISDIR(rd.st_mode)) continue;
-        
+
         int rc = run_cmd(eng_path, room_dir, 5);
         total++;
         if (rc == 0 || rc == -1) ok++;

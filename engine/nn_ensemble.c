@@ -2,10 +2,10 @@
  * nn_ensemble.c — Ensemble Stacking for SP500 Direction
  * Trains N independent MLP models with bootstrap resampling,
  * averages predictions for smoother, more robust inference.
- * 
+ *
  * Architecture: Each model: 21→32→16→1 (compact, proven ceiling)
  * Ensemble: N=10 models, soft voting (average probability)
- * 
+ *
  * Compile:  gcc -O3 -march=native -o nn_ensemble nn_ensemble.c -lm
  * Run:      ./nn_ensemble [N_models] [bootstrap_ratio]
  *           ./nn_ensemble 20         # 20-model ensemble
@@ -355,7 +355,7 @@ int main(int argc, char **argv) {
     for (int m = 0; m < N_MODELS; m++) {
         // Random seed per model (different initialization)
         srand(42 + m * 137);
-        
+
         // Bootstrap: draw n_bootstrap samples WITH replacement from training set
         for (int i = 0; i < n_bootstrap; i++) {
             boot_idx[i] = rand() % n_train;

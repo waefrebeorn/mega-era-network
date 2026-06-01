@@ -24,7 +24,7 @@ int main(void) {
     json_t *checks = json_array();
     time_t now = time(NULL);
     int errors = 0, warnings = 0;
-    
+
     // Check 1: Sports outcomes DB
     sqlite3 *db;
     if(sqlite3_open(OC_PATH, &db) == SQLITE_OK) {
@@ -49,7 +49,7 @@ int main(void) {
         else if(total < 1000) { warnings++; printf("  WARN: Low data volume\n"); }
         sqlite3_close(db);
     }
-    
+
     // Check 2: Timeline DB sports tables
     if(sqlite3_open(TL_PATH, &db) == SQLITE_OK) {
         const char *tables[] = {"sports_data", "sports_news", "injuries", "nba_advanced", "mlb_advanced", "nfl_advanced", "soccer_advanced"};
@@ -74,7 +74,7 @@ int main(void) {
         }
         sqlite3_close(db);
     }
-    
+
     // Check 3: File freshness
     const char *files[] = {"sports_data.json","team_stats.json","injuries.json","head2head.json",
                            "sports_news.json","sports_training_features.json","schedule.json",
@@ -97,18 +97,18 @@ int main(void) {
         if(!exists) { errors++; }
         else if(hours > 48) { warnings++; }
     }
-    
+
     json_t *report = json_pack("{s:i, s:i, s:i, s:o}",
         "total_checks", (int)json_array_size(checks),
         "errors", errors,
         "warnings", warnings,
         "checks", checks);
-    
+
     mkdir(OUT_DIR,0755);
     json_dump_file(report, OUT_FILE, JSON_INDENT(2));
     printf("[DQ] Report: %zu checks, %d errors, %d warnings -> %s\n",
            json_array_size(checks), errors, warnings, OUT_FILE);
-    
+
     json_decref(report);
     return errors > 0 ? 1 : 0;
 }

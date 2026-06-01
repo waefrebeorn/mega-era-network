@@ -46,7 +46,7 @@ static int read_room_snapshot(const char *path, RoomSignal *rs) {
     json_error_t err;
     json_t *root = json_load_file(path, 0, &err);
     if (!root) return 0;
-    
+
     /* Extract name from dir */
     const char *slash = strrchr(path, '/');
     if (!slash) slash = path - 1;
@@ -58,10 +58,10 @@ static int read_room_snapshot(const char *path, RoomSignal *rs) {
     if (slen > 63) slen = 63;
     strncpy(rs->name, prev, slen);
     rs->name[slen] = '\0';
-    
+
     json_t *j = json_object_get(root, "cycle");
     if (json_is_integer(j)) rs->cycle = (int)json_integer_value(j);
-    
+
     j = json_object_get(root, "vote_summary");
     if (json_is_object(j)) {
         json_t *v;
@@ -76,7 +76,7 @@ static int read_room_snapshot(const char *path, RoomSignal *rs) {
         v = json_object_get(j, "consensus_spread");
         if (json_is_real(v)) rs->consensus_spread = json_real_value(v);
     }
-    
+
     j = json_object_get(root, "stats");
     if (json_is_object(j)) {
         json_t *s;
@@ -95,63 +95,63 @@ static int read_room_snapshot(const char *path, RoomSignal *rs) {
         s = json_object_get(j, "capital_peak");
         if (json_is_real(s)) rs->capital_peak = json_real_value(s);
     }
-    
+
     json_decref(root);
-    
+
     /* Compute weight: votes × conviction (conviction = abs(win_rate-0.5)) */
     double conviction = fabs(rs->win_rate - 0.5);
     rs->weight = rs->total_votes > 0 ? rs->total_votes * conviction : 0;
-    
+
     /* Signal: -1..1 based on vote imbalance */
     if (rs->total_votes > 0) {
         rs->signal = (double)(rs->up_votes - rs->down_votes) / rs->total_votes;
     } else {
         rs->signal = 0;
     }
-    
+
     return 1;
 }
 
 int main(int argc, char **argv) {
     const char *rooms_dir = ROOMS_DIR_DEFAULT;
     int mode = 0; /* 0=table, 1=consensus only, 2=json */
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "consensus") == 0) mode = 1;
         else if (strcmp(argv[i], "json") == 0) mode = 2;
         else rooms_dir = argv[i];
     }
-    
+
     DIR *dir = opendir(rooms_dir);
     if (!dir) {
         fprintf(stderr, "Error: cannot open %s\n", rooms_dir);
         return 1;
     }
-    
+
     RoomSignal rooms[MAX_ROOMS];
     int n_rooms = 0;
-    
+
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && n_rooms < MAX_ROOMS) {
         if (entry->d_type != DT_DIR && entry->d_type != DT_LNK) continue;
         if (entry->d_name[0] == '.') continue;
-        
+
         char snap_path[MAX_PATH];
         snprintf(snap_path, sizeof(snap_path), "%s/%s/room_snapshot.json",
                  rooms_dir, entry->d_name);
-        
+
         RoomSignal rs = {0};
         if (read_room_snapshot(snap_path, &rs)) {
             rooms[n_rooms++] = rs;
         }
     }
     closedir(dir);
-    
+
     if (n_rooms == 0) {
         fprintf(stderr, "No room snapshots found in %s\n", rooms_dir);
         return 1;
     }
-    
+
     /* Compute aggregate */
     double total_weight = 0;
     double weighted_signal = 0;
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     int wr_count = 0;
     double best_sharpe = -1e9;
     const char *best_room = "";
-    
+
     for (int i = 0; i < n_rooms; i++) {
         total_weight += rooms[i].weight;
         weighted_signal += rooms[i].signal * rooms[i].weight;
@@ -176,10 +176,10 @@ int main(int argc, char **argv) {
             best_room = rooms[i].name;
         }
     }
-    
+
     double consensus = total_weight > 0 ? weighted_signal / total_weight : 0;
     double avg_wr_all = wr_count > 0 ? avg_wr / wr_count * 100 : 0;
-    
+
     if (mode == 1) {
         printf("CONSENSUS: %.4f (%s)\n", consensus,
                consensus > 0.1 ? "BULLISH" :
@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
                avg_wr_all, best_room, best_sharpe);
         return 0;
     }
-    
+
     if (mode == 2) {
         printf("{\n");
         printf("  \"consensus\": %.4f,\n", consensus);
@@ -214,13 +214,13 @@ int main(int argc, char **argv) {
         printf("  ]\n}\n");
         return 0;
     }
-    
+
     /* Table mode */
     printf("ROOM AGGREGATOR — %d rooms reporting\n", n_rooms);
     printf("CONSENSUS: %.4f (%s)\n\n", consensus,
            consensus > 0.1 ? "BULLISH" :
            consensus < -0.1 ? "BEARISH" : "NEUTRAL");
-    
+
     printf("ROOM             CYCLE  VOTES  UP    DOWN  ACTIVE  WR%%    SHARPE  SIGNAL   WEIGHT\n");
     printf("---------------  -----  -----  ----  ----  ------  -----  ------  -------  ------\n");
     /* Sort by weight descending */
@@ -239,10 +239,10 @@ int main(int argc, char **argv) {
                rooms[i].win_rate * 100, rooms[i].sharpe,
                rooms[i].signal, rooms[i].weight);
     }
-    
+
     printf("\n---\n");
     printf("Total votes: %.0f  Active agents: %d  Avg WR: %.2f%%\n",
            total_votes, total_active, avg_wr_all);
-    
+
     return 0;
 }

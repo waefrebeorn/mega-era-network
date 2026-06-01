@@ -19,18 +19,18 @@
 typedef struct {
     // Core feature weights (18 dimensions)
     float feat_weight[SPORTS_FEATURES];
-    
+
     // Meta parameters
     float risk_tolerance;           // Kelly fraction (0.1-1.0)
     float conviction_threshold;     // Min edge to bet (0-0.1)
     float max_stake_pct;            // Max % of bankroll per bet (0.01-0.25)
     float confidence_decay;         // How fast confidence fades after loss (0-1)
-    
+
     // Strategy bias
     float favorite_bias;            // -1 = dogs only, +1 = favorites only
     float over_under_bias;          // -1 = unders, +1 = overs
     float sport_specialization[MAX_SPORTS]; // Per-sport expertise weights
-    
+
     // State
     float capital;                  // Current paper bankroll
     int total_bets;                 // Lifetime bets
@@ -137,12 +137,12 @@ static inline void init_sports_genome(SportsGenome *g) {
     g->consecutive_losses = 0;
     g->peak_capital = 50.0f;
     g->win_rate = 0.0f;
-    
+
     // Randomize feature weights
     for (int i = 0; i < SPORTS_FEATURES; i++) {
         g->feat_weight[i] = (float)(rand() % 200 - 100) / 100.0f;
     }
-    
+
     // Randomize sport specialization
     for (int i = 0; i < MAX_SPORTS; i++) {
         g->sport_specialization[i] = (float)(rand() % 100) / 100.0f;

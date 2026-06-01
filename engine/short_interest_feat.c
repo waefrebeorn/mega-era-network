@@ -274,7 +274,7 @@ static ShortInterestSnapshot *parse_json_snapshot(const char *json_str, const ch
 static double read_feed_volume() {
     FILE *f = fopen(MARKET_FEED, "r");
     if (!f) return 0;
-    
+
     char buf[65536];
     size_t n = fread(buf, 1, sizeof(buf) - 1, f);
     fclose(f);

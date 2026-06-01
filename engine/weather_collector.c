@@ -1,7 +1,7 @@
 /**
  * weather_collector.c — Daily weather binary outcome data
  * Open-Meteo: free, no API key, historical data 1940-2026
- * 
+ *
  * For each city, records binary outcome: temp_max > 30-day avg = YES(1)
  * Writes to weather_outcomes.json for multi-market trainer.
  *
@@ -70,16 +70,16 @@ static City CITIES[] = {
 
 int main(int argc, char **argv) {
     int days_back = 365;  // 1 year of daily data
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--days") == 0 && i+1 < argc) days_back = atoi(argv[++i]);
         if (strcmp(argv[i], "--help") == 0 || strncmp(argv[i], "-h", 2) == 0) {
             printf("Usage: %s [--days N]\n", argv[0]); return 0;
         }
     }
-    
+
     curl_global_init(CURL_GLOBAL_ALL);
-    
+
     // Compute date range
     time_t now = time(NULL);
     time_t past = now - (time_t)days_back * 86400;
@@ -87,17 +87,17 @@ int main(int argc, char **argv) {
     char start_date[32]; snprintf(start_date, sizeof(start_date), "%04d-%02d-%02d", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday);
     tp = gmtime(&now);
     char end_date[32]; snprintf(end_date, sizeof(end_date), "%04d-%02d-%02d", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday);
-    
+
     printf("[WX] Weather Collector — %d days, %d cities\n", days_back, N_CITIES);
     printf("[WX] Range: %s → %s\n", start_date, end_date);
-    
+
     // JSON array for output
     json_t *root = json_array();
     int total_days = 0;
-    
+
     for (int c = 0; c < N_CITIES; c++) {
         printf("[WX] Fetching %s...\n", CITIES[c].name);
-        
+
         char url[512];
         snprintf(url, sizeof(url),
             "https://archive-api.open-meteo.com/v1/archive"
@@ -106,18 +106,18 @@ int main(int argc, char **argv) {
             "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum"
             "&timezone=UTC",
             CITIES[c].lat, CITIES[c].lon, start_date, end_date);
-        
+
         char *resp = http_get(url);
         if (!resp) { fprintf(stderr, "[WX] FAILED %s\n", CITIES[c].name); continue; }
-        
+
         json_error_t err;
         json_t *j = json_loads(resp, 0, &err);
         free(resp);
         if (!j) { fprintf(stderr, "[WX] JSON parse error: %s\n", err.text); continue; }
-        
+
         json_t *daily = json_object_get(j, "daily");
         if (!daily || !json_is_object(daily)) { json_decref(j); continue; }
-        
+
         json_t *jtime = json_object_get(daily, "time");
         json_t *jmax = json_object_get(daily, "temperature_2m_max");
         json_t *jmin = json_object_get(daily, "temperature_2m_min");
@@ -125,35 +125,35 @@ int main(int argc, char **argv) {
         json_t *jwind = json_object_get(daily, "wind_speed_10m_max");
         json_t *jgust = json_object_get(daily, "wind_gusts_10m_max");
         json_t *jsolar = json_object_get(daily, "shortwave_radiation_sum");
-        
+
         if (!jtime || !jmax || !json_is_array(jtime)) { json_decref(j); continue; }
-        
+
         int n = (int)json_array_size(jtime);
         int city_days = 0;
-        
+
         // Compute 30-day rolling average for baseline
         double *temps = calloc(n, sizeof(double));
         for (int i = 0; i < n; i++) {
             json_t *v = json_array_get(jmax, i);
             temps[i] = v ? json_number_value(v) : 0;
         }
-        
+
         // Build window for 30-day avg
         double window_sum = 0;
         int window_count = 0;
         for (int i = 0; i < n && i < 30; i++) { window_sum += temps[i]; window_count++; }
-        
+
         for (int i = 0; i < n; i++) {
             const char *date = json_string_value(json_array_get(jtime, i));
             if (!date) continue;
-            
+
             double tmax = temps[i];
             double tmin = json_number_value(json_array_get(jmin, i));
             double precip = jprecip ? json_number_value(json_array_get(jprecip, i)) : 0;
             double wind = jwind ? json_number_value(json_array_get(jwind, i)) : 0;
             double gust = jgust ? json_number_value(json_array_get(jgust, i)) : 0;
             double solar = jsolar ? json_number_value(json_array_get(jsolar, i)) : 0;
-            
+
             // Update rolling window
             if (i >= 30) {
                 double old = temps[i-30];
@@ -163,10 +163,10 @@ int main(int argc, char **argv) {
                 window_count++;
             }
             double avg30 = window_sum / window_count;
-            
+
             // Binary outcome: temp_max > 30-day avg = WARM (1), else COOL (0)
             int outcome = (tmax > avg30) ? 1 : 0;
-            
+
             // Create feature vector for training
             json_t *entry = json_object();
             json_object_set_new(entry, "city", json_string(CITIES[c].name));
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
             json_object_set_new(entry, "solar_radiation", json_real(solar));
             json_object_set_new(entry, "avg_30day", json_real(avg30));
             json_object_set_new(entry, "outcome", json_integer(outcome));
-            
+
             // Features for ML training
             json_t *feats = json_array();
             json_array_append_new(feats, json_real((tmax - avg30) / fmax(avg30, 1.0)));  // F0: temp deviation
@@ -197,17 +197,17 @@ int main(int argc, char **argv) {
             // F6: Solar radiation normalized (0-1 by 400 Wh/m² cap)
             json_array_append_new(feats, json_real(fmin(solar / 400.0, 1.0)));
             json_object_set_new(entry, "features", feats);
-            
+
             json_array_append_new(root, entry);
             city_days++;
             total_days++;
         }
-        
+
         free(temps);
         json_decref(j);
         printf("[WX] %s: %d days\n", CITIES[c].name, city_days);
     }
-    
+
     // Write output
     mkdir(OUT_DIR, 0755);
     if (json_dump_file(root, OUT_FILE, JSON_INDENT(2)) == 0) {
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
     } else {
         fprintf(stderr, "[WX] Failed to write %s\n", OUT_FILE);
     }
-    
+
     json_decref(root);
     curl_global_cleanup();
     return 0;

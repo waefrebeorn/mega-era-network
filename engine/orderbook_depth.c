@@ -73,7 +73,7 @@ static sqlite3 *open_db(void) {
 }
 
 /* ─── Write features JSON ─── */
-static int write_features(double imbalance, double depth_ratio, double wall_conc, 
+static int write_features(double imbalance, double depth_ratio, double wall_conc,
                            double spread_bps, double best_bid, double best_ask,
                            double bid_vol_10, double ask_vol_10,
                            double bid_depth_05, double ask_depth_05) {
@@ -221,7 +221,7 @@ static int cmd_fetch(void) {
         if (price > price_high) break; /* asks sorted ascending */
         ask_depth_05 += atof(json_string_value(js));
     }
-    double depth_ratio = (bid_depth_05 + ask_depth_05) > 0 
+    double depth_ratio = (bid_depth_05 + ask_depth_05) > 0
         ? bid_depth_05 / (bid_depth_05 + ask_depth_05) : 0.5;
 
     /* F81: Wall concentration — largest single level / top-10 total */

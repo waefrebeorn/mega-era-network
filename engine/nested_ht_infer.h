@@ -1,7 +1,7 @@
 /*
  * nested_ht_infer.h — Inference header for nested trained models.
  * Loads trained weights and runs prediction on live candle data.
- * 
+ *
  * Usage:
  *   #include "nested_ht_infer.h"
  *   NestedModelCollection *models = load_nested_weights("weights.json");
@@ -71,10 +71,10 @@ static inline int compute_features_nested(
     int idx, double cascade_pred)
 {
     if(idx < 10) return 0;
-    
+
     /* Returns: 1,3,5,10,20 periods — would need price history buffer */
     /* For live use, caller should maintain a ring buffer of prices */
-    
+
     feats[0] = 0; /* will be computed by caller with ring buffer */
     feats[1] = 0;
     feats[2] = 0;
@@ -87,7 +87,7 @@ static inline int compute_features_nested(
     feats[9] = (high - low > 0.001) ? (close - low) / (high - low) : 0.5; /* pos in range */
     feats[10] = (prev_close > 0.001) ? (open - prev_close) / prev_close : 0.0; /* gap */
     feats[11] = cascade_pred;
-    
+
     return 1;
 }
 
@@ -127,19 +127,19 @@ double lr_predict(LRModel *m, double *x) {
 LRModel *lr_load(const char *json, int *offset) {
     /* Format: {"d":N,"b":B,"w":[W0,W1,...],"mean":[...],"std":[...]} */
     LRModel *m = calloc(1, sizeof(LRModel));
-    
+
     const char *p = json + *offset;
     /* Skip to "d" */
     p = strstr(p, "\"d\"");
     if(!p) goto fail;
     p = strchr(p, ':') + 1;
     m->d = atoi(p);
-    
+
     p = strstr(p, "\"b\"");
     if(!p) goto fail;
     p = strchr(p, ':') + 1;
     m->b = atof(p);
-    
+
     /* Parse weight array */
     p = strstr(p, "\"w\":[");
     if(!p) goto fail;
@@ -151,7 +151,7 @@ LRModel *lr_load(const char *json, int *offset) {
         if(!p && i < m->d-1) goto fail;
         if(p) p++;
     }
-    
+
     /* Parse mean */
     p = strstr(p, "\"mean\":[");
     if(!p) goto fail;
@@ -162,7 +162,7 @@ LRModel *lr_load(const char *json, int *offset) {
         p = strchr(p, ',');
         if(p) p++;
     }
-    
+
     /* Parse std */
     p = strstr(p, "\"std\":[");
     if(!p) goto fail;
@@ -174,10 +174,10 @@ LRModel *lr_load(const char *json, int *offset) {
         if(!p && i < m->d-1) goto fail;
         if(p) p++;
     }
-    
+
     *offset = p - json;
     return m;
-    
+
 fail:
     fprintf(stderr, "LR load failed at offset %d\n", *offset);
     free(m->w); free(m); return NULL;
@@ -211,55 +211,55 @@ double mlp_predict(MLPModel *m, double *x) {
 MLPModel *mlp_load(const char *json, int *offset) {
     MLPModel *m = calloc(1, sizeof(MLPModel));
     const char *p = json + *offset;
-    
+
     p = strstr(p, "\"d\""); if(!p) goto fail;
     p = strchr(p, ':') + 1; m->d = atoi(p);
-    
+
     p = strstr(p, "\"h\""); if(!p) goto fail;
     p = strchr(p, ':') + 1; m->h = atoi(p);
-    
+
     p = strstr(p, "\"b2\""); if(!p) goto fail;
     p = strchr(p, ':') + 1; m->b2 = atof(p);
-    
+
     m->W1 = calloc(m->d * m->h, sizeof(double));
     m->b1 = calloc(m->h, sizeof(double));
     m->W2 = calloc(m->h, sizeof(double));
-    
+
     p = strstr(p, "\"W1\":["); if(!p) goto fail;
     p += 6;
     for(int i=0; i<m->d*m->h; i++) {
         m->W1[i] = atof(p); p = strchr(p,','); if(p) p++;
     }
-    
+
     p = strstr(p, "\"b1\":["); if(!p) goto fail;
     p += 6;
     for(int i=0; i<m->h; i++) {
         m->b1[i] = atof(p); p = strchr(p,','); if(p) p++;
     }
-    
+
     p = strstr(p, "\"W2\":["); if(!p) goto fail;
     p += 6;
     for(int i=0; i<m->h; i++) {
         m->W2[i] = atof(p); p = strchr(p,','); if(p) p++;
     }
-    
+
     p = strstr(p, "\"mean\":["); if(!p) goto fail;
     p += 8;
     m->mean = calloc(m->d, sizeof(double));
     for(int i=0; i<m->d; i++) {
         m->mean[i] = atof(p); p = strchr(p,','); if(p) p++;
     }
-    
+
     p = strstr(p, "\"std\":["); if(!p) goto fail;
     p += 7;
     m->std = calloc(m->d, sizeof(double));
     for(int i=0; i<m->d; i++) {
         m->std[i] = atof(p); p = strchr(p,','); if(p) p++;
     }
-    
+
     *offset = p - json;
     return m;
-    
+
 fail:
     fprintf(stderr, "MLP load failed at offset %d\n", *offset);
     return NULL;
@@ -276,22 +276,22 @@ NestedModelCollection *load_nested_weights(const char *path) {
     fread(json, 1, len, f);
     json[len] = 0;
     fclose(f);
-    
+
     NestedModelCollection *c = calloc(1, sizeof(NestedModelCollection));
     int offset = 0;
     const char *p = json;
-    
+
     /* Count levels */
     p = strstr(p, "\"n_levels\"");
     if(!p) goto fail;
     p = strchr(p, ':') + 1;
     c->n_levels = atoi(p);
-    
+
     c->lr_models = calloc(c->n_levels, sizeof(LRModel*));
     c->mlp_models = calloc(c->n_levels, sizeof(MLPModel*));
     c->res_minutes = calloc(c->n_levels, sizeof(int));
     c->res_names = calloc(c->n_levels, sizeof(char*));
-    
+
     /* Load each level */
     for(int i=0; i<c->n_levels; i++) {
         char buf[32];
@@ -299,18 +299,18 @@ NestedModelCollection *load_nested_weights(const char *path) {
         const char *found = strstr(p, buf);
         if(!found) continue;
         p = found;
-        
+
         /* Parse resolution info */
         const char *rp = strstr(p, "\"res_min\"");
         if(rp) { rp = strchr(rp, ':') + 1; c->res_minutes[i] = atoi(rp); }
-        
+
         /* Skip "lr" block */
         const char *lp = strstr(p, "\"lr\": {");
         if(lp) {
             int lo = lp - json;
             c->lr_models[i] = lr_load(json, &lo);
         }
-        
+
         /* Skip "mlp" block */
         const char *mp = strstr(p, "\"mlp\": {");
         if(mp) {
@@ -318,11 +318,11 @@ NestedModelCollection *load_nested_weights(const char *path) {
             c->mlp_models[i] = mlp_load(json, &mo);
         }
     }
-    
+
     c->cascade_buffer = calloc(4096, sizeof(double));
     free(json);
     return c;
-    
+
 fail:
     free(json); free(c);
     return NULL;
@@ -347,13 +347,13 @@ void nested_free(NestedModelCollection *c) {
 
 double nested_predict(NestedModelCollection *c, int level, double *features, double cascade_in) {
     if(level >= c->n_levels || !c->mlp_models[level]) return 0.5;
-    
+
     /* Inject cascade prediction as feature[11] */
     double feats[17];
     memcpy(feats, features, c->mlp_models[level]->d * sizeof(double));
     if(c->mlp_models[level]->d > 12)
         feats[11] = cascade_in; /* cascade feature slot */
-    
+
     return mlp_predict(c->mlp_models[level], feats);
 }
 

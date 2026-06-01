@@ -55,7 +55,7 @@ int main(void) {
         char *resp = get(url); if(!resp) continue;
         json_error_t err; json_t *j = json_loads(resp,0,&err); free(resp); if(!j) continue;
         json_t *ta = json_object_get(json_array_get(json_object_get(json_array_get(json_object_get(j,"sports"),0),"leagues"),0),"teams");
-        
+
         size_t ti; json_t *te;
         json_array_foreach(ta,ti,te) {
             json_t *team = json_object_get(te,"team");
@@ -64,10 +64,10 @@ int main(void) {
             const char *stand = sstr(team,"standingSummary");
             if(!tn[0]) continue;
 
-            json_t *entry = json_object(); 
+            json_t *entry = json_object();
             json_object_set_new(entry,"team",json_string(tn));
             json_object_set_new(entry,"league",json_string(LEAGUES[l].name));
-            
+
             // Parse recordSummary like "20-11-7" (wins-draws-losses)
             if(rec[0]) {
                 json_object_set_new(entry,"record",json_string(rec));
@@ -78,7 +78,7 @@ int main(void) {
                 json_object_set_new(entry,"wins",json_integer(w));
                 json_object_set_new(entry,"draws",json_integer(d));
                 json_object_set_new(entry,"losses",json_integer(ls));
-                
+
                 sqlite3_stmt *st;
                 char vals[5][32];
                 snprintf(vals[0],sizeof(vals[0]),"%d",w);

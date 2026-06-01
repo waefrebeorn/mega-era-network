@@ -1,6 +1,6 @@
 /**
  * world_types.h — World Trainer Simulation-Specific Types
- * 
+ *
  * Extends the shared types.h with simulation-specific fields
  * for the world_trainer.c curriculum training engine.
  */

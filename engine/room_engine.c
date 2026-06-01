@@ -87,7 +87,7 @@ RoomError room_feeds_load(MarketTick *tick);
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const RoomState *s);
 RoomError room_vote_run(AgentState *agents, int n, const FeatureVector *fv, VoteRecord *votes, int *count);
 RoomError room_capital_apply(VoteRecord *votes, int count, AgentState *agents, int n, TradeRecord *trades, int start_offset, int *new_count, int64_t window_ts);
-RoomError room_capital_resolve(TradeRecord *trades, int *tcount, 
+RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                const MarketTick *resolution_tick,
                                float prev_close,
                                AgentState *agents,
@@ -103,12 +103,12 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
     if (!g_nested) return 0.5;
     int mt = (int)market_type;
     if (mt < 0 || mt >= NESTED_N_MARKETS) mt = MARKET_CRYPTO;
-    
+
     // Determine the "price" to use based on market type
     double price;
     bool is_binary = (market_type == MARKET_SPORTS || market_type == MARKET_WEATHER ||
                       market_type == MARKET_PREDICTION || market_type == MARKET_ELECTION);
-    
+
     if (is_binary) {
         // Binary markets: clamp to probability 0-1
         price = tick->close;
@@ -120,24 +120,24 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
         // Price-based markets: use raw BTC close as proxy
         price = tick->close;
     }
-    
+
     // Push price into per-market ring buffer
     g_nested_price_buf[mt][g_nested_buf_idx[mt]] = price;
     g_nested_buf_idx[mt] = (g_nested_buf_idx[mt] + 1) % NESTED_BUF_SIZE;
     if (g_nested_buf_len[mt] < NESTED_BUF_SIZE) g_nested_buf_len[mt]++;
-    
+
     if (g_nested_buf_len[mt] < 10) return 0.5; // Need warmup
-    
+
     // Build linearized price array for this market type
     double px[NESTED_BUF_SIZE];
     for (int i = 0; i < g_nested_buf_len[mt]; i++) {
         int idx = (g_nested_buf_idx[mt] - g_nested_buf_len[mt] + i + NESTED_BUF_SIZE) % NESTED_BUF_SIZE;
         px[i] = g_nested_price_buf[mt][idx];
     }
-    
+
     // Compute 17-dim feature vector (matches nested_ht training)
     double feats[17] = {0};
-    
+
     if (is_binary) {
         // ── Binary market features: probability-based ──
         // feats[0-4]: probability changes at 1,3,5,10,20 periods
@@ -146,7 +146,7 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
         if (g_nested_buf_len[mt] >= 6) feats[2] = price - px[g_nested_buf_len[mt]-6];
         if (g_nested_buf_len[mt] >= 11) feats[3] = price - px[g_nested_buf_len[mt]-11];
         if (g_nested_buf_len[mt] >= 21) feats[4] = price - px[g_nested_buf_len[mt]-21];
-        
+
         // feats[5]: probability volatility (std of last 10)
         double p_mean = 0, p_var = 0;
         int nv = g_nested_buf_len[mt] < 10 ? g_nested_buf_len[mt] : 10;
@@ -154,14 +154,14 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
         p_mean /= nv;
         for (int i = 0; i < nv; i++) { double d = px[g_nested_buf_len[mt] - nv + i] - p_mean; p_var += d * d; }
         feats[5] = sqrt(p_var / nv);
-        
+
         // feats[6]: distance from 0.5 (conviction strength)
         feats[6] = fabs(price - 0.5) * 2.0;  // 0=uncertain, 1=certain
-        
+
         // feats[7-8]: volume not meaningful for binary
         feats[7] = 1.0;
         feats[8] = 1.0;
-        
+
         // feats[9]: probability position in recent range
         double p_min = price, p_max = price;
         for (int i = 0; i < nv; i++) {
@@ -170,7 +170,7 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
             if (v > p_max) p_max = v;
         }
         feats[9] = (p_max > p_min) ? (price - p_min) / (p_max - p_min) : 0.5;
-        
+
         // feats[10]: gap (change from last)
         feats[10] = (g_nested_buf_len[mt] >= 2) ? price - px[g_nested_buf_len[mt]-2] : 0.0;
     } else {
@@ -181,47 +181,47 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
         if (g_nested_buf_len[mt] >= 6) feats[2] = (price - px[g_nested_buf_len[mt]-6]) / fmax(px[g_nested_buf_len[mt]-6], 0.001);
         if (g_nested_buf_len[mt] >= 11) feats[3] = (price - px[g_nested_buf_len[mt]-11]) / fmax(px[g_nested_buf_len[mt]-11], 0.001);
         if (g_nested_buf_len[mt] >= 21) feats[4] = (price - px[g_nested_buf_len[mt]-21]) / fmax(px[g_nested_buf_len[mt]-21], 0.001);
-        
+
         // feats[5]: volatility
         feats[5] = tick->btc_30d_volatility / 100.0;
-        
+
         // feats[6]: HL range / close
         double hl_range = tick->high - tick->low;
         feats[6] = (price > 0.001) ? hl_range / price : 0.0;
-        
+
         // feats[7]: volume ratio (approximate)
         feats[7] = 1.0;
-        
+
         // feats[8]: volume momentum
         feats[8] = (g_prev_volume[mt] > 0.001) ? tick->volume / g_prev_volume[mt] : 1.0;
         g_prev_volume[mt] = tick->volume;
-        
+
         // feats[9]: price position in range
         feats[9] = (hl_range > 0.001) ? (price - tick->low) / hl_range : 0.5;
-        
+
         // feats[10]: gap
         double prev_close = (g_nested_buf_len[mt] >= 2) ? px[g_nested_buf_len[mt]-2] : price;
         feats[10] = (prev_close > 0.001) ? (tick->open - prev_close) / prev_close : 0.0;
     }
-    
+
     // feats[11]: cascade (start at 0.5 for independent, will be updated)
     feats[11] = 0.5;
-    
+
     // feats[12-16]: macro features (shared across all market types)
     feats[12] = tick->sp500 / 1000.0;
     feats[13] = tick->vix;
     feats[14] = 0; // fedfunds
     feats[15] = 0; // cpi
     feats[16] = 0; // t10y2y
-    
+
     // Run cascade through levels (L0→L1→...→L5)
     double cascade = 0.5;
     for (int l = 0; l < g_nested->n_levels; l++) {
         if (!g_nested->mlp_models[l] && !g_nested->lr_models[l]) continue;
-        
+
         // Set cascade feature at slot 11
         feats[11] = cascade;
-        
+
         double pred = 0.5;
         if (g_nested->mlp_models[l]) {
             pred = nested_predict(g_nested, l, feats, cascade);
@@ -235,7 +235,7 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
         }
         cascade = pred;
     }
-    
+
     return cascade;
 }
 
@@ -411,7 +411,7 @@ static void init_agents(AgentState *agents, int n) {
         agents[i].conv_lo_total = 0;
         // C19: Initialize weight diversity
         agents[i].weight_mag = 0;
-        
+
         // Random genome within bounds
         agents[i].genome.position_size     = 0.01f + (float)rand() / RAND_MAX * 0.49f;
         agents[i].genome.conviction_threshold = 0.01f + (float)rand() / RAND_MAX * 0.29f;  // Lower initial threshold
@@ -456,13 +456,13 @@ static void init_agents(AgentState *agents, int n) {
 static RoomError load_or_init_state(void) {
     // Ensure dir exists
     mkdir(ROOM_DIR, 0755);
-    
+
     state_fd = open(STATE_PATH, O_RDWR | O_CREAT, 0644);
     if (state_fd < 0) {
         perror("open state");
         return ERR_MMAP_FAIL;
     }
-    
+
     // Size the file
     size_t sz = sizeof(RoomState);
     if (ftruncate(state_fd, sz) < 0) {
@@ -470,7 +470,7 @@ static RoomError load_or_init_state(void) {
         close(state_fd);
         return ERR_MMAP_FAIL;
     }
-    
+
     state = (RoomState *)mmap(NULL, sz, PROT_READ | PROT_WRITE,
                                MAP_SHARED, state_fd, 0);
     if (state == MAP_FAILED) {
@@ -478,13 +478,13 @@ static RoomError load_or_init_state(void) {
         close(state_fd);
         return ERR_MMAP_FAIL;
     }
-    
+
     // Check if already initialized
     if (state->magic != STATE_MAGIC) {
         memset(state, 0, sz);
         state->magic = STATE_MAGIC;
         init_agents(state->agents, MAX_AGENTS);
-        
+
         // ── Load multi-market trained genomes if available ──
         // Seeds a subset of agents with genomes optimized for different market types
         const char *mm_dir = "/home/wubu2/money-room/data/multi_market";
@@ -494,22 +494,22 @@ static RoomError load_or_init_state(void) {
             int m_idx = 0;
             int agents_per_market = MAX_AGENTS / 20;  // ~500 agents per market type
             if (agents_per_market < 1) agents_per_market = 1;
-            
+
             while ((mm_e = readdir(mm_d)) != NULL && m_idx < 20) {
                 // Match *.bin files
                 size_t nlen = strlen(mm_e->d_name);
                 if (nlen < 5 || strcmp(mm_e->d_name + nlen - 4, ".bin") != 0) continue;
                 if (strcmp(mm_e->d_name, ".") == 0 || strcmp(mm_e->d_name, "..") == 0) continue;
-                
+
                 char mm_path[512];
                 snprintf(mm_path, sizeof(mm_path), "%s/%s", mm_dir, mm_e->d_name);
-                
+
                 FILE *mm_f = fopen(mm_path, "rb");
                 if (!mm_f) {
                     fprintf(stderr, "[ROOM] WARN: cannot open genome %s — skipping\n", mm_e->d_name);
                     continue;
                 }
-                
+
                 Genome trained_genome;
                 int market_type = MARKET_CRYPTO;
                 if (fread(&trained_genome, sizeof(Genome), 1, mm_f) == 1) {
@@ -522,12 +522,12 @@ static RoomError load_or_init_state(void) {
                         fprintf(stderr, "[ROOM] WARN: %s has invalid market_type=%d, defaulting to CRYPTO\n", mm_e->d_name, market_type);
                         market_type = MARKET_CRYPTO;
                     }
-                    
+
                     // Seed agents with this genome
                     int start = m_idx * agents_per_market;
                     int end = start + agents_per_market;
                     if (end > MAX_AGENTS) end = MAX_AGENTS;
-                    
+
                     for (int i = start; i < end; i++) {
                         // Copy the trained genome
                         memcpy(&state->agents[i].genome, &trained_genome, sizeof(Genome));
@@ -592,7 +592,7 @@ static RoomError load_or_init_state(void) {
             state->consec_room_losses = 0;
         }
     }
-    
+
     return ERR_OK;
 }
 
@@ -608,15 +608,15 @@ static int64_t ns_now(void) {
 // ════════════════════════════════════════════════════════
 int main(void) {
     init_paths();
-    printf("[ROOM] Starting... sizeof(RoomState)=%zu expected_file=%zu\n", 
+    printf("[ROOM] Starting... sizeof(RoomState)=%zu expected_file=%zu\n",
            sizeof(RoomState), sizeof(RoomState));
     signal(SIGINT, handle_sig);
     signal(SIGTERM, handle_sig);
     signal(SIGUSR1, handle_sig);
-    
+
     RoomError err = load_or_init_state();
     if (err != ERR_OK) return 1;
-    
+
     // ── Load nested model weights ──
     const char *weights_path = "/home/wubu2/.hermes/pm_logs/nested_ht/weights.json";
     g_nested = load_nested_weights(weights_path);
@@ -633,7 +633,7 @@ int main(void) {
     } else {
         printf("[ROOM] WARN: No nested weights at %s (room will run without)\n", weights_path);
     }
-    
+
     printf("[ROOM] Engine starting. Target: <100ms/cycle\n");
     // ── Safety: Force-clear circuit breaker on startup ──
     state->circuit_breaker_cycles = 0;
@@ -644,14 +644,14 @@ int main(void) {
         printf("[ROOM] CORRUPTED trade_count=%d, FORCE RESET to 0\n", state->trade_count);
         state->trade_count = 0;
     }
-    
+
     // ── Main loop ──
     FILE *log = fopen(LOG_PATH, "a");
     if (log) {
         fputs("cycle,window_ts,asset,votes,active,win_rate,sharpe,dd_pct,consensus_spread,room_pnl_pct,room_trades,room_wr,room_cap,slippage$\n", log);
         fclose(log);
     }
-    
+
     // ── Boot-time hard reset of corruptable fields ──
     // NOTE: trade_count MUST persist across restarts for Darwin trigger (needs 100)
     state->cycle = 0;
@@ -659,14 +659,14 @@ int main(void) {
     state->consec_room_losses = 0;
     state->circuit_breaker_cycles = 0;
     state->circuit_breaker_count = 0;
-    
+
     int idle_cycles = 0;
     int dup_cycles = 0;  // A02: Consecutive duplicate timestamps (LIVE_MODE static feed)
     float prev_close = state->prev_close;  // Track for inter-candle comparison (persisted from last process)
-    
+
     while (running) {
         int64_t cycle_start = ns_now();
-        
+
         // ── L1: Load market feed ──
         MarketTick tick;
         err = room_feeds_load(&tick);
@@ -697,7 +697,7 @@ int main(void) {
             continue;
         }
         idle_cycles = 0;
-        
+
         // Skip if we already processed this window
         if (tick.window_ts == state->stats.last_window_ts) {
             dup_cycles++;
@@ -743,7 +743,7 @@ int main(void) {
             continue;
         }
         dup_cycles = 0;  // Reset on new unique timestamp
-        
+
     #ifdef MARKET_MODE
 RoomError room_market_apply(VoteRecord *votes, int count,
                             AgentState *agents, int n,
@@ -760,14 +760,14 @@ void room_market_stats(RoomState *state);
     // ── Lock state for writing ──
         state->writing = 1;
         state->current_market = tick;
-        
+
         // ── L2: Compute features ──
         err = room_features_compute(&tick, &state->features, state);
         if (err != ERR_OK) {
             state->writing = 0;
             continue;
         }
-        
+
         // ── L2b: Compute nested cascade prediction per market type ──
         for (int mt = 0; mt < NESTED_N_MARKETS; mt++) {
             g_nested_prediction[mt] = compute_nested_prediction(&tick, (MarketType)mt);
@@ -778,7 +778,7 @@ void room_market_stats(RoomState *state);
             printf("[NESTED] cycle=%d pred=%.4f signal=%+.4f\n",
                    state->cycle, g_nested_prediction[MARKET_CRYPTO], signal);
         }
-        
+
         // ── L3: Run vote ──
         int vote_count = 0;
         err = room_vote_run(state->agents, MAX_AGENTS, &state->features,
@@ -918,16 +918,16 @@ void room_market_stats(RoomState *state);
             if (top_n > vote_count) top_n = vote_count;
             int step = vote_count / top_n;
             if (step < 1) step = 1;
-            
+
             int yv = 0, nv = 0;
             for (int i = 0; i < vote_count; i += step) {
                 if (state->votes[i].direction) yv++; else nv++;
             }
-            
+
             if (yv != nv) {
                 bool majority_up = yv > nv;
                 bool room_direction = majority_up;
-                
+
                 // ── Nested cascade bias ──
                 // Override room direction when nested model signal is confident enough
                 // Model is trained to 55.7% WR on 4-hr BTC — overrides noisy 1-min agent votes
@@ -944,7 +944,7 @@ void room_market_stats(RoomState *state);
                         }
                     }
                 }
-                
+
                 float stake = state->room_capital * (0.01f + confidence * 0.04f) * state->stats.hedge_factor;
                 if (stake > state->room_capital * 0.05f) stake = state->room_capital * 0.05f;
                 if (stake < 0.01f) stake = 0.01f;
@@ -972,13 +972,13 @@ void room_market_stats(RoomState *state);
                 state->room_trade.resolved_at = 0;
             }
         }
-        
+
         // ── L4a: Resolve room trade (if active from previous cycle) ──
         if (state->room_trade.resolved_at == 0 && prev_close > 0) {
             // Room trade resolves: exit when close > prev_close = yes_won
             bool up = state->room_trade.majority_up;
             bool room_won = (tick.close >= prev_close) == up;
-            
+
             if (room_won) {
                 // Winner: get stake back + profit (binary: 1:1 payout minus taker fee)
                 float profit = state->room_trade.stake * (1.0f - TAKER_FEE);
@@ -1002,7 +1002,7 @@ void room_market_stats(RoomState *state);
             }
             state->room_trade.exit_price = tick.close;
             state->room_trade.resolved_at = tick.window_ts;
-            
+
             if (state->room_capital > state->room_capital_peak)
                 state->room_capital_peak = state->room_capital;
         }
@@ -1029,7 +1029,7 @@ void room_market_stats(RoomState *state);
                 }
             }
         }
-        
+
         // ── L4a old: Resolve previous window's P2P agent trades ──
         {
             int prev_tcount = state->trade_count;
@@ -1059,7 +1059,7 @@ void room_market_stats(RoomState *state);
                 }
             }
         }
-        
+
         // ── L4b: Apply capital allocation for NEW trades ──
         // ── T18: Position limit enforcement ──
         // Compute total capital of alive agents for global position limits
@@ -1197,18 +1197,18 @@ skip_trading:
         state->cycle++;
         state->stats.last_window_ts = tick.window_ts;
         state->last_updated = ns_now();
-        
+
         // Compute aggregate stats
         RoomStats *s = &state->stats;
         s->cycle_count = state->cycle;
-        
+
         // Set initial capital on first cycle
         if (s->initial_capital <= 0) {
             s->initial_capital = 0;
             for (int i = 0; i < MAX_AGENTS; i++)
                 s->initial_capital += state->agents[i].starting_capital;
         }
-        
+
         float total_cap = 0.0f;
         float conv_sum = 0.0f;
         float peak = 0.0f;
@@ -1224,10 +1224,10 @@ skip_trading:
         s->capital_current = total_cap;
         s->active_agents = alive_agents;
         // Track room-level PnL (the real seed money)
-        float room_pnl_pct = state->room_capital_peak > 0 ? 
+        float room_pnl_pct = state->room_capital_peak > 0 ?
             ((state->room_capital - 50.0f) / 50.0f) * 100.0f : 0;
         s->room_pnl_pct = room_pnl_pct;
-        
+
         // Track per-cycle room return for Sharpe (based on room_capital)
         if (state->prev_room_capital > 0 && state->cycle > 1 && state->room_trades > 0) {
             float cycle_return = (state->room_capital - state->prev_room_capital) / state->prev_room_capital;
@@ -1236,16 +1236,16 @@ skip_trading:
             if (s->return_count < 128) s->return_count++;
         }
         state->prev_room_capital = state->room_capital;
-        
+
         // Conviction sum for spread calculation
         for (int i = 0; i < vote_count && i < MAX_AGENTS; i++) {
             conv_sum += state->votes[i].conviction;
         }
-        
+
         if (total_cap > s->capital_peak) s->capital_peak = total_cap;
         if (s->capital_peak > 0)
             s->max_drawdown = (s->capital_peak - total_cap) / s->capital_peak;
-        
+
         // Win rate from aggregate
         int total_w = 0, total_l = 0;
         for (int i = 0; i < state->trade_count && i < MAX_TRADE_HIST; i++) {
@@ -1256,7 +1256,7 @@ skip_trading:
         s->trades_won = total_w;
         s->trades_lost = total_l;
         if (s->trades_total > 0) s->win_rate = (float)total_w / s->trades_total;
-        
+
         // Conviction spread
         if (vote_count > 1) {
             float mean = conv_sum / vote_count;
@@ -1269,7 +1269,7 @@ skip_trading:
         }
         s->voted_this_cycle = vote_count;
         s->avg_conviction = vote_count > 0 ? conv_sum / vote_count : 0;
-        
+
         // Compute Sharpe ratio from cycle returns (annualized)
         if (s->return_count >= 3) {
             float mean_r = 0, var_r = 0;
@@ -1288,11 +1288,11 @@ skip_trading:
                 s->sharpe_ratio = (mean_r / std_r) * sqrtf(periods_per_year);
             }
         }
-        
+
         // ── L6: Write to bridge ──
         state->writing = 0;
         room_bridge_write(state);
-        
+
         // ── Log to CSV ──
         FILE *log = fopen(LOG_PATH, "a");
         if (log) {
@@ -1307,7 +1307,7 @@ skip_trading:
                     state->total_slippage_paid);
             fclose(log);
         }
-        
+
         // ── Check timing ──
         int64_t elapsed = ns_now() - cycle_start;
         if (elapsed > 100000000LL) { // >100ms
@@ -1318,7 +1318,7 @@ skip_trading:
                    state->cycle, s->active_agents, vote_count,
                    s->win_rate * 100, total_cap, elapsed / 1e6);
         }
-        
+
         // ── Pace: faster for paper mode ──
         int64_t sleep_ns = PAPER_PACE_NS - elapsed;
         if (sleep_ns < 0) sleep_ns = 0;
@@ -1330,16 +1330,16 @@ skip_trading:
             nanosleep(&ts, NULL);
         }
     }
-    
+
     printf("\n[ROOM] Shutdown. %d cycles run, %d trades\n",
            state->cycle, state->trade_count);
-    
+
     if (g_nested) {
         nested_free(g_nested);
         g_nested = NULL;
         printf("[ROOM] Nested models freed\n");
     }
-    
+
     munmap(state, sizeof(RoomState));
     close(state_fd);
     return 0;

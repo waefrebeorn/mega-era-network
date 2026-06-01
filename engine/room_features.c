@@ -94,15 +94,15 @@ static float calc_regime(const float *prices, int len) {
     }
     float std = sqrtf(var / 10);
     float range_pct = std / (mean > 0 ? mean : 1);
-    
+
     // Directional movement over 10 periods
     float net = prices[len - 1] - prices[len - 10];
     float gross = 0;
     for (int i = len - 9; i < len; i++)
         gross += fabsf(prices[i] - prices[i - 1]);
-    
+
     float efficiency = gross > 0 ? fabsf(net) / gross : 0;
-    
+
     if (range_pct > 0.005) return 2;       // Volatile
     if (efficiency > 0.6) return 1;         // Trending
     return 0;                                // Ranging
@@ -116,35 +116,35 @@ static void compute_phi_features(const float *px, int len, float *phi_return, fl
     *phi_vol = 0.0f;
     *phi_momentum = 0.0f;
     if (len < 3) return;
-    
+
     // φ-multiplied intervals: 1, φ, φ², φ³, ...
     float intervals[] = {1.0f, PHI, PHI*PHI, PHI*PHI*PHI};
     int n_phi = 4;
-    
+
     // Weighted multi-scale return
     float ret_sum = 0.0f, vol_sum = 0.0f, mom_sum = 0.0f;
     float total_w = 0.0f;
-    
+
     for (int i = 0; i < n_phi; i++) {
         int period = (int)(intervals[i] + 0.5f);
         if (period < 1) period = 1;
         if (period >= len) continue;
-        
+
         float ret = (px[len-1] - px[len-1-period]) / (px[len-1-period] > 0 ? px[len-1-period] : 1.0f);
         float w = 1.0f / intervals[i];  // Higher weight on shorter intervals
-        
+
         ret_sum += ret * w;
         vol_sum += fabsf(ret) * w;
-        
+
         // Momentum at φ-scale: compare φ-interval return to previous φ-interval
         if (len > period * 2) {
             float prev_ret = (px[len-1-period] - px[len-1-period*2]) / (px[len-1-period*2] > 0 ? px[len-1-period*2] : 1.0f);
             mom_sum += (ret - prev_ret) * w;
         }
-        
+
         total_w += w;
     }
-    
+
     if (total_w > 0) {
         *phi_return = ret_sum / total_w;
         *phi_vol = vol_sum / total_w;
@@ -157,35 +157,35 @@ static void compute_phi_features(const float *px, int len, float *phi_return, fl
 // Finds dominant cycle in price history.
 static float compute_dft_dominant(const float *px, int len) {
     if (len < 10) return 0.0f;
-    
+
     // Remove DC component
     float mean = 0;
     for (int i = 0; i < len; i++) mean += px[i];
     mean /= len;
-    
+
     // Search for dominant frequency in range [2, len/2] periods
     float max_mag = 0;
-    
+
     for (int k = 2; k <= len / 2; k++) {
         float omega = TWO_PI * k / len;
         float coeff = 2.0f * cosf(omega);
         float s0 = 0, s1 = 0, s2 = 0;
-        
+
         for (int i = 0; i < len; i++) {
             s0 = (px[i] - mean) + coeff * s1 - s2;
             s2 = s1;
             s1 = s0;
         }
-        
+
         float real = s1 - s2 * cosf(omega);
         float imag = s2 * sinf(omega);
         float mag = real * real + imag * imag;
-        
+
         if (mag > max_mag) {
             max_mag = mag;
         }
     }
-    
+
     // Normalize: 0 = no dominant cycle, 1 = strong cycle
     float norm = max_mag / (len * len * 0.01f + 1.0f);
     return fminf(norm, 1.0f);
@@ -247,13 +247,13 @@ static float compute_tail_risk(const float *px, int len) {
 }
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const RoomState *s) {
     memset(fv, 0, sizeof(FeatureVector));
-    
+
     // Determine market type for per-buffer indexing
     int mt = (int)tick->market_type;
     if (mt < 0 || mt >= N_FEED_MARKETS) mt = MARKET_CRYPTO;
     bool is_binary = (tick->market_type == MARKET_SPORTS || tick->market_type == MARKET_WEATHER ||
                       tick->market_type == MARKET_PREDICTION || tick->market_type == MARKET_ELECTION);
-    
+
     // Determine "price" for this market type
     float price_val;
     if (is_binary) {
@@ -265,16 +265,16 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
     } else {
         price_val = tick->close;
     }
-    
+
     // Push into per-market history buffer
     price_history[mt][hist_idx[mt]] = price_val;
     volume_history[mt][hist_idx[mt]] = tick->volume;
     hist_idx[mt] = (hist_idx[mt] + 1) % FEED_HISTORY;
     if (hist_len[mt] < FEED_HISTORY) hist_len[mt]++;
-    
+
     // Need at least 1 data point for initial features
     if (hist_len[mt] < 1) return ERR_NO_DATA;
-    
+
     // Build linear price array (oldest to newest) from per-market buffer
     float px[FEED_HISTORY];
     float vol[FEED_HISTORY];
@@ -283,13 +283,13 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
         px[i] = price_history[mt][idx];
         vol[i] = volume_history[mt][idx];
     }
-    
+
     // With only 1 data point, duplicate it for feature computation
     if (hist_len[mt] == 1) {
         px[1] = px[0];
         vol[1] = vol[0];
     }
-    
+
     // F1: Price delta (current vs window open)
     if (tick->open > 0) {
         if (is_binary) {
@@ -298,16 +298,16 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
             fv->price_delta_pct = (tick->close - tick->open) / tick->open * 100.0f;
         }
     }
-    
+
     // F2: Micro momentum (last 2 closes delta)
     if (hist_len[mt] >= 3)
         fv->micro_momentum = (px[hist_len[mt] - 1] - px[hist_len[mt] - 2]) * (is_binary ? 100.0f : (1.0f / fmax(px[hist_len[mt] - 2], 0.001f)));
     else if (hist_len[mt] >= 2)
         fv->micro_momentum = (px[1] - px[0]) * (is_binary ? 100.0f : (1.0f / fmax(px[0], 0.001f)));
-    
+
     // F3: RSI(7) — meaningful for both price and probability
     fv->rsi_7 = calc_rsi(px, hist_len[mt], 7);
-    
+
     // F4: Volume surge ratio
     if (hist_len[mt] >= 4) {
         float recent = (vol[hist_len[mt] - 1] + vol[hist_len[mt] - 2]) / 2.0f;
@@ -316,19 +316,19 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
     } else {
         fv->volume_surge_ratio = 1.0f;
     }
-    
+
     // F5: EMA fast (3)
     fv->ema_fast = calc_ema(px, hist_len[mt], 3);
-    
+
     // F6: EMA slow (8)
     fv->ema_slow = calc_ema(px, hist_len[mt], 8);
-    
+
     // F7: MACD histogram
     fv->macd_hist = calc_macd_hist(px, hist_len[mt]);
-    
+
     // F8: Bollinger %B
     fv->bollinger_pct = calc_bollinger_pct(px, hist_len[mt]);
-    
+
     // F9: Divergence score (price vs RSI)
     if (hist_len[mt] >= 14) {
         float rsi_now = fv->rsi_7;
@@ -339,16 +339,16 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
         float rsi_dir = rsi_now > rsi_prev ? 1.0f : -1.0f;
         fv->divergence_score = (rsi_dir - px_dir) / 2.0f;
     }
-    
+
     // F10: Pump score (from crony-weighted news pipeline)
     fv->pump_score = tick->pump_score;
-    
+
     // F11: Regime indicator
     fv->regime_indicator = calc_regime(px, hist_len[mt]);
-    
+
     // F12: Fear & Greed normalized
     fv->fear_greed_norm = tick->fear_greed / 100.0f;
-    
+
     // F13: Herd consensus (what % of agents voted UP last cycle)
     if (s->vote_count > 0) {
         int up = 0;
@@ -359,10 +359,10 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
     } else {
         fv->herd_consensus = 0.5f;
     }
-    
+
     // F14-F16: GAAD φ-interval features (P12)
     compute_phi_features(px, hist_len[mt], &fv->phi_return, &fv->phi_vol, &fv->phi_momentum);
-    
+
     // F17: DFT dominant frequency (P13)
     fv->dft_dominant = compute_dft_dominant(px, hist_len[mt]);
 

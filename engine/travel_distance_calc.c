@@ -54,20 +54,20 @@ static double dist_km(double lat1, double lon1, double lat2, double lon2) {
 int main(void) {
     curl_global_init(CURL_GLOBAL_ALL);
     json_t *root = json_array();
-    
+
     typedef struct { const char *sport, *league, *label; } Src;
     Src sources[] = {{"baseball","mlb","MLB"},{"basketball","nba","NBA"},{"football","nfl","NFL"},{"hockey","nhl","NHL"}};
     int ns = 4;
-    
+
     for(int si=0; si<ns; si++) {
         char url[256]; snprintf(url,sizeof(url),"https://site.api.espn.com/apis/site/v2/sports/%s/%s/teams",sources[si].sport,sources[si].league);
         char *resp = get(url); if(!resp) continue;
         json_error_t err; json_t *j = json_loads(resp,0,&err); free(resp); if(!j) continue;
         json_t *ta = json_object_get(json_array_get(json_object_get(json_array_get(json_object_get(j,"sports"),0),"leagues"),0),"teams");
-        
+
         typedef struct { char name[128]; double lat, lon; } TeamVenue;
         TeamVenue tvs[100]; int nt = 0;
-        
+
         size_t ti; json_t *te;
         json_array_foreach(ta,ti,te) {
             json_t *team = json_object_get(te,"team");
@@ -81,7 +81,7 @@ int main(void) {
             tvs[nt].lat = lat; tvs[nt].lon = lon; nt++;
         }
         json_decref(j);
-        
+
         int pairs = 0;
         for(int i=0; i<nt && i<20; i++) {
             for(int j=i+1; j<nt && j<20; j++) {
@@ -97,7 +97,7 @@ int main(void) {
         }
         printf("[TRAVEL] %s: %d venues, %d pairs\n", sources[si].label, nt, pairs);
     }
-    
+
     mkdir(OUT_DIR,0755); json_dump_file(root,OUT_FILE,JSON_INDENT(2));
     printf("[TRAVEL] Total distances -> %s\n", OUT_FILE);
     json_decref(root); curl_global_cleanup(); return 0;

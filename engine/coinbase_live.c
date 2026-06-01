@@ -125,7 +125,7 @@ static sqlite3 *open_hist_db(void) {
 
 int main(void) {
     printf("[COINBASE_LIVE] Fetching BTC-USD 1-min candles...\n");
-    
+
     char *json = fetch(API_URL);
     if (!json) {
         fprintf(stderr, "[COINBASE_LIVE] ERROR: Failed to fetch from Coinbase\n");
@@ -177,12 +177,12 @@ int main(void) {
 
         write_timeline(db, ts, open, high, low, close, vol);
         inserted++;
-        
+
         if (ts > last_ts) {
             last_close = close;
             last_ts = ts;
         }
-        
+
         /* Running stats for summary */
         if (count == 0) { sum_open = open; }
         sum_high = fmax(sum_high, high);

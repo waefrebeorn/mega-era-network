@@ -34,10 +34,10 @@ int main(void) {
     curl_easy_setopt(c, CURLOPT_TIMEOUT, 10L);
     CURLcode rc = curl_easy_perform(c);
     curl_easy_cleanup(c);
-    
+
     json_t *root = json_array();
     int got = 0;
-    
+
     if(rc == CURLE_OK && b.d) {
         json_error_t err;
         json_t *j = json_loads(b.d, 0, &err);
@@ -45,7 +45,7 @@ int main(void) {
             const char *last = json_string_value(json_object_get(j, "last"));
             double price = last ? atof(last) : 0;
             printf("[BDI] Bitstamp ETH: $%.2f (proxy for risk appetite)\n", price);
-            
+
             json_t *e = json_pack("{s:s, s:f, s:f}",
                 "source", "bitstamp_eth_risk_proxy",
                 "price", price,
@@ -56,7 +56,7 @@ int main(void) {
         }
     }
     free(b.d);
-    
+
     // Also try to scrape BDI from investing.com or similar free source
     // For now, use a fixed recent BDI value from public data
     json_t *e2 = json_pack("{s:s, s:f, s:s, s:f}",
@@ -66,7 +66,7 @@ int main(void) {
         "timestamp", (double)time(NULL));
     json_array_append_new(root, e2);
     printf("[BDI] BDI: 1650 (estimated - needs real source)\n");
-    
+
     mkdir(OUT_DIR,0755); json_dump_file(root,OUT_FILE,JSON_INDENT(2));
     printf("[BDI] -> %s\n", OUT_FILE);
     json_decref(root);

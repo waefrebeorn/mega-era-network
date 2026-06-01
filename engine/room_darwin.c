@@ -108,12 +108,12 @@ static int cmp_agents_desc(const void *a, const void *b) {
 // ════════════════════════════════════════════════════════
 RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord *rec, const int *agent_market) {
     if (n < 100) return ERR_NO_AGENTS;
-    
+
     rec->epoch = cycle / 100; // Every 100 trades = 1 epoch
     rec->mutation_rate = fmaxf(0.05f, 0.3f - rec->epoch * 0.01f); // Decays
     rec->culled = 0;
     rec->cloned = 0;
-    
+
     // Count market types present
     int mt_counts[N_MARKET_TYPES];
     memset(mt_counts, 0, sizeof(mt_counts));
@@ -123,18 +123,18 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
             mt_counts[mt]++;
         }
     }
-    
+
     // Cull bottom 10% per market type
     for (int mt = 0; mt < N_MARKET_TYPES; mt++) {
         if (mt_counts[mt] < 10) continue;  // Skip tiny groups
-        
+
         // Collect alive agents of this market type
         int nmt = mt_counts[mt];
         AgentState *mt_agents = (AgentState *)malloc(nmt * sizeof(AgentState));
         if (!mt_agents) continue;
         int *mt_idx = (int *)malloc(nmt * sizeof(int));  // Map back to original indices
         if (!mt_idx) { free(mt_agents); continue; }
-        
+
         int idx = 0;
         for (int i = 0; i < n; i++) {
             if (agents[i].alive) {
@@ -146,14 +146,14 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
                 }
             }
         }
-        
+
         // Sort by win_rate_ema descending
         qsort(mt_agents, nmt, sizeof(AgentState), cmp_agents_desc);
-        
+
         // Cull bottom 10% of this market type
         int cull_count = nmt / 10;
         if (cull_count < 1) cull_count = 1;
-        
+
         float redistribution_pool = 0;
         int culled = 0;
         for (int i = nmt - 1; i >= 0 && culled < cull_count; i--) {
@@ -163,7 +163,7 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
             culled++;
             rec->culled++;
         }
-        
+
         // Clone top 10% within same market type to fill culled slots
         // Use diversity-weighted selection: prefer parents whose genome
         // differs most from the culled agents to counter convergence.
@@ -219,16 +219,16 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
             cloned++;
             rec->cloned++;
         }
-        
+
         // Write back to original indices
         for (int i = 0; i < nmt; i++) {
             agents[mt_idx[i]] = mt_agents[i];
         }
-        
+
         free(mt_idx);
         free(mt_agents);
     }
-    
+
     // ── Repopulation: if too many dead overall ──
     int alive = 0;
     for (int i = 0; i < n; i++) {
@@ -241,7 +241,7 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
             if (!agents[i].alive) { dead_pool += agents[i].capital; dead_count++; }
         }
         float repop_cap = dead_count > 0 ? dead_pool / dead_count : 1.0f;
-        
+
         int repop = 0;
         for (int i = 0; i < n && repop < alive; i++) {
             if (!agents[i].alive) {
@@ -281,7 +281,7 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
             }
         }
     }
-    
+
     return ERR_OK;
 }
 
@@ -375,11 +375,11 @@ RoomError room_darwin_save_elite(const AgentState *agents, int n, const int *age
 // Should be called after Darwin evolve (or periodically).
 RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomStats *stats) {
     if (n < 2) return ERR_NO_AGENTS;
-    
+
     // 1. Compute L2 norm of feat_weight per agent (weight_mag)
     float mag_sum = 0, mag_sq_sum = 0;
     int mag_count = 0;
-    
+
     for (int i = 0; i < n; i++) {
         if (!agents[i].alive) continue;
         float mag = 0;
@@ -393,7 +393,7 @@ RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomSta
         mag_sq_sum += mag * mag;
         mag_count++;
     }
-    
+
     if (mag_count > 1) {
         float mean = mag_sum / mag_count;
         float variance = mag_sq_sum / mag_count - mean * mean;
@@ -401,19 +401,19 @@ RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomSta
     } else {
         stats->weight_diversity = 0;
     }
-    
+
     // 2. Genome diversity: mean pairwise distance in genome parameter space
     // Sample up to 100 agents for performance
     int sample = mag_count < 100 ? mag_count : 100;
     int step = mag_count / sample;
     float total_dist = 0;
     int pairs = 0;
-    
+
     for (int i = 0; i < n && pairs < 500; i += step) {
         if (!agents[i].alive) continue;
         for (int j = i + step; j < n && pairs < 500; j += step) {
             if (!agents[j].alive) continue;
-            
+
             float dist = 0;
             dist += fabsf(agents[i].genome.position_size - agents[j].genome.position_size);
             dist += fabsf(agents[i].genome.conviction_threshold - agents[j].genome.conviction_threshold);
@@ -422,13 +422,13 @@ RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomSta
             dist += fabsf(agents[i].genome.herd_antipathy - agents[j].genome.herd_antipathy);
             dist += fabsf(agents[i].genome.time_horizon - agents[j].genome.time_horizon);
             dist += fabsf(agents[i].genome.mean_reversion_bias - agents[j].genome.mean_reversion_bias);
-            
+
             total_dist += dist;
             pairs++;
         }
     }
-    
+
     stats->genome_diversity = pairs > 0 ? total_dist / pairs : 0;
-    
+
     return ERR_OK;
 }

@@ -305,7 +305,7 @@ static int cmd_prune(void) {
         json_t *h = json_object_get(retention, "hourly");
         if (h) max_hourly = (int)json_integer_value(h);
     }
-    
+
     int keep = max_hourly;
     int pruned = 0;
     for (int i = 0; i < n_snaps - keep && i < n_snaps; i++) {

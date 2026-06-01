@@ -1,18 +1,18 @@
 /**
  * room_market.c — MARKET_MODE: Market Maker Engine
- * 
+ *
  * Replaces zero-sum P2P matching with market-maker trading.
  * Each agent trades against a market maker who sets bid/ask
  * prices from the live market feed:
- * 
+ *
  *   - If candle closes up (close > open):  market_prob = 0.55
  *   - If candle closes down (close < open): market_prob = 0.45
  *   - Spread = |ask - bid| = 10% (market maker edge)
- * 
+ *
  * Agent pays:    stake * price             (entry cost)
  * On win:        stake / entry_price       (1/price leverage)
  * On loss:       0 (stake forfeited to room)
- * 
+ *
  * Room capital grows from the spread + losers' stakes.
  * This breaks zero-sum — total grows with market alignment.
  */

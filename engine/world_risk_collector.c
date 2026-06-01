@@ -60,15 +60,15 @@ int main(void) {
         NULL,NULL,NULL);
     json_t *root = json_array();
     time_t now = time(NULL);
-    
+
     // Risk keywords
     const char *war_kw[] = {"war","conflict","invasion","military","sanctions","missile","nuclear",NULL};
     const char *disaster_kw[] = {"earthquake","hurricane","flood","wildfire","volcano","tsunami",NULL};
     const char *econ_kw[] = {"recession","inflation","crisis","default","bankruptcy","tariff","trade war",NULL};
-    
+
     // Source: Google News RSS for risk categories
     const char *queries[] = {"world+news+conflict","natural+disaster+today","economic+crisis+2026","global+trade+tensions",NULL};
-    
+
     for(int q=0;queries[q];q++){
         char url[512]; snprintf(url,sizeof(url),"https://news.google.com/rss/search?q=%s&hl=en-US&gl=US",queries[q]);
         char *rss = get(url); if(!rss) continue;
@@ -77,18 +77,18 @@ int main(void) {
             char title[1024]={0}, src[256]={0};
             ext_tag(p,"title",title,sizeof(title)); ext_tag(p,"source",src,sizeof(src));
             if(!title[0]||strlen(title)<15){p+=6;continue;}
-            
+
             const char *cat = contains(title,war_kw) ? "conflict" :
                              contains(title,disaster_kw) ? "disaster" :
                              contains(title,econ_kw) ? "economic" : "general";
             double severity = contains(title,war_kw) ? (strstr(title,"nuclear")?0.9:0.7) :
                              contains(title,disaster_kw) ? (strstr(title,"earthquake")?0.8:0.6) : 0.3;
-            
+
             json_t *e = json_pack("{s:s,s:s,s:s,s:f}",
                 "title",title,"source",src[0]?src:"Google News",
                 "category",cat,"severity",severity);
             json_array_append_new(root,e);
-            
+
             sqlite3_stmt *st;
             if(sqlite3_prepare_v2(db,"INSERT INTO world_risk(title,source,category,severity,fetched_at) VALUES(?,?,?,?,?)",-1,&st,NULL)==SQLITE_OK){
                 sqlite3_bind_text(st,1,title,-1,SQLITE_STATIC); sqlite3_bind_text(st,2,src[0]?src:"Google News",-1,SQLITE_STATIC);

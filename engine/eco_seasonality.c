@@ -55,11 +55,11 @@ static int parse_csv_line(const char *line, long long *window_ts,
     char buf[MAX_LINE];
     strncpy(buf, line, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
-    
+
     /* Remove trailing newline */
     char *nl = strchr(buf, '\n');
     if (nl) *nl = '\0';
-    
+
     int col = 0;
     char *token = strtok(buf, ",");
     while (token && col < 13) {
@@ -112,7 +112,7 @@ static void print_bin_table(const char *label, BinData *bins, int n,
                i, names ? names[i] : "", bins[i].count,
                avg_wr, avg_votes, avg_sharpe, avg_active, avg_cap);
     }
-    
+
     /* Best and worst bins */
     int best = 0, worst = 0;
     double best_val = -1e9, worst_val = 1e9;
@@ -130,7 +130,7 @@ static void print_bin_table(const char *label, BinData *bins, int n,
         printf("  WORST: %s (avg WR %.2f%%, %lld cycles)\n",
                names ? names[worst] : "", worst_val * 100, bins[worst].count);
     }
-    
+
     /* Spread significance */
     double spread = (best_val - worst_val) * 100;
     printf("  SPREAD: %.2f%% (best-worst WR)\n", spread);
@@ -161,57 +161,57 @@ static void detect_trend(BinData *weekly, int n_weeks) {
 int main(int argc, char **argv) {
     const char *path = LOG_PATH_DEFAULT;
     int mode = 0; /* 0=all, 1=dow, 2=moy, 3=trend */
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "dow") == 0) mode = 1;
         else if (strcmp(argv[i], "moy") == 0) mode = 2;
         else if (strcmp(argv[i], "trend") == 0) mode = 3;
         else path = argv[i];
     }
-    
+
     FILE *f = fopen(path, "r");
     if (!f) {
         fprintf(stderr, "Error: cannot open %s\n", path);
         return 1;
     }
-    
+
     BinData dow[7] = {0}, moy[12] = {0}, weekly[520] = {0};
     long long total_rows = 0, valid_rows = 0, header_count = 0, parse_fails = 0;
     char line[MAX_LINE];
-    
+
     /* Skip header */
     if (!fgets(line, sizeof(line), f)) { fclose(f); return 1; }
-    
+
     long long first_ts = 0, last_ts = 0;
-    
+
     while (fgets(line, sizeof(line), f) && total_rows < MAX_ROWS) {
         total_rows++;
         if (is_header(line)) { header_count++; continue; }
-        
+
         long long window_ts;
         int votes, active, room_trades;
         double win_rate, sharpe, dd_pct, consensus, room_pnl, room_wr, room_cap;
-        
+
         int ok = parse_csv_line(line, &window_ts, &votes, &active,
                                  &win_rate, &sharpe, &dd_pct,
                                  &consensus, &room_pnl, &room_trades,
                                  &room_wr, &room_cap);
         if (!ok) { parse_fails++; continue; }
-        
+
         if (first_ts == 0) first_ts = window_ts;
         last_ts = window_ts;
-        
+
         time_t ts = (time_t)window_ts;
         struct tm *tm = localtime(&ts);
         if (!tm) { parse_fails++; continue; }
-        
+
         int dow_idx = tm->tm_wday;
         int moy_idx = tm->tm_mon;
         int week_idx = (int)((window_ts - first_ts) / (3600 * 24 * 7));
         if (week_idx >= 520) week_idx = 519;
-        
+
         valid_rows++;
-        
+
         if (mode == 0 || mode == 1)
             accumulate(&dow[dow_idx], win_rate, votes, sharpe,
                       consensus, active, room_cap);
@@ -222,20 +222,20 @@ int main(int argc, char **argv) {
             accumulate(&weekly[week_idx], win_rate, votes, sharpe,
                       consensus, active, room_cap);
     }
-    
+
     fclose(f);
-    
+
     printf("ECO SEASONALITY — %lld valid from %lld total (hdr=%lld fail=%lld)\n",
            valid_rows, total_rows, header_count, parse_fails);
     printf("Date range: %s", ctime((time_t *)&first_ts));
     printf("           %s", ctime((time_t *)&last_ts));
-    
+
     if (mode == 0 || mode == 1)
         print_bin_table("DAY OF WEEK", dow, 7, dow_names);
     if (mode == 0 || mode == 2)
         print_bin_table("MONTH OF YEAR", moy, 12, moy_names);
     if (mode == 0 || mode == 3)
         detect_trend(weekly, 520);
-    
+
     return 0;
 }

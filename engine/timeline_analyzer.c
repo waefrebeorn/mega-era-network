@@ -1,9 +1,9 @@
 /**
  * timeline_analyzer.c — Market Timeline Thermometer
- * 
+ *
  * Reads 8.4M-row timeline.db, computes trend analysis in pure C.
  * No Python. No dependencies beyond libsqlite3 and libm.
- * 
+ *
  * NOT FINANCIAL ADVICE. This is a thermometer of market analysis
  * performed by algorithms. Subscribing to this data is subscribing
  * to an algorithmic analysis — not a financial recommendation.
@@ -85,10 +85,10 @@ static double extract_price(const char *json_str) {
 static int point_callback(void *data, int argc, char **argv, char **col) {
     PointCollector *pc = (PointCollector *)data;
     if (pc->count >= pc->capacity) return 0;
-    
+
     DataPoint *dp = &pc->points[pc->count];
     memset(dp, 0, sizeof(DataPoint));
-    
+
     for (int i = 0; i < argc; i++) {
         if (!argv[i]) continue;
         if (strcmp(col[i], "ts") == 0) {
@@ -146,7 +146,7 @@ static double calc_rsi(double *vals, int n, int period) {
 static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) {
     AnalysisResult r = {0};
     r.name = source;
-    
+
     /* Count rows first */
     long long n_rows = 0;
     char sql[512];
@@ -158,18 +158,18 @@ static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) 
         snprintf(sql, sizeof(sql),
             "SELECT COUNT(*) FROM timeline WHERE source='%s'", source);
     }
-    
+
     sqlite3_exec(db, sql, count_callback, &n_rows, NULL);
     if (n_rows == 0) {
         r.n_points = 0;
         return r;
     }
-    
+
     /* Fetch data */
     int cap = (int)fmin(n_rows, MAX_ROWS);
     DataPoint *points = malloc(cap * sizeof(DataPoint));
     PointCollector pc = {points, 0, cap};
-    
+
     if (days > 0) {
         snprintf(sql, sizeof(sql),
             "SELECT ts, data FROM timeline WHERE source='%s' AND ts > %lld ORDER BY ts LIMIT %d",
@@ -179,21 +179,21 @@ static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) 
             "SELECT ts, data FROM timeline WHERE source='%s' ORDER BY ts DESC LIMIT %d",
             source, cap);
     }
-    
+
     sqlite3_exec(db, sql, point_callback, &pc, NULL);
     r.n_points = pc.count;
-    
+
     if (r.n_points < 2) {
         free(points);
         return r;
     }
-    
+
     /* Extract values for analysis (use first data field: price/rate) */
     double *vals = malloc(r.n_points * sizeof(double));
     for (int i = 0; i < r.n_points; i++) {
         vals[i] = points[i].n_values > 0 ? points[i].values[0] : 0;
     }
-    
+
     /* Basic stats */
     r.current = vals[r.n_points - 1];
     r.mean = calc_mean(vals, r.n_points);
@@ -204,17 +204,17 @@ static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) 
         if (vals[i] < r.min) r.min = vals[i];
         if (vals[i] > r.max) r.max = vals[i];
     }
-    
+
     /* Z-score */
     r.zscore = r.stddev > 0 ? (r.current - r.mean) / r.stddev : 0;
-    
+
     /* Percentile rank */
     double *sorted = malloc(r.n_points * sizeof(double));
     memcpy(sorted, vals, r.n_points * sizeof(double));
     qsort(sorted, r.n_points, sizeof(double), compare_double);
     r.pct_rank = calc_percentile(sorted, r.n_points, r.current);
     free(sorted);
-    
+
     /* Moving averages */
     int short_period = (int)fmin(20, r.n_points);
     int long_period = (int)fmin(50, r.n_points);
@@ -223,20 +223,20 @@ static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) 
     for (int i = 0; i < long_period; i++) sum_long += vals[r.n_points - 1 - i];
     r.sma_short = sum_short / short_period;
     r.sma_long = sum_long / long_period;
-    
+
     /* Crossover */
     double prev_short = 0, prev_long = 0;
     for (int i = 0; i < short_period && i < r.n_points - 1; i++) prev_short += vals[r.n_points - 2 - i];
     for (int i = 0; i < long_period && i < r.n_points - 1; i++) prev_long += vals[r.n_points - 2 - i];
     prev_short /= short_period;
     prev_long /= long_period;
-    
+
     int now_bullish = r.sma_short > r.sma_long ? 1 : 0;
     int prev_bullish = prev_short > prev_long ? 1 : 0;
     if (now_bullish && !prev_bullish) r.crossover = 1.0;     /* Golden cross */
     else if (!now_bullish && prev_bullish) r.crossover = -1.0; /* Death cross */
     else r.crossover = 0;
-    
+
     /* Trend: compare first vs last third */
     int third = r.n_points / 3;
     if (third > 0) {
@@ -246,7 +246,7 @@ static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) 
         r.trend = (change > 0.02) ? 1 : ((change < -0.02) ? -1 : 0);
         r.momentum = change;
     }
-    
+
     /* Volatility (stddev of daily returns) */
     if (r.n_points > 1) {
         double *returns = malloc((r.n_points - 1) * sizeof(double));
@@ -257,11 +257,11 @@ static AnalysisResult analyze_source(sqlite3 *db, const char *source, int days) 
         r.volatility = calc_stddev(returns, r.n_points - 1, calc_mean(returns, r.n_points - 1));
         free(returns);
     }
-    
+
     /* RSI (14-period) */
     int rsi_period = (int)fmin(14, r.n_points / 2);
     r.rsi = calc_rsi(vals, r.n_points, rsi_period);
-    
+
     free(vals);
     free(points);
     return r;
@@ -272,26 +272,26 @@ static void list_sources(sqlite3 *db) {
     printf("═══════════════════════════════════════════════════════\n");
     printf("  TIMELINE DATA SOURCES (%d+ sources available)\n", MAX_SOURCES);
     printf("═══════════════════════════════════════════════════════\n\n");
-    
+
     const char *sql = "SELECT source, COUNT(*) as cnt, "
         "MIN(ts) as first, MAX(ts) as last "
         "FROM timeline GROUP BY source ORDER BY cnt DESC LIMIT 20";
-    
+
     sqlite3_stmt *stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         printf("  Error: %s\n", sqlite3_errmsg(db));
         return;
     }
-    
+
     printf("  %-30s %12s %12s %12s\n", "Source", "Rows", "First", "Latest");
     printf("  %s\n", "─────────────────────────────────────────────────────────────────────");
-    
+
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char *name = (const char *)sqlite3_column_text(stmt, 0);
         long long cnt = sqlite3_column_int64(stmt, 1);
         long long first = sqlite3_column_int64(stmt, 2);
         long long last = sqlite3_column_int64(stmt, 3);
-        
+
         char first_str[32] = "?", last_str[32] = "?";
         if (first > 0) {
             time_t ft = (time_t)first;
@@ -303,7 +303,7 @@ static void list_sources(sqlite3 *db) {
             struct tm *tm = gmtime(&lt);
             strftime(last_str, sizeof(last_str), "%Y-%m-%d", tm);
         }
-        
+
         printf("  %-30s %12lld %12s %12s\n", name, cnt, first_str, last_str);
     }
     sqlite3_finalize(stmt);
@@ -354,7 +354,7 @@ int main(int argc, char *argv[]) {
     printf("  by autonomous systems. No deterministic predictions.\n");
     printf("  Subscribe to the algorithm, not a financial suggestion.\n");
     printf("\n");
-    
+
     /* Open DB */
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) {
@@ -362,9 +362,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "  %s\n", sqlite3_errmsg(db));
         return 1;
     }
-    
+
     int days = 30;  /* default: 30 days */
-    
+
     if (argc < 2) {
         /* No args — list sources */
         list_sources(db);
@@ -375,10 +375,10 @@ int main(int argc, char *argv[]) {
         sqlite3_close(db);
         return 0;
     }
-    
+
     if (argc >= 3) days = atoi(argv[2]);
     if (days <= 0) days = 30;
-    
+
     if (strcmp(argv[1], "all") == 0) {
         /* Analyze top sources */
         const char *top_sources[] = {
@@ -386,7 +386,7 @@ int main(int argc, char *argv[]) {
             "fred_sp500", "fred_vix", "stock_gold", "stock_crude_oil",
             "forex_eurusd", "fear_greed_fear_greed_all", NULL
         };
-        
+
         for (int i = 0; top_sources[i]; i++) {
             AnalysisResult r = analyze_source(db, top_sources[i], days);
             if (r.n_points > 0) print_analysis(&r);
@@ -400,7 +400,7 @@ int main(int argc, char *argv[]) {
             printf("  Run with no args to list available sources.\n");
         }
     }
-    
+
     sqlite3_close(db);
     return 0;
 }

@@ -41,29 +41,29 @@ int main() {
     printf("Opening DB\n"); fflush(stdout);
     sqlite3 *db;
     if (sqlite3_open("/home/wubu2/.hermes/pm_logs/timeline.db", &db) != SQLITE_OK) return 1;
-    
+
     printf("Loading SP500\n"); fflush(stdout);
     TSPoint sp[50000]; int n_sp = load_series(db, "fred_sp500", "value", sp, 50000, "ts");
     printf("SP500: %d pts\n", n_sp); fflush(stdout);
-    
+
     TSPoint vix[50000]; int n_vix = load_series(db, "fred_vix", "value", vix, 50000, "ts");
     printf("VIX: %d pts\n", n_vix); fflush(stdout);
-    
+
     sqlite3_close(db);
     printf("DB closed\n"); fflush(stdout);
-    
+
     // Just compute 1 simple feature, no complexity
     double X[20000][21];
     double y[20000];
     int ns = 0;
-    
+
     printf("Feature gen starting...\n"); fflush(stdout);
     for (int i = 60; i < n_sp - 1 && ns < 20000; i++) {
         double sp500 = sp[i].val;
-        
+
         X[ns][0] = (sp[i-1].val > 0) ? log(sp500 / sp[i-1].val) : 0;
         y[ns] = (i+1 < n_sp && sp[i+1].val > sp500) ? 1.0 : 0.0;
-        
+
         ns++;
         if (ns % 5000 == 0) { printf("  %d...\n", ns); fflush(stdout); }
     }

@@ -1,12 +1,12 @@
 /**
  * survival_stats.c — P26: Survival Analysis for Darwin-Evolving Genomes
- * 
+ *
  * Reads RoomState from mmap'd file, computes survival statistics:
  * - Agent age (cycles since last cull)
  * - Generation tracking (epoch cycle stamps)
  * - Survival rate per epoch
  * - Win-rate persistence (WR variance across epochs)
- * 
+ *
  * Compile: gcc -O2 -o survival_stats survival_stats.c -lm
  * Run: ./survival_stats path/to/room_state.bin
  */

@@ -1,9 +1,9 @@
 /**
  * evolution_progress.c — Real-time evolution metrics
- * 
+ *
  * Reads paper training logs and engine state to produce
  * evolution progress JSON for the website dashboard.
- * 
+ *
  * Compile: gcc -O2 -o evolution_progress evolution_progress.c -lm
  * Usage:   ./evolution_progress
  */
@@ -57,11 +57,11 @@ static void jb_printf(json_buf_t *jb, const char *fmt, ...) {
 static int scan_training_log(char *cycle_buf, size_t sz, int *cycle, int *total_candles) {
     DIR *d = opendir(LOG_DIR);
     if (!d) return -1;
-    
+
     struct dirent *e;
     char latest[1024] = {0};
     time_t latest_mtime = 0;
-    
+
     while ((e = readdir(d)) != NULL) {
         if (strstr(e->d_name, "paper_run_") || strstr(e->d_name, "paper_train_")) {
             char path[1024];
@@ -74,18 +74,18 @@ static int scan_training_log(char *cycle_buf, size_t sz, int *cycle, int *total_
         }
     }
     closedir(d);
-    
+
     if (!latest[0]) return -1;
-    
+
     // Read last 100 lines for cycle info
     FILE *f = fopen(latest, "r");
     if (!f) return -1;
-    
+
     char buf[4096];
     char last_cycle_line[256] = {0};
     *cycle = 0;
     *total_candles = 0;
-    
+
     while (fgets(buf, sizeof(buf), f)) {
         // Look for cycle progress
         if (strstr(buf, "cycle=")) {
@@ -110,10 +110,10 @@ static int scan_training_log(char *cycle_buf, size_t sz, int *cycle, int *total_
         }
     }
     fclose(f);
-    
+
     if (last_cycle_line[0])
         strncpy(cycle_buf, last_cycle_line, sz - 1);
-    
+
     return 0;
 }
 
@@ -121,17 +121,17 @@ static int scan_training_log(char *cycle_buf, size_t sz, int *cycle, int *total_
 static int read_paper_stats(double *avg_cap, double *avg_wr, int *trades) {
     FILE *f = fopen("/home/wubu2/money-room/data/paper_stats.json", "r");
     if (!f) return -1;
-    
+
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     if (sz < 10) { fclose(f); return -1; }
     rewind(f);
-    
+
     char *buf = malloc(sz + 1);
     fread(buf, 1, sz, f);
     fclose(f);
     buf[sz] = '\0';
-    
+
     // Simple JSON field extraction
     const char *p;
     if ((p = strstr(buf, "\"avg_capital\":"))) {
@@ -146,7 +146,7 @@ static int read_paper_stats(double *avg_cap, double *avg_wr, int *trades) {
         p += 16;
         *trades = atoi(p);
     }
-    
+
     free(buf);
     return 0;
 }
@@ -154,12 +154,12 @@ static int read_paper_stats(double *avg_cap, double *avg_wr, int *trades) {
 int main(void) {
     json_buf_t jb;
     jb_init(&jb);
-    
+
     jb_put(&jb, "{\n");
-    
+
     // Timestamp
     jb_printf(&jb, "  \"timestamp\": %ld,\n", (long)time(NULL));
-    
+
     // Paper training progress
     char cycle_info[256] = {0};
     int cycle = 0, total_candles = 0;
@@ -198,7 +198,7 @@ int main(void) {
     } else {
         jb_put(&jb, "  \"paper_training\": {\"status\": \"no_data\"},\n");
     }
-    
+
     // Paper live stats
     double avg_cap = 0, avg_wr = 0;
     int trades = 0;
@@ -212,7 +212,7 @@ int main(void) {
     } else {
         jb_put(&jb, "  \"paper_live\": {\"status\": \"starting\"},\n");
     }
-    
+
     // BTC CSV freshness
     struct stat csv_st;
     if (stat("/home/wubu2/.hermes/pm_logs/historical/btc_1min_latest.csv", &csv_st) == 0) {
@@ -222,7 +222,7 @@ int main(void) {
         jb_printf(&jb, "    \"fresh\": %s\n", age_sec < 900 ? "true" : "false");
         jb_put(&jb, "  },\n");
     }
-    
+
     // System health
     jb_put(&jb, "  \"system\": {\n");
     jb_printf(&jb, "    \"paper_daemon_running\": %s,\n",
@@ -232,9 +232,9 @@ int main(void) {
     jb_printf(&jb, "    \"live_engine_running\": %s\n",
               system("pgrep -x room_engine >/dev/null 2>&1") == 0 ? "true" : "false");
     jb_put(&jb, "  }\n");
-    
+
     jb_put(&jb, "}\n");
-    
+
     // Write output
     char out_path[512];
     snprintf(out_path, sizeof(out_path), "%s/evolution_progress.json", OUT_DIR);
@@ -244,7 +244,7 @@ int main(void) {
         fclose(f);
         printf("[EVOLUTION] Written %zu bytes to %s\n", jb.len, out_path);
     }
-    
+
     free(jb.buf);
     return 0;
 }

@@ -3,7 +3,7 @@
  *
  * Reads room_state.bin, computes actual transaction costs:
  *   - Slippage paid ($ and bps)
- *   - Taker/maker fees  
+ *   - Taker/maker fees
  *   - Spread cost (half-spread each way)
  *   - Total cost per trade, per agent, per room
  *

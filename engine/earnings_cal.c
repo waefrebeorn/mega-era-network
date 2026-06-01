@@ -64,17 +64,17 @@ static EarningsEntry EARNINGS[] = {
 static int days_until(const char *date_str) {
     int y, m, d;
     if (sscanf(date_str, "%d-%d-%d", &y, &m, &d) != 3) return -1;
-    
+
     time_t now = time(NULL);
     struct tm now_tm = *gmtime(&now);
-    
+
     struct tm earn_tm = {0};
     earn_tm.tm_year = y - 1900;
     earn_tm.tm_mon = m - 1;
     earn_tm.tm_mday = d;
     earn_tm.tm_hour = 16; // After market close
     time_t earn_ts = timegm(&earn_tm);
-    
+
     double secs = difftime(earn_ts, now);
     int days = (int)(secs / 86400.0 + 0.5);
     return days;
@@ -82,35 +82,35 @@ static int days_until(const char *date_str) {
 
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
-    
+
     int n = 0;
     while (EARNINGS[n].ticker) n++;
-    
+
     double total_weight = 0;
     double weighted_days = 0;
     double weighted_score = 0;  // Higher = more earnings activity
     int reports_this_week = 0;
     int reports_this_month = 0;
     double density_score = 0;  // 0-1, how dense is earnings season
-    
+
     char closest_ticker[16] = "";
     int closest_days = 999;
     double closest_weight = 0;
-    
+
     char next_date[16] = "";
-    
+
     for (int i = 0; i < n; i++) {
         int days = days_until(EARNINGS[i].next_earn_date);
         if (days < 0) continue;
-        
+
         total_weight += EARNINGS[i].weight;
         weighted_days += days * EARNINGS[i].weight;
-        
+
         // Reports this week (≤7 days)
         if (days <= 7) reports_this_week++;
         // Reports this month (≤30 days)
         if (days <= 30) reports_this_month++;
-        
+
         // Closest report
         if (days < closest_days) {
             closest_days = days;
@@ -118,19 +118,19 @@ int main(int argc, char **argv) {
             strncpy(closest_ticker, EARNINGS[i].ticker, 15);
             strncpy(next_date, EARNINGS[i].next_earn_date, 15);
         }
-        
+
         // Score: inverse-distance weighted by weight, scaled 0-1
         weighted_score += EARNINGS[i].weight / (days + 1.0);
     }
-    
+
     // Normalize: typical max for 30 stocks within 90 days
     double days_to_next_earn = (double)closest_days;
     double earn_density = (double)reports_this_week / 10.0;
     if (earn_density > 1.0) earn_density = 1.0;
-    
+
     double earn_activity = weighted_score / 5.0;  // Normalize, cap at 1
     if (earn_activity > 1.0) earn_activity = 1.0;
-    
+
     // Build output JSON
     json_t *root = json_object();
     json_object_set_new(root, "days_to_next_earnings", json_real(days_to_next_earn));
@@ -143,17 +143,17 @@ int main(int argc, char **argv) {
     json_object_set_new(root, "earn_activity", json_real(earn_activity));
     json_object_set_new(root, "total_tracked", json_integer(n));
     json_object_set_new(root, "source", json_string("earnings_cal"));
-    
+
     FILE *f = fopen(OUT_FILE, "w");
     if (!f) { fprintf(stderr, "Can't write %s\n", OUT_FILE); json_decref(root); return 1; }
     json_dumpf(root, f, JSON_INDENT(2) | JSON_SORT_KEYS);
     fclose(f);
     json_decref(root);
-    
+
     printf("Wrote %s\n", OUT_FILE);
     printf("  next: %s (%s, %.1f days, w=%.1f%%)\n", closest_ticker, next_date, days_to_next_earn, closest_weight * 100);
     printf("  this_week=%d this_month=%d density=%.2f activity=%.2f\n",
            reports_this_week, reports_this_month, earn_density, earn_activity);
-    
+
     return 0;
 }

@@ -1,15 +1,15 @@
 /**
  * exchange_api.c — Exchange REST API Client Module
- * 
+ *
  * Public ticker fetchers for Kraken, Binance, Coinbase.
  * No API keys needed for public endpoints.
- * 
+ *
  * Dependencies: libcurl, libjansson (same as room_feed_bridge)
- * 
+ *
  * Compile: gcc -O3 -c exchange_api.c -lcurl -ljansson
  * Link:   gcc -o exchange_api_test exchange_api_test.c exchange_api.o -lcurl -ljansson -lm
  *
- * Private endpoints (trades, balances) require API keys via ExchangeConfig 
+ * Private endpoints (trades, balances) require API keys via ExchangeConfig
  * — keys are empty by default, populated from file or env.
  */
 
@@ -83,10 +83,10 @@ static double kraken_val(json_t *arr, int idx) {
 ExchangeTicker fetch_kraken_ticker(const char *pair, int timeout_sec) {
     char url[512];
     snprintf(url, sizeof(url), "https://api.kraken.com/0/public/Ticker?pair=%s", pair);
-    
+
     char *resp = http_get(url, timeout_sec);
     if (!resp) return empty_ticker();
-    
+
     json_error_t err;
     json_t *root = json_loads(resp, 0, &err);
     free(resp);
@@ -94,7 +94,7 @@ ExchangeTicker fetch_kraken_ticker(const char *pair, int timeout_sec) {
         fprintf(stderr, "[exchange] Kraken JSON parse error: %s\n", err.text);
         return empty_ticker();
     }
-    
+
     ExchangeTicker t = empty_ticker();
     json_t *jerror = json_object_get(root, "error");
     if (jerror && json_array_size(jerror) > 0) {
@@ -103,38 +103,38 @@ ExchangeTicker fetch_kraken_ticker(const char *pair, int timeout_sec) {
         json_decref(root);
         return t;
     }
-    
+
     json_t *jresult = json_object_get(root, "result");
     if (!jresult || !json_is_object(jresult)) {
         json_decref(root);
         return t;
     }
-    
+
     // Kraken returns result as object with pair name as key — find first entry
     const char *key;
     json_t *val;
     json_object_foreach(jresult, key, val) {
         (void)key; // key is the pair name (e.g. "XXBTZUSD")
-        
+
         // Kraken values are string-typed in arrays: e.g. "c": ["73332.40", "0.0055"]
         json_t *jc = json_object_get(val, "c");  // Close array [price, lot_volume]
         t.price = kraken_val(jc, 0);
-        
+
         json_t *jv = json_object_get(val, "v");  // Volume array [today, last24h]
         t.volume_24h = kraken_val(jv, 1);        // last 24h volume
-        
+
         json_t *jh = json_object_get(val, "h");  // High array [today, last24h]
         t.high_24h = kraken_val(jh, 1);
-        
+
         json_t *jl = json_object_get(val, "l");  // Low array [today, last24h]
         t.low_24h = kraken_val(jl, 1);
-        
+
         json_t *jb = json_object_get(val, "b");  // Bid array [price, lot_volume, timestamp]
         t.bid = kraken_val(jb, 0);
-        
+
         json_t *ja = json_object_get(val, "a");  // Ask array [price, lot_volume, timestamp]
         t.ask = kraken_val(ja, 0);
-        
+
         json_t *jo = json_object_get(val, "o");  // Open price (string)
         if (jo) {
             double open;
@@ -145,13 +145,13 @@ ExchangeTicker fetch_kraken_ticker(const char *pair, int timeout_sec) {
                 t.change_24h = (t.price - open) / open * 100.0;
             }
         }
-        
+
         t.has_data = (t.price > 0) ? 1 : 0;
         break;  // First pair entry is ours
     }
-    
+
     json_decref(root);
-    
+
     if (t.has_data) {
         printf("[exchange] Kraken %s: price=%.2f bid=%.2f ask=%.2f vol=%.0f\n",
                pair, t.price, t.bid, t.ask, t.volume_24h);
@@ -167,10 +167,10 @@ ExchangeTicker fetch_kraken_ticker(const char *pair, int timeout_sec) {
 ExchangeTicker fetch_binance_ticker(const char *symbol, int timeout_sec) {
     char url[512];
     snprintf(url, sizeof(url), "https://api.binance.com/api/v3/ticker/24hr?symbol=%s", symbol);
-    
+
     char *resp = http_get(url, timeout_sec);
     if (!resp) return empty_ticker();
-    
+
     json_error_t err;
     json_t *root = json_loads(resp, 0, &err);
     free(resp);
@@ -178,34 +178,34 @@ ExchangeTicker fetch_binance_ticker(const char *symbol, int timeout_sec) {
         fprintf(stderr, "[exchange] Binance JSON parse error: %s\n", err.text);
         return empty_ticker();
     }
-    
+
     ExchangeTicker t = empty_ticker();
-    
+
     json_t *jprice = json_object_get(root, "lastPrice");
     if (jprice) t.price = atof(json_string_value(jprice));
-    
+
     json_t *jvol = json_object_get(root, "volume");
     if (jvol) t.volume_24h = atof(json_string_value(jvol));
-    
+
     json_t *jhigh = json_object_get(root, "highPrice");
     if (jhigh) t.high_24h = atof(json_string_value(jhigh));
-    
+
     json_t *jlow = json_object_get(root, "lowPrice");
     if (jlow) t.low_24h = atof(json_string_value(jlow));
-    
+
     json_t *jbid = json_object_get(root, "bidPrice");
     if (jbid) t.bid = atof(json_string_value(jbid));
-    
+
     json_t *jask = json_object_get(root, "askPrice");
     if (jask) t.ask = atof(json_string_value(jask));
-    
+
     json_t *jchange = json_object_get(root, "priceChangePercent");
     if (jchange) t.change_24h = atof(json_string_value(jchange));
-    
+
     t.has_data = (t.price > 0) ? 1 : 0;
-    
+
     json_decref(root);
-    
+
     if (t.has_data) {
         printf("[exchange] Binance %s: price=%.2f bid=%.2f ask=%.2f vol=%.0f chg=%.2f%%\n",
                symbol, t.price, t.bid, t.ask, t.volume_24h, t.change_24h);
@@ -221,10 +221,10 @@ ExchangeTicker fetch_binance_ticker(const char *symbol, int timeout_sec) {
 ExchangeTicker fetch_coinbase_ticker(const char *product_id, int timeout_sec) {
     char url[512];
     snprintf(url, sizeof(url), "https://api.exchange.coinbase.com/products/%s/ticker", product_id);
-    
+
     char *resp = http_get(url, timeout_sec);
     if (!resp) return empty_ticker();
-    
+
     json_error_t err;
     json_t *root = json_loads(resp, 0, &err);
     free(resp);
@@ -232,33 +232,33 @@ ExchangeTicker fetch_coinbase_ticker(const char *product_id, int timeout_sec) {
         fprintf(stderr, "[exchange] Coinbase JSON parse error: %s\n", err.text);
         return empty_ticker();
     }
-    
+
     ExchangeTicker t = empty_ticker();
-    
+
     json_t *jprice = json_object_get(root, "price");
     if (jprice) t.price = atof(json_string_value(jprice));
-    
+
     json_t *jvol = json_object_get(root, "volume");
     if (jvol) t.volume_24h = json_number_value(jvol);
-    
+
     json_t *jbid = json_object_get(root, "bid");
     if (jbid) t.bid = atof(json_string_value(jbid));
-    
+
     json_t *jask = json_object_get(root, "ask");
     if (jask) t.ask = atof(json_string_value(jask));
-    
+
     json_t *jhigh = json_object_get(root, "high");
     if (jhigh) t.high_24h = atof(json_string_value(jhigh));
-    
+
     json_t *jlow = json_object_get(root, "low");
     if (jlow) t.low_24h = atof(json_string_value(jlow));
-    
+
     // Coinbase ticker doesn't have 24h change directly
     // Volume in 24h
-    
+
     t.has_data = (t.price > 0) ? 1 : 0;
     json_decref(root);
-    
+
     if (t.has_data) {
         printf("[exchange] Coinbase %s: price=%.2f bid=%.2f ask=%.2f\n",
                product_id, t.price, t.bid, t.ask);
@@ -273,13 +273,13 @@ void exchange_config_init(ExchangeConfig *cfg) {
 
 int exchange_config_load(ExchangeConfig *cfg, const char *path) {
     exchange_config_init(cfg);
-    
+
     FILE *fp = fopen(path, "r");
     if (!fp) {
         fprintf(stderr, "[exchange] No config at %s (using defaults)\n", path);
         return 0;
     }
-    
+
     json_error_t err;
     json_t *root = json_loadf(fp, 0, &err);
     fclose(fp);
@@ -287,7 +287,7 @@ int exchange_config_load(ExchangeConfig *cfg, const char *path) {
         fprintf(stderr, "[exchange] Config parse error: %s\n", err.text);
         return 0;
     }
-    
+
     json_t *j;
     j = json_object_get(root, "kraken_key");
     if (j && json_is_string(j)) strncpy(cfg->kraken_key, json_string_value(j), sizeof(cfg->kraken_key)-1);
@@ -303,7 +303,7 @@ int exchange_config_load(ExchangeConfig *cfg, const char *path) {
     if (j && json_is_string(j)) strncpy(cfg->coinbase_secret, json_string_value(j), sizeof(cfg->coinbase_secret)-1);
     j = json_object_get(root, "coinbase_passphrase");
     if (j && json_is_string(j)) strncpy(cfg->coinbase_passphrase, json_string_value(j), sizeof(cfg->coinbase_passphrase)-1);
-    
+
     json_decref(root);
     return 1;
 }

@@ -2,7 +2,7 @@
  * blockchain_com_collector.c — Blockchain.com BTC on-chain data (T964-T978)
  * Fetches: tx count, fees, mempool, miner revenue, UTXOs, supply, non-zero addresses
  * Free API, no key needed. All data via blockchain.info/charts API.
- * 
+ *
  * Compile: gcc -O3 -Wall -Wextra -o blockchain_com_collector blockchain_com_collector.c -lcurl -lsqlite3 -lm
  */
 
@@ -62,7 +62,7 @@ static sqlite3 *open_db(void) {
     sqlite3 *db;
     int rc = sqlite3_open(DB_PATH, &db);
     if (rc != SQLITE_OK) { fprintf(stderr, "DB: %s\n", sqlite3_errmsg(db)); return NULL; }
-    
+
     const char *sql =
         "CREATE TABLE IF NOT EXISTS blockchain_data ("
         "  chart_id TEXT NOT NULL,"
@@ -83,10 +83,10 @@ static int fetch_chart(const ChartDef *cd, MemBuf *buf) {
     char url[512];
     snprintf(url, sizeof(url), "%s/%s?format=json&timespan=%dd&sampled=false",
              API_BASE, cd->chart, cd->timespan_days);
-    
+
     CURL *curl = curl_easy_init();
     if (!curl) return -1;
-    
+
     buf->size = 0;
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
@@ -94,12 +94,12 @@ static int fetch_chart(const ChartDef *cd, MemBuf *buf) {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "MoneyRoom/1.0");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    
+
     CURLcode res = curl_easy_perform(curl);
     long http = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http);
     curl_easy_cleanup(curl);
-    
+
     return (res == CURLE_OK && http == 200) ? 0 : -1;
 }
 
@@ -110,49 +110,49 @@ static int insert_chart(sqlite3 *db, const ChartDef *cd, MemBuf *buf) {
         fprintf(stderr, "  JSON: %s\n", err.text);
         return -1;
     }
-    
+
     json_t *values = json_object_get(root, "values");
     if (!values || !json_is_array(values)) {
         json_decref(root);
         return -1;
     }
-    
+
     size_t n = json_array_size(values);
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(db,
         "INSERT OR REPLACE INTO blockchain_data (chart_id, obs_date, value, name) VALUES (?1, ?2, ?3, ?4)",
         -1, &stmt, NULL);
-    
+
     sqlite3_exec(db, "BEGIN", NULL, NULL, NULL);
     int rows = 0;
-    
+
     for (size_t i = 0; i < n; i++) {
         json_t *val = json_array_get(values, i);
         json_t *x = json_object_get(val, "x");  /* unix timestamp */
         json_t *y = json_object_get(val, "y");  /* value */
-        
+
         if (x && y && json_is_number(x) && json_is_number(y)) {
             time_t ts = (time_t)json_number_value(x);
             struct tm *tm = gmtime(&ts);
             char date_str[32];
             strftime(date_str, sizeof(date_str), "%Y%m%d", tm);
-            
+
             double v = json_number_value(y);
-            
+
             sqlite3_bind_text(stmt, 1, cd->chart, -1, SQLITE_STATIC);
             sqlite3_bind_text(stmt, 2, date_str, -1, SQLITE_STATIC);
             sqlite3_bind_double(stmt, 3, v);
             sqlite3_bind_text(stmt, 4, cd->name, -1, SQLITE_STATIC);
-            
+
             if (sqlite3_step(stmt) == SQLITE_DONE) rows++;
             sqlite3_reset(stmt);
         }
     }
-    
+
     sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
     json_decref(root);
-    
+
     printf("  %-25s %d rows\n", cd->chart, rows);
     return rows;
 }
@@ -164,7 +164,7 @@ static void print_stats(sqlite3 *db) {
         "ROUND(MIN(value), 2), name "
         "FROM blockchain_data GROUP BY chart_id ORDER BY chart_id",
         -1, &stmt, NULL);
-    
+
     printf("\n%-30s %8s %12s %12s %12s  %s\n", "CHART", "ROWS", "AVG", "MAX", "MIN", "NAME");
     printf("------------------------------ -------- ------------ ------------ ------------ "
            "--------------------------------\n");
@@ -191,19 +191,19 @@ int main(int argc, char **argv) {
         if (db) { print_stats(db); sqlite3_close(db); }
         return 0;
     }
-    
+
     if (argc == 1 || (argc > 1 && strcmp(argv[1], "fetch") == 0)) {
         sqlite3 *db = open_db();
         if (!db) return 1;
-        
+
         curl_global_init(CURL_GLOBAL_DEFAULT);
         MemBuf buf = {NULL, 0};
-        
+
         int ok = 0, fail = 0;
         for (int i = 0; i < N_CHARTS; i++) {
             printf("[%d/%d] %s\n", i+1, N_CHARTS, CHARTS[i].name);
             if (buf.data) { free(buf.data); buf.data = NULL; buf.size = 0; }
-            
+
             if (fetch_chart(&CHARTS[i], &buf) == 0) {
                 if (insert_chart(db, &CHARTS[i], &buf) > 0) ok++;
                 else fail++;
@@ -211,16 +211,16 @@ int main(int argc, char **argv) {
                 fail++;
             }
         }
-        
+
         free(buf.data);
         sqlite3_close(db);
         curl_global_cleanup();
-        
+
         printf("\n=== BLOCKCHAIN COLLECTOR RESULT ===\n");
         printf("Charts OK: %d, FAIL: %d\n", ok, fail);
         return 0;
     }
-    
+
     printf("Usage: blockchain_com_collector [fetch|stats]\n");
     return 0;
 }

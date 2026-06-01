@@ -47,25 +47,25 @@ static int hist_count = 0;
 static int read_all_rooms(const char *rooms_dir, Snapshot *snap) {
     DIR *dir = opendir(rooms_dir);
     if (!dir) return 0;
-    
+
     memset(snap, 0, sizeof(Snapshot));
     snap->ts = time(NULL);
-    
+
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && snap->n_rooms < MAX_ROOMS) {
         if (entry->d_name[0] == '.') continue;
-        
+
         char snap_path[MAX_PATH];
         snprintf(snap_path, sizeof(snap_path), "%s/%s/room_snapshot.json",
                  rooms_dir, entry->d_name);
-        
+
         json_error_t err;
         json_t *root = json_load_file(snap_path, 0, &err);
         if (!root) continue;
-        
+
         RoomPoint *p = &snap->points[snap->n_rooms];
         strncpy(p->name, entry->d_name, sizeof(p->name) - 1);
-        
+
         json_t *vs = json_object_get(root, "vote_summary");
         if (json_is_object(vs)) {
             json_t *jup = json_object_get(vs, "up");
@@ -89,7 +89,7 @@ static int read_all_rooms(const char *rooms_dir, Snapshot *snap) {
 static void append_history(Snapshot *snap) {
     if (hist_count >= MAX_HIST) return;
     history[hist_count++] = *snap;
-    
+
     FILE *f = fopen(HIST_FILE, "a");
     if (!f) return;
     fprintf(f, "%ld", (long)snap->ts);
@@ -150,7 +150,7 @@ static void compute_correlation(const char **room_names, int n_rooms) {
     int n = hist_count;
     double *means = calloc(n_rooms, sizeof(double));
     int *counts = calloc(n_rooms, sizeof(int));
-    
+
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n_rooms; j++) {
             int ri = room_idx(&history[i], room_names[j]);
@@ -160,23 +160,23 @@ static void compute_correlation(const char **room_names, int n_rooms) {
             }
         }
     }
-    
+
     for (int j = 0; j < n_rooms; j++)
         if (counts[j] > 0) means[j] /= counts[j];
-    
+
     printf("\n=== SIGNAL CORRELATION MATRIX ===\n");
     printf("Rooms: %d  Snapshots: %d\n\n", n_rooms, n);
-    
+
     /* Header */
     printf("%-14s", "");
     for (int j = 0; j < n_rooms; j++)
         printf("  %-12s", room_names[j]);
     printf("  MEAN_SIG\n");
-    
+
     double **mat = calloc(n_rooms, sizeof(double*));
     for (int i = 0; i < n_rooms; i++)
         mat[i] = calloc(n_rooms, sizeof(double));
-    
+
     for (int i = 0; i < n_rooms; i++) {
         printf("%-14s", room_names[i]);
         for (int j = 0; j < n_rooms; j++) {
@@ -198,7 +198,7 @@ static void compute_correlation(const char **room_names, int n_rooms) {
             if (pairs > 2 && var_i > 1e-10 && var_j > 1e-10)
                 r = cov / sqrt(var_i * var_j);
             mat[i][j] = r;
-            
+
             char buf[16];
             if (fabs(r) < 0.01 && r != 0) snprintf(buf, sizeof(buf), "%.3f", r);
             else snprintf(buf, sizeof(buf), "%+.3f", r);
@@ -206,7 +206,7 @@ static void compute_correlation(const char **room_names, int n_rooms) {
         }
         printf("  %+8.4f\n", means[i]);
     }
-    
+
     /* Find highest/lowest correlations */
     double max_r = -2, min_r = 2;
     const char *max_pair = "", *min_pair = "";
@@ -216,10 +216,10 @@ static void compute_correlation(const char **room_names, int n_rooms) {
             if (mat[i][j] < min_r) { min_r = mat[i][j]; min_pair = room_names[i]; }
         }
     }
-    
+
     printf("\nHighest correlation: r=%+.3f (%s)\n", max_r, max_pair);
     printf("Lowest correlation:  r=%+.3f (%s)\n", min_r, min_pair);
-    
+
     for (int i = 0; i < n_rooms; i++) free(mat[i]);
     free(mat);
     free(means);
@@ -229,18 +229,18 @@ static void compute_correlation(const char **room_names, int n_rooms) {
 int main(int argc, char **argv) {
     const char *rooms_dir = ROOMS_DIR_DEFAULT;
     int mode = 0; /* 0=live+correlate, 1=history, 2=live-only */
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "history") == 0) mode = 1;
         else if (strcmp(argv[i], "live") == 0) mode = 2;
         else rooms_dir = argv[i];
     }
-    
+
     if (mode == 1) {
         int n = load_history();
         if (n == 0) { fprintf(stderr, "No history found\n"); return 1; }
         printf("HISTORY: %d snapshots from %s\n", n, HIST_FILE);
-        
+
         /* Collect all room names seen in history */
         char *seen[MAX_ROOMS];
         int n_seen = 0;
@@ -252,23 +252,23 @@ int main(int argc, char **argv) {
                 if (!found) seen[n_seen++] = history[i].points[j].name;
             }
         }
-        
+
         compute_correlation((const char**)seen, n_seen);
         return 0;
     }
-    
+
     /* Live mode: read current rooms */
     Snapshot snap;
     if (!read_all_rooms(rooms_dir, &snap)) {
         fprintf(stderr, "No room snapshots found\n");
         return 1;
     }
-    
+
     printf("LIVE SNAPSHOT — %d rooms at %s",
            snap.n_rooms, ctime(&snap.ts));
     printf("%-15s  VOTES  UP_RATIO  SIGNAL\n", "ROOM");
     printf("---------------  -----  --------  ------\n");
-    
+
     const char *names[MAX_ROOMS];
     for (int i = 0; i < snap.n_rooms; i++) {
         double sig = signal_from_ratio(snap.points[i].up_ratio);
@@ -278,11 +278,11 @@ int main(int argc, char **argv) {
                snap.points[i].total_votes,
                snap.points[i].up_ratio, sig);
     }
-    
+
     /* Append to history */
     append_history(&snap);
     printf("\nSnapshot appended to %s (%d total)\n", HIST_FILE, hist_count);
-    
+
     /* Load full history for correlation */
     int h = load_history();
     if (h >= 3) {
@@ -290,6 +290,6 @@ int main(int argc, char **argv) {
     } else {
         printf("\nNeed at least 3 snapshots for correlation (have %d)\n", h);
     }
-    
+
     return 0;
 }

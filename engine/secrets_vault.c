@@ -59,7 +59,7 @@ static int derive_key(const char *pass, const unsigned char *salt,
     /* Generate key: SHA-256(pass + salt), iterated 10000x */
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     if (!ctx) return -1;
-    
+
     EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
     EVP_DigestUpdate(ctx, pass, plen);
     EVP_DigestUpdate(ctx, salt, SALT_LEN);
