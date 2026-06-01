@@ -389,5 +389,32 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // F18: Tailslayer tail risk score (P15)
     fv->tail_risk_score = compute_tail_risk(px, s->price_hist_len[mt]);
 
+    // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
+    // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
+    // F1: price_delta_pct — tanh clamp to [-1, 1]
+    fv->price_delta_pct = tanhf(fv->price_delta_pct / 5.0f);
+    // F2: micro_momentum — tanh clamp
+    fv->micro_momentum = tanhf(fv->micro_momentum / 2.0f);
+    // F3: RSI 0-100 → 0-1
+    fv->rsi_7 = fv->rsi_7 / 100.0f;
+    // F4: volume_surge_ratio — log-normalize
+    if (fv->volume_surge_ratio > 0.0f) {
+        fv->volume_surge_ratio = logf(fv->volume_surge_ratio) / 3.0f + 0.5f;
+    }
+    if (fv->volume_surge_ratio < 0.0f) fv->volume_surge_ratio = 0.0f;
+    if (fv->volume_surge_ratio > 1.0f) fv->volume_surge_ratio = 1.0f;
+    // F5-F7: EMA/MACD normalization — skip for binary (already 0-1)
+    if (!is_binary) {
+        fv->ema_fast = tanhf((fv->ema_fast / price_val - 1.0f) * 5.0f) * 0.5f + 0.5f;
+        fv->ema_slow = tanhf((fv->ema_slow / price_val - 1.0f) * 5.0f) * 0.5f + 0.5f;
+        fv->macd_hist = tanhf(fv->macd_hist / (price_val * 0.01f + 0.001f));
+    }
+    // F9: Divergence score [-1,1] → [0,1]
+    fv->divergence_score = fv->divergence_score * 0.5f + 0.5f;
+    // F10: Pump score [-1,1] → [0,1]
+    fv->pump_score = fv->pump_score * 0.5f + 0.5f;
+    // F11: Regime [0,2] → [0,1]
+    fv->regime_indicator = fv->regime_indicator / 2.0f;
+
     return ERR_OK;
 }
