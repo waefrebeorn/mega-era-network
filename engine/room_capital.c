@@ -56,6 +56,21 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         if (!a->alive || a->capital <= 0) continue;
 
         float stake = votes[i].position_size * a->capital;
+        // ── A37: Kelly criterion cap — prevent over-betting when WR is low ──
+        // For even-money P2P bets: Kelly f* = win_rate - (1-win_rate) = 2*WR - 1
+        // Use fractional Kelly (half-Kelly for safety): min(genome_size, max(0, WR-0.5))
+        if (a->trades >= 20) {
+            float kelly_f = a->win_rate_ema - 0.5f;  // Kelly fraction for even-money
+            if (kelly_f > 0.0f) {
+                float kelly_stake = kelly_f * a->capital;
+                if (stake > kelly_stake) {
+                    stake = kelly_stake;  // Kelly caps the genome-evolved size
+                }
+            } else {
+                // WR below 50% — Kelly says don't bet at all. Use 1/4 genome size.
+                stake *= 0.25f;
+            }
+        }
         float max_loss = a->capital * 0.05f;
         if (stake > max_loss) stake = max_loss;
         if (stake > a->capital * 0.5f) stake = a->capital * 0.5f;
