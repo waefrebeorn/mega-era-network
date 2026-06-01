@@ -99,6 +99,49 @@ static inline int check_panic(RoomState *state) {
     return state->panic_stop;
 }
 
+// ── A16: Feature importance pruning — decay/zero out features that persistently hurt ──
+// Called periodically to prune dead features from agent genomes.
+// Importance score = pos_wr - neg_wr where wr = wins/total for each side.
+// Negative score = feature hurts more than helps when it pushes signal direction.
+static void prune_dead_features(AgentState *agents, int n, FeatureImportance *imp) {
+    static int prune_counter = 0;
+    prune_counter++;
+    if (prune_counter % 100 != 0) return;  // Every 100 cycles
+    if (!imp) return;
+
+    for (int f = 0; f < N_FEATURES; f++) {
+        int pos_total = imp->pos_contrib_total[f];
+        int neg_total = imp->neg_contrib_total[f];
+        if (pos_total + neg_total < 20) continue;  // Not enough data
+
+        float pos_wr = pos_total > 0 ? imp->pos_contrib_wins[f] / (float)pos_total : 0.5f;
+        float neg_wr = neg_total > 0 ? imp->neg_contrib_wins[f] / (float)neg_total : 0.5f;
+        float score = pos_wr - neg_wr;
+
+        if (score < -0.1f) {
+            // Feature is hurting — decay its weight across all agents
+            for (int a = 0; a < n; a++) {
+                if (!agents[a].alive) continue;
+                agents[a].genome.feat_weight[f] *= 0.95f;  // 5% decay per prune
+                // Also decay regime-specific weights
+                for (int r = 0; r < N_REGS; r++) {
+                    agents[a].genome.regime_weight[r][f] *= 0.95f;
+                }
+            }
+        }
+        if (score < -0.3f && (pos_total + neg_total) > 500) {
+            // Strongly hurting with lots of data — zero out completely
+            for (int a = 0; a < n; a++) {
+                if (!agents[a].alive) continue;
+                agents[a].genome.feat_weight[f] *= 0.5f;  // 50% reduction
+                for (int r = 0; r < N_REGS; r++) {
+                    agents[a].genome.regime_weight[r][f] *= 0.5f;
+                }
+            }
+        }
+    }
+}
+
 // ── Forward decls ──
 RoomError room_feeds_load(MarketTick *tick);
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s);
@@ -1185,6 +1228,8 @@ void room_market_stats(RoomState *state);
         // ── L5: Darwin evolution (every 100 trades) ──
         if (state->trade_count > 0 && state->trade_count % 100 == 0) {
             room_darwin_evolve(state->agents, MAX_AGENTS, state->cycle, &state->darwin, g_agent_market);
+            // A16: Prune dead features using tracked importance
+            prune_dead_features(state->agents, MAX_AGENTS, &state->feat_importance);
             // C19: Compute diversity metrics after evolution
             room_darwin_compute_diversity(state->agents, MAX_AGENTS, &state->stats);
             // ── Loss feedback: save elite engine genomes for trainer hot-start ──

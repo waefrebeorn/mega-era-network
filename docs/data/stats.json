@@ -1,17 +1,17 @@
 {
-  "agents": 1388934.0,
+  "agents": 1059598.0,
   "capital": 0.0,
-  "capital_peak": 500000.0,
+  "capital_peak": 4.444,
   "cycle": 1.0,
   "drawdown": 1.0,
   "epoch": 0.0,
   "features": 10,
-  "paper_age": 247,
-  "price": 73355.929699999993,
+  "paper_age": 0,
+  "price": 73067.726599999995,
   "sharpe": 0.0,
-  "timestamp": 8916,
+  "timestamp": 9506,
   "trades_total": 0.0,
   "trades_won": 0.0,
-  "votes": 9979.0,
+  "votes": 9068.0,
   "win_rate": 0.0
 }
