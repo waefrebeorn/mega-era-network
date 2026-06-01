@@ -24,7 +24,7 @@
 || A11 | No walked-forward validation | Training | 🔴 | ✅ | FIXED multi_market_trainer.c:962-1120: added `--validate` and `--validate-only` flags with walk-forward validation. Expanding-window protocol: 5 folds, each training on first N folds and testing on fold N+1. Reports IS vs OOS WR per fold, per market, and grand average. Overfit detected automatically when IS-OOS >10pp. Avg OOS WR across 16 markets: 66.8%. Flag: `--validate-only` for standalone validation (no training output). |
 || A12 | No out-of-sample test set | Training | 🔴 | ✅ | RESOLVED by A11 walk-forward validation (multi_market_trainer.c:962-1120). `--validate` flag runs expanding-window protocol: train on folds 0..N-1, test on fold N. OOS WR computed per fold and averaged across all folds. Avg OOS WR across 16 markets: 66.8%. Same fix serves both A11 and A12. |
 || A13 | No regime transition model | Training | 🟡 | ✅ | **FIXED**: Added 3×3 Markov transition matrix to RoomState (types.h). Updates on each tick after regime computation in room_features.c:535-560. Regime_transition_counts track regime→regime frequency. predicted_regime = argmax of transition matrix row. Persists across restarts via mmap'd state. |
-| A14 | No position sizing by volatility regime | Training | 🟡 | ⏳ | Volatile regime gets same stake as calm regime. Should reduce 50%. |
+|| A14 | No position sizing by volatility regime | Training | 🟡 | ✅ | **FIXED**: room_capital_apply() halves stake when predicted_regime == 2 (volatile). Uses A13 predicted_regime from Markov model. room_capital.c:74-76, room_engine.c call site passes state->predicted_regime. |
 | A15 | No per-agent trade journal | Training | 🟡 | ✅ | **STALE**: trade_log.csv has 14.96M rows in ~/.hermes/pm_logs/c_room/. trade_journal binary exports per-agent audit to docs/data/trade_journal.json. |
 | A16 | No feature importance feedback loop | Training | 🟡 | ✅ | **FIXED**: prune_dead_features() in room_engine.c decays weights of features with negative importance score (pos_wr - neg_wr < -0.1). Called every 100 cycles after Darwin. |
 || A17 | N_FEATURES=18 but no convergence check | Training | 🟡 | ✅ | **FIXED**: Added stagnant_cycles tracking to prune_dead_features() (room_engine.c:142-170). Features with flat importance (<0.05 change) for 1000+ cycles get weight halved. [CONV] log on first prune. Detects features that have converged and no longer provide signal. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 14 | 0 | 37 | 0 |
+|| A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 12 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **120** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **119** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 120 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 119 major gaps | ⚪ P3: 228 minor/feature gaps

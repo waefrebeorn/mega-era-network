@@ -34,7 +34,8 @@ typedef struct {
 RoomError room_capital_apply(VoteRecord *votes, int count,
                              AgentState *agents, int n_unused,
                              TradeRecord *trades, int start_offset,
-                             int *new_count, int64_t window_ts) {
+                             int *new_count, int64_t window_ts,
+                             int predicted_regime) {
     (void)n_unused;
     *new_count = 0;
     if (count < 2) return ERR_OK;
@@ -70,6 +71,10 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
                 // WR below 50% — Kelly says don't bet at all. Use 1/4 genome size.
                 stake *= 0.25f;
             }
+        }
+        // ── A14: Reduce position sizing in volatile regime ──
+        if (predicted_regime == 2) {
+            stake *= 0.50f;  // Half position in volatile regime
         }
         float max_loss = a->capital * 0.05f;
         if (stake > max_loss) stake = max_loss;

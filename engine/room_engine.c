@@ -173,7 +173,7 @@ static void prune_dead_features(AgentState *agents, int n, FeatureImportance *im
 RoomError room_feeds_load(MarketTick *tick);
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s);
 RoomError room_vote_run(AgentState *agents, int n, const FeatureVector *fv, VoteRecord *votes, int *count);
-RoomError room_capital_apply(VoteRecord *votes, int count, AgentState *agents, int n, TradeRecord *trades, int start_offset, int *new_count, int64_t window_ts);
+RoomError room_capital_apply(VoteRecord *votes, int count, AgentState *agents, int n, TradeRecord *trades, int start_offset, int *new_count, int64_t window_ts, int predicted_regime);
 RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                const MarketTick *resolution_tick,
                                float prev_close,
@@ -1316,7 +1316,7 @@ void room_market_stats(RoomState *state);
         int new_trades = 0;
         err = room_capital_apply(state->votes, vote_count, state->agents, MAX_AGENTS,
                                  state->trades, state->trade_count, &new_trades,
-                                 tick.window_ts);
+                                 tick.window_ts, state->predicted_regime);
         // ── T19: Trade rate limiting ──
         if (state->max_trades_per_cycle > 0 && new_trades > state->max_trades_per_cycle) {
             int deferred = new_trades - state->max_trades_per_cycle;
