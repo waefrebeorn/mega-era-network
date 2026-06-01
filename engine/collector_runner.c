@@ -143,6 +143,7 @@ static CollectorTask NORMAL_TASKS[] = {
     {"open_interest_feat.sh",  "open_interest",     30},
     {"hashrate_feat.sh",       "hashrate_features", 30},
     {"orderbook_fetch.sh",     "orderbook_archive", 30},
+    {"cvd_fetch.sh",           "cvd_signal",        15},
     {"liquidation_feat.sh",    "liquidation_features", 30},
     {"ls_ratio_feat.sh",       "ls_ratio",          30},
     {"whale_feat.sh",          "whale_tracking",    30},

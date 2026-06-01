@@ -105,7 +105,7 @@ typedef struct {
     // ── B05: Order book features (replaces φ-interval features) ──
     float ob_imbalance;         // F14: bid_vol / (bid+ask_vol) top-10 levels (0-1)
     float ob_depth_ratio;       // F15: bid_depth / (bid+ask_depth) 0.5% band (0-1)
-    float ob_spread_norm;       // F16: spread bps / 100, clamped [0-1]
+    float cvd_signal;           // F16: Cumulative volume delta normalized (0-1)
     // ── P13: DFT frequency feature ──
     float dft_dominant;         // F17: Dominant frequency strength (0-1)
     // ── P15: Tailslayer tail risk score ──
@@ -132,6 +132,8 @@ typedef struct {
     float    ob_depth_ratio;    // bid_depth / (bid+ask_depth) 0.5% band (0-1)
     float    ob_wall_conc;      // largest level / top-10 total (0-1)
     float    ob_spread_norm;    // spread bps / 100 (0-1)
+    // ── B06: Cumulative volume delta ──
+    float    cvd_signal;        // bid-ask volume delta normalized (0-1)
 } MarketTick;
 
 // ── Agent vote result ──

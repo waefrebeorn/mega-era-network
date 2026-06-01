@@ -116,9 +116,9 @@ static int load_orderbook_features(MarketTick *tick) {
     rewind(f);
     char *buf = (char *)malloc(sz + 1);
     if (!buf) { fclose(f); return -1; }
-    size_t read_n = fread(buf, 1, sz, f);
+    size_t nread = fread(buf, 1, sz, f);
     fclose(f);
-    buf[read_n] = '\0';
+    buf[nread] = '\0';
 
     // Parse normalized features
     const char *p;
@@ -134,6 +134,29 @@ static int load_orderbook_features(MarketTick *tick) {
     free(buf);
     return 0;
 }
+
+// ── B06: Load cumulative volume delta features ──
+#define CVD_FEAT_PATH "/home/wubu2/.hermes/cvd_cache/cvd_features.json"
+static int load_cvd_features(MarketTick *tick) {
+    FILE *f = fopen(CVD_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+
+    const char *p = strstr(buf, "\"cvd_signal_norm\"");
+    if (p) tick->cvd_signal = strtof(p + 18, NULL);
+
+    free(buf);
+    return 0;
+}
+
 // ── P13: Goertzel DFT — extract dominant frequency ──
 // Single-frequency DFT using Goertzel algorithm.
 // Finds dominant cycle in price history.
@@ -353,8 +376,12 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     fv->ob_depth_ratio = tick->ob_depth_ratio;
     if (fv->ob_depth_ratio < 0.01f && fv->ob_depth_ratio > -0.01f) fv->ob_depth_ratio = 0.5f;
 
-    // F16: Order book spread normalized (0-1, higher = wider spread)
-    fv->ob_spread_norm = tick->ob_spread_norm;
+    // ── B06: Load cumulative volume delta features ──
+    load_cvd_features((MarketTick *)tick);
+
+    // F16: CVD signal normalized (0-1, >0.5 = net buying pressure)
+    fv->cvd_signal = tick->cvd_signal;
+    if (fv->cvd_signal < 0.01f && fv->cvd_signal > -0.01f) fv->cvd_signal = 0.5f;
 
     // F17: DFT dominant frequency (P13)
     fv->dft_dominant = compute_dft_dominant(px, s->price_hist_len[mt]);
