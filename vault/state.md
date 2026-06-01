@@ -3,10 +3,10 @@
 ## Current Status
 - **Engine:** 210 C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 117 🟡 P1, 228 ⚪ P3)
+- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 116 🟡 P1, 228 ⚪ P3)
 - **Rooms:** 16 configured. market_type set per room. SIGMA_NORMALIZER fixed (0.001→0.15). 98% agent voting. 32 features (OB, CVD, 7 derived, time, options). Warm-start from elite genomes on restart. Daily loss limit (C05, 10% max).
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db backfill underway (33K+ rows), orderbook_depth/cumulative_volume_delta live
-- **Latest batch:** C20/C21 stale vaulted (position limits already enforced). A14 volatile sizing, A13 Markov model, A17 convergence, A49/D03/C04/C32 stale. P1: 127→117.
+- **Latest batch:** F09 (db_backup utility built). C20/C21 stale vaulted, A14 volatile sizing, A13 Markov model, A17 convergence. P1: 127→116.
 
 ## Gap Map Available
 - `vault/battleship-ultimate.md` — 365 cells (training, features, risk, data, execution, infra, security, website, monetization)

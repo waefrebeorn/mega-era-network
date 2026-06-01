@@ -190,3 +190,4 @@
 - **A14: Volatility regime position sizing** — FIXED: room_capital_apply() halves stake when predicted_regime==2 (volatile). Uses A13's Markov model. room_capital.c:74-76 + signature/call site updates. P1: 120→119.
 - **C20: max_position_pct_room** — vaulted stale. Enforced at room_engine.c:1285-1292. 2% cap per agent. Already active.
 - **C21: max_total_exposure_pct** — vaulted stale. Enforced at room_engine.c:1297-1304. 25% total exposure cap. Votes excessing budget get skipped with [LIMIT] log.
+- **F09: Database backup** — FIXED: db_backup.c (80 lines C) copies timeline.db to data/backups/ daily. Keeps last 30 days, auto-prunes. Make target `make db_backup`. Cron: `0 6 * * *`. P1: 117→116.

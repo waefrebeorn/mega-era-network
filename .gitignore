@@ -1,43 +1,14 @@
-# Object files
-*.o
-*.obj
-*.a
-*.so
+# Data backups — DB state files, not for git
+data/backups/
 
-# Binaries (only track binaries that are explicitly added)
+# Built binaries
 engine/room_engine
+engine/room_engine_paper
 engine/room_engine_market
-engine/stock_collector
-engine/exchange_api_test
+engine/db_backup
 
-# Databases
+# Runtime state files
+*.o
 *.db
-*.sqlite
-*.sqlite3
-
-# Data files
-data/*.json
-data/*.csv
-docs/data/*.json
-docs/demos/*.json
-*.bin
-
-# Environment
-.env
-secrets.env
-**/secrets.env
-
-# Logs
-*.log
-pm_logs/
-
-# Python
-__pycache__/
-*.pyc
-# Built C binaries
-engine/key_rotation
-engine/risk_report
-engine/survival_stats
-engine/stress_test
-engine/regime_detect
-engine/trade_journal
+*.db.bak.*
+*.db.corrupted.*
