@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D34  // "ROM4" — bumped for A17 stagnant_cycles in FeatureImportance
+#define STATE_MAGIC       0x524F4D35  // "ROM5" — bumped for A13 regime transition model
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -337,6 +337,10 @@ typedef struct {
     float    daily_pnl;              // Net room PnL since last reset
     float    max_daily_loss_pct;     // C05: Max daily loss before circuit breaker trip (0.10 = 10%)
     int      last_daily_reset_day;   // C05: Day number (ts/86400) when daily_pnl was last reset
+    // ── A13: Regime transition model (Markov matrix 3×3) ──
+    int      regime_transition_counts[N_REGS][N_REGS]; // Transition counts between regimes
+    int      prev_regime;            // Previous cycle's regime
+    int      predicted_regime;       // Predicted next regime (argmax of current row)
     int64_t  circuit_breaker_ts;     // When breaker last triggered (for cooldown)
     float    circuit_breaker_peak;   // Peak capital at last breaker reset
     int      circuit_cooldown_cycles; // Config: how many cycles to cool down

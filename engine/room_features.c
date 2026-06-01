@@ -535,6 +535,31 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // F11: Regime indicator
     fv->regime_indicator = calc_regime(px, s->price_hist_len[mt]);
 
+    // ── A13: Regime transition Markov model ──
+    if (s->prev_regime >= 0 && s->prev_regime < N_REGS) {
+        int curr_regime = (int)(fv->regime_indicator + 0.5f);
+        if (curr_regime >= N_REGS) curr_regime = N_REGS - 1;
+        if (curr_regime < 0) curr_regime = 0;
+        s->regime_transition_counts[s->prev_regime][curr_regime]++;
+        // Compute predicted regime: argmax of transition counts from previous regime
+        int best_next = 0;
+        int best_count = s->regime_transition_counts[s->prev_regime][0];
+        for (int r = 1; r < N_REGS; r++) {
+            if (s->regime_transition_counts[s->prev_regime][r] > best_count) {
+                best_count = s->regime_transition_counts[s->prev_regime][r];
+                best_next = r;
+            }
+        }
+        s->predicted_regime = best_next;
+    } else {
+        s->predicted_regime = (int)(fv->regime_indicator + 0.5f);
+        if (s->predicted_regime >= N_REGS) s->predicted_regime = N_REGS - 1;
+        if (s->predicted_regime < 0) s->predicted_regime = 0;
+    }
+    s->prev_regime = (int)(fv->regime_indicator + 0.5f);
+    if (s->prev_regime >= N_REGS) s->prev_regime = N_REGS - 1;
+    if (s->prev_regime < 0) s->prev_regime = 0;
+
     // F12: Fear & Greed normalized
     fv->fear_greed_norm = tick->fear_greed / 100.0f;
 

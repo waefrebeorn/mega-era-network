@@ -717,6 +717,10 @@ static RoomError load_or_init_state(void) {
         state->max_daily_loss_pct = 0.10f;  // C05: Trip after 10% daily loss
         state->last_daily_reset_day = 0;
         state->daily_loss_streak = 0;
+        // ── A13: Regime transition model init ──
+        memset(state->regime_transition_counts, 0, sizeof(state->regime_transition_counts));
+        state->prev_regime = -1;
+        state->predicted_regime = 0;
         // ── T18: Position limits defaults ──
         state->max_position_pct_room = 0.02f;      // Max 2% of room total per agent
         state->max_total_exposure_pct = 0.25f;      // Max 25% of total capital at risk
