@@ -313,3 +313,27 @@
 |  - Cron: * * * * * copies snapshot every 60s for GitHub Pages compatibility
 |  - Data: cycle 715K+, 34 features, vote summary, Darwin epoch, top 10 agents
 |  - Website dashboard can now access live engine state at /data/room_state.json
+|
+|## Batch 2026-06-01 — T099: C-to-website bridge restored
+|- **T099: data_server binary missing, systemd service dead** — FIXED
+|  - data_server binary rebuilt (was deleted by make clean)
+|  - systemctl --user enable+start money-room-dashboard
+|  - Verified: paper_stats.json, room_state.json, data_quality.json, pipeline_status.json served on port 9090
+|  - All 30+ JSON files in docs/data/ refreshed by crons (1-30min intervals)
+|  - T099: PARTIAL→PORTED
+|
+|## Batch 2026-06-01 — T101: Paper bridge multi-genome init
+|- **T101: Single avg genome from 43 agents limits diversity** — FIXED
+|  - `load_diverse_genomes()` scans all ENGINE_*.bin files in data/multi_market/
+|  - Loads up to 100 diverse genomes, rotates across 2500 agents
+|  - 3-tier fallback: diverse → single trained → random
+- Noise reduced since genome diversity is now real (not from noise alone)
+- Verified: 10 ENGINE genomes loaded at runtime
+- T101: PARTIAL→PORTED
+|
+|## Batch 2026-06-01 — T105: SGD/voting weight claim corrected
+|- **T105: SGD trains regime_weight, voting uses feat_weight** — STALE CLAIM
+|  - Verified: room_vote.c:53-56 uses `regime_weight[regime]` for voting (NOT feat_weight)
+|  - SGD (room_capital.c) also trains `regime_weight` — same weight system
+|  - Both operate on regime_weight[regime][feature] — training and inference aligned
+|  - T105: PARTIAL→PORTED
