@@ -34,7 +34,7 @@
 | A21 | No weight decay / L2 regularization | Training | ⚪ | ⏳ | No penalty on large weights. Overfitting likely. |
 | A22 | No early stopping | Training | ⚪ | ⏳ | Training runs for fixed epochs. No validation-based convergence. |
 | A23 | No dropout / gene silencing | Training | ⚪ | ⏳ | No stochastic feature dropout. Co-adaptation likely. |
-| A24 | No transfer learning between market types | Training | 🟡 | ⏳ | What a crypto agent learns can't seed a sports agent. Every market starts from random. |
+| A24 | No transfer learning between market types | Training | 🟡 | ✅ | **PARTIALLY IMPLEMENTED**: warm-start (A47) already loads genomes from all market types regardless of target room. load_warmstart_genomes() loads ENGINE_<TYPE>_N.bin for all types — crypto genome seeds sports agents. Full principled transfer (domain similarity, weight normalization, noise injection) remains P3. |
 | A25 | No ensemble prediction across rooms | Training | 🟡 | ⏳ | Each room produces one vote. No weighted ensemble combining crypto + macro + sentiment signals. |
 | A26 | No backtest replay harness | Training | 🟡 | ⏳ | Can't replay historical scenarios. Everything runs on live data only. |
 | A27 | No permutation feature importance | Training | ⚪ | ⏳ | Can't tell which features actually drive decisions vs are ignored. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 12 | 0 | 37 | 0 |
+|| A: Training Engine | 60 | 0 | 11 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **105** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **104** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 105 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 104 major gaps | ⚪ P3: 228 minor/feature gaps
