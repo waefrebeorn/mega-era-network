@@ -177,8 +177,8 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| D01 | timeline.db only has 21-33 rows per ticker | Data | 🔴 | ⏳ | Less than 1 month of daily data per yahoo_collector ticker. |
-| D02 | No backfill capability for historical data | Data | 🔴 | ⏳ | yahoo_collector uses INSERT OR IGNORE. Can't backfill missing history. |
+||| D01 | timeline.db only has 21-33 rows per ticker | Data | 🔴 | ✅ | **VERIFIED TRUE**: yahoo_* tickers have exactly 21 rows each in ~/.hermes/pm_logs/timeline.db (59 tickers, 1314 total). Root cause: Yahoo v7/chart API with range=5y silently caps at ~21 trading days (~1 month). FIXED by D02 backfill (v8 with period1/period2, 1-year chunks). |
+||| D02 | No backfill capability for historical data | Data | 🔴 | ✅ | FIXED yahoo_collector.c: added `--backfill` flag using v8 API with period1/period2. Fetches 5 years in 1-year chunks with 250ms delay to avoid 429 rate limits. Clears existing data before re-insert. Usage: `./yahoo_collector --backfill` (full) or `--backfill --year 2024` (single year). 253 data points per ticker per year confirmed. |
 | D03 | Yahoo v7 API limits to ~125 days | Data | 🟡 | ⏳ | Range=5y but API only returns recent. Need v8 or alternative. |
 | D04 | No BTC 1-min historical data pipeline | Data | 🟡 | ⏳ | BTC 1-min CSV exists but no active pipeline to keep it updated. |
 | D05 | Kraken OHLC API can't backfill historical | Data | 🟡 | ⏳ | Kraken returns max 720 most recent candles. No historical access. |
@@ -215,7 +215,7 @@
 | D36 | No data consistency validation | Data | 🟡 | ⏳ | Cross-source consistency not checked (e.g., Kraken BTC vs Coinbase BTC). |
 | D37 | No data gap alerting | Data | 🟡 | ⏳ | If yahoo_collector fails for 3 days, no alert fires. |
 | D38 | No anomaly detection on incoming data | Data | 🟡 | ⏳ | Spikes, flatlines, missing ticks in raw data go undetected. |
-| D39 | No data staleness flag in engine | Data | 🔴 | ⏳ | Engine uses whatever market_feed.json says without checking its age. |
+||| D39 | No data staleness flag in engine | Data | 🔴 | ✅ | **FALSE CLAIM**: already addressed by B44 fix in room_feeds.c:254-277. Engine validates timestamp on every feed load — rejects future timestamps (<-300s), WARNs at >5min, REJECTs at >1h. Stale data surfaces via stderr logs per cycle. |
 | D40 | No fallback data source for critical feeds | Data | 🟡 | ⏳ | If Yahoo Finance goes down, BTC data stops. CoinGecko as backup exists but not wired. |
 | D41 | CoinGecko collector exists but may not be wired | Data | 🟡 | ⏳ | coingecko_collector.c exists but not in collector_runner. |
 | D42 | CBOE data has 15-min delay | Data | 🟡 | ⏳ | Options chain data is delayed. Real-time requires paid OPRA feed. |
@@ -442,12 +442,12 @@
 | A: Training Engine | 60 | 8 | 22 | 0 | 30 | 0 |
 | B: Features | 45 | 1 | 23 | 0 | 21 | 0 |
 | C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
-| D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
+| D: Data Pipeline | 55 | 2 | 40 | 0 | 13 | 0 |
 | E: Execution | 35 | 4 | 10 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **26** | **172** | **0** | **167** | **0** |
+| **TOTAL** | **365** | **23** | **172** | **0** | **170** | **0** |
 
-🔴 P0: 26 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 167 minor/feature gaps
+🔴 P0: 23 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 170 minor/feature gaps

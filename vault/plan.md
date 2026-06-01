@@ -16,6 +16,9 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 10. ~~B03: phi features uninitialized~~ — DONE: FALSE CLAIM, compute_phi_features called
 11. ~~C03: Circuit breaker never triggered~~ — DONE: force-resolve room trades on dup-exit (room_engine.c:705-736)
 12. ~~B44: Feed staleness check~~ — DONE: tightened LIVE_MODE thresholds — WARN >5min, REJECT >1h (room_feeds.c:248-278)
+13. ~~D01: timeline.db only has 21-33 rows/ticker~~ — DONE: VERIFIED TRUE, addressed by D02 backfill
+14. ~~D02: No backfill capability~~ — DONE: added --backfill flag (v8 API, 1-year chunks, rate-limited)
+15. ~~D39: No data staleness flag~~ — DONE: FALSE CLAIM — handled by B44 (room_feeds.c:254-277)
 
 ## Next Cell
-D01: timeline.db only has 21-33 rows per ticker
+Pick next undone P0 from battleship (23 🔴).

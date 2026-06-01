@@ -24,7 +24,12 @@
 - Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%
 - **27 🔴 P0 remaining** (was 35 at session start)
 
-## Batch 2026-06-01 — B44 feed staleness thresholds tightened
+## Batch 2026-06-01 — D01/D02 backfill via v8 API + D39 false-claim closed
+|- **D01: Only 21 rows/ticker** — VERIFIED TRUE: Yahoo v7/chart API with range=5y silently caps at ~21 trading days (~1 month). All 59 tickers had exactly 21 rows.
+|- **D02: Backfill capability** — FIXED yahoo_collector.c: added `--backfill` flag using v8 API with period1/period2. Fetches 5 years in 1-year chunks (253 data points/year/ticker) with 250ms delay to avoid 429 rate limits. Clears + reinserts per ticker.
+|- **D39: Data staleness flag** — FALSE CLAIM: already addressed by B44 (room_feeds.c:254-277). Engine has timestamp validation — future reject, >5min WARN, >1h REJECT.
+|- P0 count: **26→23** (D01, D02, D39 resolved)
+|- `yahoo_collector --backfill` running in background
 - **B44: Feed bridge may write stale market_feed.json** — FIXED room_feeds.c:248-278
   - Tightened LIVE_MODE staleness: WARN at >5min (was silent), REJECT at >1h (was 24h)
   - Feed age now surfaced in stderr on every read cycle
