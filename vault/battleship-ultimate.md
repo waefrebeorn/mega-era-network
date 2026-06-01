@@ -139,7 +139,7 @@
 || C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
 | C08 | No black swan scenario testing | Risk | 🟡 | ⏳ | Stress_test.c exists but may only test normal scenarios. |
 | C09 | No flash crash simulation | Risk | ⚪ | ⏳ | 2020 style 40% drop in minutes. Room would lose everything before circuit breaker fires. |
-| C10 | No exchange outage handling | Risk | 🟡 | ⏳ | If Kraken API goes down, what happens to open positions? |
+|| C10 | No exchange outage handling | Risk | 🟡 | ✅ | **STALE**: Covered by B44 feed staleness detection (room_feeds.c:254-277 — >5min WARN, >1h REJECT) + T17 circuit breaker (drawdown+consecutive losses). Paper engine auto-exits on feed exhaustion (room_engine.c:832-864). Live mode would require exchange-specific handling but currently paper-only. |
 | C11 | No position liquidation model | Risk | 🟡 | ⏳ | Paper trading doesn't model forced liquidation at margin thresholds. |
 | C12 | No slippage shock test | Risk | ⚪ | ⏳ | High-vol slippage can be 50bps. Simulation uses 5bps. 10x discrepancy. |
 || C13 | No fee model for different order types | Risk | 🟡 | ✅ | **STALE**: MARKET_MAKER_FEE (0%) and MARKET_TAKER_FEE (0.1%) both defined in types.h. In paper P2P mode, all orders are market orders (taker+0.1%). Maker model matters for live exchange execution (E01), not paper. No code change needed. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 7 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 6 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 16 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **113** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **112** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 113 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 112 major gaps | ⚪ P3: 228 minor/feature gaps
