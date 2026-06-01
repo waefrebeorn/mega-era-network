@@ -89,7 +89,15 @@ static void copy_genome(Genome *dst, const Genome *src) {
     memcpy(dst, src, sizeof(Genome));
 }
 
-// ── Agent comparison for sorting (descending by win_rate_ema) ──
+// ── Agent comparison for sorting (descending by win_rate_ema, confidence-weighted) ──
+// A38: Minimum sample filter — agents with few trades are pulled toward 0.5 WR
+#define MIN_TRADES_FOR_RANKING 20
+static float agent_fitness(const AgentState *a) {
+    if (!a->alive || a->trades <= 0) return 0.0f;
+    // Bayesian-adjusted win rate: pulls toward 0.5 for agents with few trades
+    float confidence = (float)a->trades / (float)(a->trades + MIN_TRADES_FOR_RANKING);
+    return a->win_rate_ema * confidence + 0.5f * (1.0f - confidence);
+}
 static int cmp_agents_desc(const void *a, const void *b) {
     const AgentState *aa = (const AgentState *)a;
     const AgentState *bb = (const AgentState *)b;
@@ -97,9 +105,11 @@ static int cmp_agents_desc(const void *a, const void *b) {
     if (aa->alive && !bb->alive) return -1;
     if (!aa->alive && bb->alive) return 1;
     if (!aa->alive && !bb->alive) return 0;
-    // Sort by win_rate_ema descending
-    if (aa->win_rate_ema > bb->win_rate_ema) return -1;
-    if (aa->win_rate_ema < bb->win_rate_ema) return 1;
+    // Sort by adjusted fitness descending (confidence-weighted)
+    float fa = agent_fitness(aa);
+    float fb = agent_fitness(bb);
+    if (fa > fb) return -1;
+    if (fa < fb) return 1;
     return 0;
 }
 
