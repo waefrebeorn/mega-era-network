@@ -219,6 +219,9 @@ typedef struct {
     float    grad_accum[N_REGS][N_FEATURES];  // Accumulated gradient per (regime, feature)
     float    bias_accum[N_REGS];              // Accumulated bias gradient per regime
     int      batch_count;                     // Trades accumulated in current batch
+    // ── T96: PDT (Pattern Day Trader) enforcement ──
+    int      day_trades_5d;       // Day trades in rolling 5-business-day window
+    int64_t  day_trade_roll_ts;   // Start of rolling 5-day window (timestamp)
 } AgentState;
 
 // ── Trade record (for post-hoc analysis) ──

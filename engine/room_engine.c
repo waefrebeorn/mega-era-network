@@ -580,6 +580,9 @@ static int load_warmstart_genomes(AgentState *agents, int n, int max_warm) {
             memset(agents[seeded].hidden, 0, sizeof(agents[seeded].hidden));
             agents[seeded].last_conviction = 0.0f;
             memset(agents[seeded].last_features, 0, sizeof(agents[seeded].last_features));
+            // ── T96: PDT enforcement — clean window for warm-started agents ──
+            agents[seeded].day_trades_5d = 0;
+            agents[seeded].day_trade_roll_ts = 0;
             g_agent_market[seeded] = mt;
             seeded++;
         }
@@ -621,6 +624,9 @@ static void init_agents(AgentState *agents, int n) {
         memset(agents[i].grad_accum, 0, sizeof(agents[i].grad_accum));
         memset(agents[i].bias_accum, 0, sizeof(agents[i].bias_accum));
         agents[i].batch_count = 0;
+        // ── T96: PDT enforcement — start with clean window ──
+        agents[i].day_trades_5d = 0;
+        agents[i].day_trade_roll_ts = 0;
 
         // Random genome within bounds
         agents[i].genome.position_size     = 0.01f + (float)rand() / RAND_MAX * 0.49f;

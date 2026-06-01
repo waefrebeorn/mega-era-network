@@ -82,6 +82,27 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         if (stake < MIN_TRADE_STAKE) continue;  // T97: skip tiny trades
         if (stake <= 0) continue;
 
+        // ── T96: PDT (Pattern Day Trader) enforcement ──
+        // SEC Rule: accounts under $25K limited to 3 day trades per rolling 5-day window.
+        // All agent trades resolve within 1 cycle → every trade is a day trade.
+        if (a->capital < 25000.0f) {
+            int64_t now = window_ts;
+            if (a->day_trade_roll_ts > 0 &&
+                (now - a->day_trade_roll_ts) >= 5 * 86400LL) {
+                // Rolling 5-day window expired — reset
+                a->day_trades_5d = 0;
+                a->day_trade_roll_ts = now;
+            }
+            if (a->day_trades_5d >= 3) {
+                if (a->day_trade_roll_ts == 0)
+                    a->day_trade_roll_ts = now;
+                continue;  // PDT limit hit — skip this agent
+            }
+            a->day_trades_5d++;
+            if (a->day_trade_roll_ts == 0)
+                a->day_trade_roll_ts = now;
+        }
+
         if (votes[i].direction) {
             yes[ny].agent_id = aid;
             yes[ny].stake = stake;
