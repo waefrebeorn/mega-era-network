@@ -337,3 +337,12 @@
 |  - SGD (room_capital.c) also trains `regime_weight` — same weight system
 |  - Both operate on regime_weight[regime][feature] — training and inference aligned
 |  - T105: PARTIAL→PORTED
+
+## Batch 2026-06-01 — DA Plumber audit (6 gaps closed)
+- **DA01: Snapshot race condition** — room_bridge.c now writes to tmp file then renames atomically.
+- **DA02: Missing snapshot fields** — added cycle_returns[128], return_count, return_idx, room_trades to snapshot JSON.
+- **DA03: yahoo_screener unbuilt** — compiled with -lcurl -ljansson -lsqlite3.
+- **DA04: 24 orphan .c files compiled** — 154 total binaries (up from 130). Batch-compiled: backtest_replay, backup_manager, bitstamp_fixer, bounty_scanner, collector_health, dataset_ingestor, db_backup, eco_heatmap, eco_regime, eco_seasonality, env_manager, feed_watchdog, funding_feat, hashrate_feat, key_rotation, kraken_collector, liquidation_feat, ls_ratio_feat, macro_collector, macro_pipeline, market_controller, meta_agent, money_loop, money_timer, monte_carlo, onchain_feat, open_interest_feat, outcome_scanner, outcome_trainer, outlier_filter, param_tuner, permutation_test, pnl_decomp, polymarket_profile, rate_limiter, room_aggregator, room_allocation, room_correlation, room_health_monitor, room_orchestrator, room_watchdog, secret_health, secrets_vault, sharpe_agent, site_snapshot, source_validator, sports_outcomes, stablecoin_feat, stipend_tracker, strategy_attribution, teacher_bridge, timeline_analyzer, training_pile, transfer_weights, twap, txn_cost, volume_profile, whale_feat, world_trainer, yahoo_screener.
+- **DA05: timeline table empty** — wrote timeline_sync.c (copies 18.35M rows from pm_logs DB to engine DB). Cron: */5 * * * *. Timeline table now populated.
+- **DA06: Dual timeline DB divergence documented** — TIMELINE_DB.md describes main vs engine DB, table layouts, and ideal fix path (unify ~30 collector DB_PATH defines).
+- Commit: 714d0da — 7 files, 212 insertions.
