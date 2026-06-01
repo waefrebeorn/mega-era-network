@@ -130,6 +130,12 @@
 - **D51: T-bill risk-free rate** — ab_test.c:69-70, room_engine.c:1373-1374. rf_per_period = 0.045 / periods_per_year.
 - Fixed battleship stale ⏳ → ✅ for all 4. P1 count: 140→136.
 
+## Batch 2026-06-01 — B21: Options-derived features wired (IV skew, PCR, term structure)
+- **B21: Options features** — iv_skew (F30), pcr_volume (F31), iv_term_slope (F32).
+- Reads from ~/.hermes/options_cache/latest_features.json via options_feat collector.
+- SPY options chain — IV skew + put/call ratio + term structure as forward-looking volatility signal.
+- N_FEATURES 29→32. P1 count: 128→127.
+
 ## Batch 2026-06-01 — A47: Warm-start from prior elite genomes
 - **A47: Warm-start** — load_warmstart_genomes() in room_engine.c loads ENGINE_<TYPE>_N.bin on restart.
 - Seeds 200 agents (2% of 10K) with saved elite genomes — preserves learned feat_weights across restarts.

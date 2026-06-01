@@ -98,7 +98,7 @@
 | B18 | No stablecoin inflow/outflow | Features | 🟡 | ✅ | **FIXED**: stable_inflow_norm (F23) from stablecoin_features.json. Stablecoin volume ratio. |
 | B19 | No whale transaction tracking | Features | 🟡 | ✅ | **FIXED**: whale_activity_norm (F24) from whale_features.json. Large-tx activity + mempool pressure. |
 | B20 | No inter-exchange basis | Features | ⚪ | ⏳ | Price difference between exchanges shows arbitrage pressure. |
-| B21 | No options-derived features (IV skew, put/call ratio) | Features | 🟡 | ⏳ | Existing options_flow.c computes these but they're not in engine feature vector. |
+| B21 | No options-derived features (IV skew, put/call ratio) | Features | 🟡 | ✅ | **FIXED**: iv_skew (F30), pcr_volume (F31), iv_term_slope (F32) from latest_features.json. SPY options chain. |
 | B22 | No volatility term structure | Features | ⚪ | ⏳ | Short vs long vol term structure (contango/backwardation) signal. |
 | B23 | No VIX regime filter | Features | 🟡 | ⏳ | Market behavior in VIX<15 vs VIX>25 is fundamentally different. |
 | B24 | No economic surprise index | Features | ⚪ | ⏳ | Actual vs expected macro data releases. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 17 | 0 | 37 | 0 |
-| B: Features | 45 | 0 | 9 | 0 | 32 | 0 |
+| B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
 | C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
 | D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **128** | **0** | **227** | **0** |
+|| **TOTAL** | **365** | **1** | **127** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 128 major gaps | ⚪ P3: 227 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 127 major gaps | ⚪ P3: 228 minor/feature gaps
