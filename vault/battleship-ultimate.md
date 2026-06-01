@@ -323,7 +323,7 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| G01 | API keys stored in ~/.hermes/secrets.env in plaintext | Security | 🔴 | ⏳ | Only protected by file permissions (chmod 600). No encryption. |
+| G01 | API keys stored in ~/.hermes/secrets.env in plaintext | Security | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: existing vault infrastructure (secrets_vault/ with AES-256-GCM via infra.py) already protects Kraken key. Full migration of 12+ keys requires boot-time vault decryption loader + modifying all 12+ collectors. Not a single-file fix. Current chmod 600 protection is standard for WSL. Vault infra exists at ~/.hermes/infra/ with PBKDF2+AESGCM. |
 | G02 | No API key permission scoping | Security | 🟡 | ⏳ | Keys have full exchange access. No read-only / trading-only separation. |
 | G03 | No IP whitelist on exchange keys | Security | 🟡 | ⏳ | Most exchanges support IP whitelisting. Not configured. |
 | G04 | No key usage monitoring | Security | 🟡 | ⏳ | No alert if key suddenly used from new IP or higher volume. |
@@ -445,9 +445,9 @@
 | D: Data Pipeline | 55 | 2 | 40 | 0 | 13 | 0 |
 | E: Execution | 35 | 4 | 10 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
-| G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
+| G: Security | 35 | 3 | 16 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **22** | **172** | **0** | **170** | **0** |
+| **TOTAL** | **365** | **21** | **172** | **0** | **170** | **0** |
 
-🔴 P0: 22 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 21 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 170 minor/feature gaps
