@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include "types.h"
 
 // ── History ring buffers — per-market-type ──
@@ -588,6 +589,12 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // F27: Miner floor norm (0-1, higher = higher miner cost floor)
     fv->miner_floor_norm = tick->miner_floor_norm;
     if (fv->miner_floor_norm < 0.01f) fv->miner_floor_norm = 0.5f;
+
+    // ── B11: Time-of-day features ──
+    // F28: Hour of day [0,1] — captures intraday seasonality
+    time_t now = time(NULL);
+    struct tm *tm_now = localtime(&now);
+    fv->hour_of_day_norm = tm_now->tm_hour / 24.0f + tm_now->tm_min / 1440.0f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
