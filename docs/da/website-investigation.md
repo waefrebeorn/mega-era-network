@@ -41,7 +41,7 @@ The website at https://waefrebeorn.github.io/money-room/ claims:
 SEED_CAPITAL: Not grep-able in current engine/ directory
   → Found in types.h? Let me look...
   → money_loop.c had SEED_CAPITAL 50.0 (from earlier session)
-  → But snapshot shows $481K capital = $500K seed, not $50 
+  → But snapshot shows $481K capital = $500K seed, not $50
 
 MAX_AGENTS: 10000 (types.h)
   → Website claims 153K agents active

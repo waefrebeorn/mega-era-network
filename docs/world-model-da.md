@@ -21,7 +21,7 @@ g->feat_weight[f] = frand_signed() * scale;  // [-0.27, +0.27]
 
 ### Finding 2: 50/80 features are synthetic proxies — not real signal
 
-The world trainer generates ~30 meaningful features from its synthetic price history (RSI, BB, MACD, φ-intervals) and 50 synthetic proxies from world state (trend→options, vol→liquidations, etc.). 
+The world trainer generates ~30 meaningful features from its synthetic price history (RSI, BB, MACD, φ-intervals) and 50 synthetic proxies from world state (trend→options, vol→liquidations, etc.).
 
 **Problem:** The 50 proxies are LINEAR TRANSFORMATIONS of the same 3 world state variables (trend, vol, liquidity). Any SGD update on feature[X] is perfectly correlated with feature[Y]. The 80-dim space is actually ~5-dim. The agent can never learn cross-asset relationships because ALL features derive from the same 3 source variables.
 
@@ -34,7 +34,7 @@ The world trainer generates ~30 meaningful features from its synthetic price his
 
 Every phase transition re-initializes the agent population from scratch. Agents that learned trend-following in Phase 2 are wiped when Phase 3 starts. They never graduate with knowledge.
 
-**Fix:** 
+**Fix:**
 - Phase transitions should REINFORCE successful agents, not replace them
 - New archetypes are ADDED to the pool, existing agents kept
 - Agents that perform well across multiple phases graduate to "FULL" status
@@ -141,7 +141,7 @@ Kalshi has:
 ```
 C engine (room_engine.c) with ROOM_DIR
   ├── ROOM_DIR=/rooms/btc_main    →  10K BTC traders
-  ├── ROOM_DIR=/rooms/macro       →  10K SP500 traders  
+  ├── ROOM_DIR=/rooms/macro       →  10K SP500 traders
   ├── ROOM_DIR=/rooms/kalshi      →  10K Kalshi event traders
   ├── ROOM_DIR=/rooms/sports      →  10K sports outcome traders
   ├── ROOM_DIR=/rooms/elections   →  10K election traders

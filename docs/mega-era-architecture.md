@@ -114,7 +114,7 @@
 114|### Standard Technical Features (F1-F14)
 115|All standard TA features computed from price history ring buffer (50 elements):
 116|- F1-F2: Price delta and momentum
-117|- F3: RSI(7) 
+117|- F3: RSI(7)
 118|- F4: Volume surge ratio
 119|- F5-F6: EMA cross (fast/slow)
 120|- F7: MACD histogram

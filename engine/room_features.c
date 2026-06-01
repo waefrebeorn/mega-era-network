@@ -10,12 +10,8 @@
 #include "types.h"
 
 // ── History ring buffers — per-market-type ──
-#define FEED_HISTORY 50
-#define N_FEED_MARKETS 10  // matches N_MARKET_TYPES
-static float price_history[N_FEED_MARKETS][FEED_HISTORY];
-static float volume_history[N_FEED_MARKETS][FEED_HISTORY];
-static int hist_len[N_FEED_MARKETS];
-static int hist_idx[N_FEED_MARKETS];
+// NOTE: These are now persisted in RoomState (types.h) so they survive engine restarts.
+// B02: Static arrays removed — use s->price_hist[mt] instead.
 
 // ── RSI ──
 static float calc_rsi(const float *prices, int len, int period) {
@@ -245,7 +241,7 @@ static float compute_tail_risk(const float *px, int len) {
     if (score > 1.0f) score = 1.0f;
     return score;
 }
-RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const RoomState *s) {
+RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s) {
     memset(fv, 0, sizeof(FeatureVector));
 
     // Determine market type for per-buffer indexing
@@ -266,26 +262,26 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
         price_val = tick->close;
     }
 
-    // Push into per-market history buffer
-    price_history[mt][hist_idx[mt]] = price_val;
-    volume_history[mt][hist_idx[mt]] = tick->volume;
-    hist_idx[mt] = (hist_idx[mt] + 1) % FEED_HISTORY;
-    if (hist_len[mt] < FEED_HISTORY) hist_len[mt]++;
+    // Push into per-market history buffer (persisted in RoomState)
+    s->price_hist[mt][s->price_hist_idx[mt]] = price_val;
+    s->volume_hist[mt][s->price_hist_idx[mt]] = tick->volume;
+    s->price_hist_idx[mt] = (s->price_hist_idx[mt] + 1) % FEED_HISTORY;
+    if (s->price_hist_len[mt] < FEED_HISTORY) s->price_hist_len[mt]++;
 
     // Need at least 1 data point for initial features
-    if (hist_len[mt] < 1) return ERR_NO_DATA;
+    if (s->price_hist_len[mt] < 1) return ERR_NO_DATA;
 
-    // Build linear price array (oldest to newest) from per-market buffer
+    // Build linear price array (oldest to newest) from persistent per-market buffer
     float px[FEED_HISTORY];
     float vol[FEED_HISTORY];
-    for (int i = 0; i < hist_len[mt]; i++) {
-        int idx = (hist_idx[mt] - hist_len[mt] + i + FEED_HISTORY) % FEED_HISTORY;
-        px[i] = price_history[mt][idx];
-        vol[i] = volume_history[mt][idx];
+    for (int i = 0; i < s->price_hist_len[mt]; i++) {
+        int idx = (s->price_hist_idx[mt] - s->price_hist_len[mt] + i + FEED_HISTORY) % FEED_HISTORY;
+        px[i] = s->price_hist[mt][idx];
+        vol[i] = s->volume_hist[mt][idx];
     }
 
     // With only 1 data point, duplicate it for feature computation
-    if (hist_len[mt] == 1) {
+    if (s->price_hist_len[mt] == 1) {
         px[1] = px[0];
         vol[1] = vol[0];
     }
@@ -300,41 +296,41 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
     }
 
     // F2: Micro momentum (last 2 closes delta)
-    if (hist_len[mt] >= 3)
-        fv->micro_momentum = (px[hist_len[mt] - 1] - px[hist_len[mt] - 2]) * (is_binary ? 100.0f : (1.0f / fmax(px[hist_len[mt] - 2], 0.001f)));
-    else if (hist_len[mt] >= 2)
+    if (s->price_hist_len[mt] >= 3)
+        fv->micro_momentum = (px[s->price_hist_len[mt] - 1] - px[s->price_hist_len[mt] - 2]) * (is_binary ? 100.0f : (1.0f / fmax(px[s->price_hist_len[mt] - 2], 0.001f)));
+    else if (s->price_hist_len[mt] >= 2)
         fv->micro_momentum = (px[1] - px[0]) * (is_binary ? 100.0f : (1.0f / fmax(px[0], 0.001f)));
 
     // F3: RSI(7) — meaningful for both price and probability
-    fv->rsi_7 = calc_rsi(px, hist_len[mt], 7);
+    fv->rsi_7 = calc_rsi(px, s->price_hist_len[mt], 7);
 
     // F4: Volume surge ratio
-    if (hist_len[mt] >= 4) {
-        float recent = (vol[hist_len[mt] - 1] + vol[hist_len[mt] - 2]) / 2.0f;
-        float prior = (vol[hist_len[mt] - 3] + vol[hist_len[mt] - 4]) / 2.0f;
+    if (s->price_hist_len[mt] >= 4) {
+        float recent = (vol[s->price_hist_len[mt] - 1] + vol[s->price_hist_len[mt] - 2]) / 2.0f;
+        float prior = (vol[s->price_hist_len[mt] - 3] + vol[s->price_hist_len[mt] - 4]) / 2.0f;
         fv->volume_surge_ratio = prior > 0 ? recent / prior : 1.0f;
     } else {
         fv->volume_surge_ratio = 1.0f;
     }
 
     // F5: EMA fast (3)
-    fv->ema_fast = calc_ema(px, hist_len[mt], 3);
+    fv->ema_fast = calc_ema(px, s->price_hist_len[mt], 3);
 
     // F6: EMA slow (8)
-    fv->ema_slow = calc_ema(px, hist_len[mt], 8);
+    fv->ema_slow = calc_ema(px, s->price_hist_len[mt], 8);
 
     // F7: MACD histogram
-    fv->macd_hist = calc_macd_hist(px, hist_len[mt]);
+    fv->macd_hist = calc_macd_hist(px, s->price_hist_len[mt]);
 
     // F8: Bollinger %B
-    fv->bollinger_pct = calc_bollinger_pct(px, hist_len[mt]);
+    fv->bollinger_pct = calc_bollinger_pct(px, s->price_hist_len[mt]);
 
     // F9: Divergence score (price vs RSI)
-    if (hist_len[mt] >= 14) {
+    if (s->price_hist_len[mt] >= 14) {
         float rsi_now = fv->rsi_7;
-        float rsi_prev = calc_rsi(px, hist_len[mt] - 7, 7);
-        float px_now = px[hist_len[mt] - 1];
-        float px_prev = px[hist_len[mt] - 7];
+        float rsi_prev = calc_rsi(px, s->price_hist_len[mt] - 7, 7);
+        float px_now = px[s->price_hist_len[mt] - 1];
+        float px_prev = px[s->price_hist_len[mt] - 7];
         float px_dir = px_now > px_prev ? 1.0f : -1.0f;
         float rsi_dir = rsi_now > rsi_prev ? 1.0f : -1.0f;
         fv->divergence_score = (rsi_dir - px_dir) / 2.0f;
@@ -344,7 +340,7 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
     fv->pump_score = tick->pump_score;
 
     // F11: Regime indicator
-    fv->regime_indicator = calc_regime(px, hist_len[mt]);
+    fv->regime_indicator = calc_regime(px, s->price_hist_len[mt]);
 
     // F12: Fear & Greed normalized
     fv->fear_greed_norm = tick->fear_greed / 100.0f;
@@ -361,13 +357,13 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const
     }
 
     // F14-F16: GAAD φ-interval features (P12)
-    compute_phi_features(px, hist_len[mt], &fv->phi_return, &fv->phi_vol, &fv->phi_momentum);
+    compute_phi_features(px, s->price_hist_len[mt], &fv->phi_return, &fv->phi_vol, &fv->phi_momentum);
 
     // F17: DFT dominant frequency (P13)
-    fv->dft_dominant = compute_dft_dominant(px, hist_len[mt]);
+    fv->dft_dominant = compute_dft_dominant(px, s->price_hist_len[mt]);
 
     // F20: Tailslayer tail risk score (P15)
-    fv->tail_risk_score = compute_tail_risk(px, hist_len[mt]);
+    fv->tail_risk_score = compute_tail_risk(px, s->price_hist_len[mt]);
 
     return ERR_OK;
 }

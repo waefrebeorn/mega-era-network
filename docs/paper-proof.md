@@ -43,7 +43,7 @@ Lookahead-free: features from history [0..N-1], target = candle N
 Daily equity index moves have ~55% max predictability from OHLCV-derived features. We confirmed this ceiling across 4 feature variants:
 - Base 13-feature: 54.85%
 - +VIX z-score: 54.87%
-- +Regime ratio: 54.85%  
+- +Regime ratio: 54.85%
 - +DGS10 yield: 54.86%
 
 All cluster within 0.02% of each other. Breaking this ceiling requires **non-OHLCV data** (order book, options flow, news NLP) available in our Enterprise tier.

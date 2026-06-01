@@ -153,7 +153,7 @@ Real:  12 trades/day/asset (5-min windows, 1 order/window)
 
 ### What the 10K agents ARE:
 - **Strategy discovery engine** — find which genome params + weight sets work
-- **Backtest validation** — 176K trades/day proves statistical significance 
+- **Backtest validation** — 176K trades/day proves statistical significance
 - **Regime adaptation** — which genome works in which market regime
 - **Diversity pool** — if #1 starts losing, #2-#10 are ready to swap in
 

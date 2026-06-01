@@ -141,7 +141,7 @@ function fetchData(p){return fetch(BASE_URL+'/'+p,{cache:'no-store'});}
   var key=localStorage.getItem('mr_api_key');
   if(!key){window.location.href='.';return;}
   $('displayKey').textContent=key.length>20?key.slice(0,12)+'…'+key.slice(-8):key;
-  
+
   /* Show tier info */
   var tier=localStorage.getItem('mr_tier')||'user';
   var expires=localStorage.getItem('mr_expires');

@@ -115,7 +115,7 @@ money-room/
 ### Standard Technical Features (F1-F14)
 All standard TA features computed from price history ring buffer (50 elements):
 - F1-F2: Price delta and momentum
-- F3: RSI(7) 
+- F3: RSI(7)
 - F4: Volume surge ratio
 - F5-F6: EMA cross (fast/slow)
 - F7: MACD histogram

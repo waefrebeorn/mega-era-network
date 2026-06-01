@@ -5,6 +5,10 @@
 #include <stdbool.h>
 #include <time.h>
 
+// ── History ring buffer constants (shared with room_features.c) ──
+#define FEED_HISTORY 50
+#define N_FEED_MARKETS 10  // matches N_MARKET_TYPES
+
 // ── Constants ──
 #define PHI 1.618033988749895f  // Golden ratio φ
 #define SQRT_PHI 1.272019649514069f  // √φ
@@ -302,6 +306,11 @@ typedef struct {
     // ── T20: Slippage model tracking ──
     float    total_slippage_paid;     // Cumulative slippage cost paid ($)
     int      slippage_events;         // Number of trades with slippage applied
+    // ── B02: Persistent price/volume history (survives engine restart) ──
+    float    price_hist[N_FEED_MARKETS][FEED_HISTORY];
+    float    volume_hist[N_FEED_MARKETS][FEED_HISTORY];
+    int      price_hist_len[N_FEED_MARKETS];
+    int      price_hist_idx[N_FEED_MARKETS];
 } RoomState;
 
 // ── Error codes ──

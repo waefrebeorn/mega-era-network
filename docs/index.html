@@ -382,7 +382,7 @@ function login(){
   if(!k){$('loginStatus').textContent='Enter an API key.';$('loginStatus').className='status error';return;}
   $('loginStatus').textContent='Validating...';$('loginStatus').className='status';
   var hash = btoa(k);
-  
+
   /* Try local C server first */
   fetch(BASE_URL+'/.auth?key='+encodeURIComponent(k),{cache:'no-store'})
     .then(function(r){

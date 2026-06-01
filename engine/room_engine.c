@@ -84,7 +84,7 @@ static time_t g_last_hot_reload_ts = 0;
 
 // ── Forward decls ──
 RoomError room_feeds_load(MarketTick *tick);
-RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, const RoomState *s);
+RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s);
 RoomError room_vote_run(AgentState *agents, int n, const FeatureVector *fv, VoteRecord *votes, int *count);
 RoomError room_capital_apply(VoteRecord *votes, int count, AgentState *agents, int n, TradeRecord *trades, int start_offset, int *new_count, int64_t window_ts);
 RoomError room_capital_resolve(TradeRecord *trades, int *tcount,

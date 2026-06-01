@@ -158,7 +158,7 @@
 | C26 | No overnight gap risk model | Risk | ⚪ | ⏳ | Crypto trades 24/7 but positions held overnight face gap risk. |
 | C27 | No weekend liquidity model | Risk | ⚪ | ⏳ | Weekend spreads are wider. Engine uses same slippage 7 days/week. |
 | C28 | No holiday effect model | Risk | ⚪ | ⏳ | Low volume holidays have different market microstructure. |
-| C29 | No fee-aware position sizing | Risk | 🟡 | ⏳ | $1 trade on Kraken costs $0.001 fee (0.1%). But $0.99 minimum. | 
+| C29 | No fee-aware position sizing | Risk | 🟡 | ⏳ | $1 trade on Kraken costs $0.001 fee (0.1%). But $0.99 minimum. |
 | C30 | No win rate stability filter | Risk | ⚪ | ⏳ | Agent with volatile WR (0.8 then 0.3 then 0.8) is less reliable than steady 0.55. |
 | C31 | No t-tested edge | Risk | ⚪ | ⏳ | Is the agent's edge statistically significant? p-value not computed. |
 | C32 | No Kelly bet sizing | Risk | 🟡 | ⏳ | Fractional Kelly (half/quarter) adapts position to edge confidence. |
@@ -437,7 +437,7 @@
 
 ## ── SUMMARY ──
 
-| Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
+| Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 24 | 0 | 30 | 0 |
 | B: Features | 45 | 0 | 23 | 0 | 21 | 0 |

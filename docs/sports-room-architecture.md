@@ -50,19 +50,19 @@ typedef struct {
     float weather_weight;           // Weather impact (outdoor sports)
     float divisional_weight;        // Divisional/rivalry games
     float playoff_implication_weight;// Playoff/elimination stakes
-    
+
     // ── Team-specific weights ──
     float offense_rating;           // Points scored / yardage
     float defense_rating;           // Points allowed / turnovers
     float special_teams_weight;     // Kicking/return game
     float clutch_weight;            // Performance in close games
-    
+
     // ── Meta parameters ──
     float risk_tolerance;           // Kelly fraction (0.1-1.0)
     float conviction_threshold;     // Min edge to bet (0-0.1)
     float max_stake_pct;            // Max % of bankroll per bet
     float confidence_decay;         // How fast confidence fades after loss
-    
+
     // ── Strategy bias ──
     float favorite_bias;            // 0 = dogs only, 1 = favorites only
     float over_under_bias;          // 0 = unders, 1 = overs
@@ -109,24 +109,24 @@ The sports room reuses the same engine architecture as `room_engine.c` but with:
 while (running) {
     // 1. Load games for today
     load_games_from_timeline(&games, today);
-    
+
     // 2. Compute features for each game
     for (each game) {
         compute_sports_features(game, &fv);
-        
+
         // 3. Each fan votes
         for (each fan in fans) {
             vote = predict_outcome(fan.genome, fv);
             record_bet(fan, game, vote, fan.genome.risk_tolerance);
         }
     }
-    
+
     // 4. Resolve bets from yesterday's games
     resolve_bets(yesterday_games, fans);
-    
+
     // 5. Darwin evolution (daily)
     run_darwin(fans, N_FANS, cycle);
-    
+
     // 6. Log state
     save_sports_state(state);
     sleep(3600); // Check hourly for new games
@@ -139,21 +139,21 @@ The sports room reads from and writes to the shared `timeline.db`:
 
 ```sql
 -- Read games
-SELECT ts, data FROM timeline 
-WHERE source = 'sports_results' 
-  AND category = 'nba' 
+SELECT ts, data FROM timeline
+WHERE source = 'sports_results'
+  AND category = 'nba'
   AND ts > today_epoch
 ORDER BY ts;
 
 -- Read odds
-SELECT ts, data FROM timeline 
-WHERE source = 'sports_odds' 
+SELECT ts, data FROM timeline
+WHERE source = 'sports_odds'
   AND data LIKE '%"' || team_name || '"%'
 ORDER BY ts;
 
 -- Write results (resolved bets)
 INSERT INTO timeline (ts, source, category, data)
-VALUES (now, 'sports_room_bets', 'nba', 
+VALUES (now, 'sports_room_bets', 'nba',
         '{"game":"LAL_vs_BOS","winner":"LAL","fan_count":4821,"correct_pct":61.2}');
 ```
 
