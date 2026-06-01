@@ -142,6 +142,7 @@ static CollectorTask NORMAL_TASKS[] = {
     {"funding_feat.sh",        "funding_features",  30},
     {"open_interest_feat.sh",  "open_interest",     30},
     {"hashrate_feat.sh",       "hashrate_features", 30},
+    {"coingecko_fetch.sh",     "coingecko_crypto",  30},
     {"orderbook_fetch.sh",     "orderbook_archive", 30},
     {"cvd_fetch.sh",           "cvd_signal",        15},
     {"liquidation_feat.sh",    "liquidation_features", 30},

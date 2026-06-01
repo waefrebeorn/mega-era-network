@@ -217,7 +217,7 @@
 | D38 | No anomaly detection on incoming data | Data | 🟡 | ⏳ | Spikes, flatlines, missing ticks in raw data go undetected. |
 ||| D39 | No data staleness flag in engine | Data | 🔴 | ✅ | **FALSE CLAIM**: already addressed by B44 fix in room_feeds.c:254-277. Engine validates timestamp on every feed load — rejects future timestamps (<-300s), WARNs at >5min, REJECTs at >1h. Stale data surfaces via stderr logs per cycle. |
 | D40 | No fallback data source for critical feeds | Data | 🟡 | ⏳ | If Yahoo Finance goes down, BTC data stops. CoinGecko as backup exists but not wired. |
-| D41 | CoinGecko collector exists but may not be wired | Data | 🟡 | ⏳ | coingecko_collector.c exists but not in collector_runner. |
+|| D41 | CoinGecko wired into collector_runner | Data | 🟡 | ✅ | **FIXED**: coingecko_fetch.sh added to collector_runner.c NORMAL_TASKS (30min interval). Writes 25 crypto prices to timeline.db. Wrapper at ~/.hermes/scripts/coingecko_fetch.sh. Binary exists at engine/coingecko_collector. |
 | D42 | CBOE data has 15-min delay | Data | 🟡 | ⏳ | Options chain data is delayed. Real-time requires paid OPRA feed. |
 | D43 | Finnhub API limited to 300 req/day | Data | 🟡 | ⏳ | stock_collector uses Finnhub free tier. 300 req/day covers ~50 tickers. |
 | D44 | No exchange fee table in engine | Data | 🟡 | ⏳ | Fee constants in types.h are hardcoded. No per-exchange fee lookup. |
@@ -442,12 +442,12 @@
 || A: Training Engine | 60 | 0 | 10 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
-|| D: Data Pipeline | 55 | 0 | 37 | 0 | 15 | 0 |
+|| D: Data Pipeline | 55 | 0 | 36 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 ||| F: Infrastructure | 35 | 0 | 14 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|||| **TOTAL** | **365** | **1** | **100** | **0** | **228** | **0** |
+|||| **TOTAL** | **365** | **1** | **99** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 100 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 99 major gaps | ⚪ P3: 228 minor/feature gaps

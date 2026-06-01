@@ -83,6 +83,11 @@
 - File: `engine/kraken_backfill.c`
 - P1 count: 102→101
 
+## Batch 2026-06-01 — D41: CoinGecko wired into collector_runner
+- **D41: CoinGecko collector not in collector_runner** — FIXED: added coingecko_fetch.sh to collector_runner.c NORMAL_TASKS (30min interval). Writes 25 crypto prices to timeline.db. Wrapper at ~/.hermes/scripts/coingecko_fetch.sh.
+- File: `engine/collector_runner.c`
+- P1 count: 100→99
+
 ## Previous Achievements
 - CB-POLITICIAN PORTED — politician_portfolio.c (388 lines C, compiled, cron 240min)
 - CB-SEASONALITY PORTED — seasonality.c (203 lines C, compiled, cron 30min)
