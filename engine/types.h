@@ -41,7 +41,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        24
+#define N_FEATURES        27
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
@@ -118,6 +118,10 @@ typedef struct {
     float liq_ls_ratio_norm;    // F22: liquidation long/short ratio (0-1)
     float stable_inflow_norm;   // F23: stablecoin volume ratio (0-1+)
     float whale_activity_norm;  // F24: whale transaction activity (0-1)
+    // ── Hashrate / On-chain ──
+    float hash_rate_norm;       // F25: BTC hashrate normalized (0-1)
+    float difficulty_norm;      // F26: mining difficulty normalized (0-1)
+    float miner_floor_norm;     // F27: miner cost floor normalized (0-1)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -150,6 +154,10 @@ typedef struct {
     float    liq_ls_ratio_norm;  // liquidation long/short ratio (0-1)
     float    stable_inflow_norm; // stablecoin volume ratio (0-1+)
     float    whale_activity_norm; // whale transaction activity (0-1)
+    // ── Hashrate / On-chain (from hashrate_feat collector) ──
+    float    hash_rate_norm;     // BTC hashrate normalized (0-1)
+    float    difficulty_norm;    // mining difficulty normalized (0-1)
+    float    miner_floor_norm;   // miner cost floor normalized (0-1)
 } MarketTick;
 
 // ── Agent vote result ──

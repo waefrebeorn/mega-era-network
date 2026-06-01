@@ -292,6 +292,30 @@ static int load_whale_features(MarketTick *tick) {
     return 0;
 }
 
+// ── Hashrate: Load BTC hashrate/difficulty/miner-floor features ──
+#define HASHRATE_FEAT_PATH "/home/wubu2/.hermes/options_cache/hashrate_features.json"
+static int load_hashrate_features(MarketTick *tick) {
+    FILE *f = fopen(HASHRATE_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"hash_rate_norm\"");
+    if (p) tick->hash_rate_norm = strtof(p + 16, NULL);
+    p = strstr(buf, "\"difficulty_norm\"");
+    if (p) tick->difficulty_norm = strtof(p + 17, NULL);
+    p = strstr(buf, "\"miner_floor_norm\"");
+    if (p) tick->miner_floor_norm = strtof(p + 18, NULL);
+    free(buf);
+    return 0;
+}
+
 // ── P13: Goertzel DFT — extract dominant frequency ──
 // Single-frequency DFT using Goertzel algorithm.
 // Finds dominant cycle in price history.
@@ -542,6 +566,7 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     load_liquidation_features((MarketTick *)tick);
     load_stablecoin_features((MarketTick *)tick);
     load_whale_features((MarketTick *)tick);
+    load_hashrate_features((MarketTick *)tick);
 
     // F22: Liquidation L/S ratio (0-1, >0.5 = more longs being liquidated = bearish)
     fv->liq_ls_ratio_norm = tick->liq_ls_ratio_norm;
@@ -552,6 +577,17 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // F24: Whale activity norm (0-1, >0.5 = high large-tx activity)
     fv->whale_activity_norm = tick->whale_activity_norm;
     if (fv->whale_activity_norm < 0.01f) fv->whale_activity_norm = 0.5f;
+
+    // ── Hashrate features ──
+    // F25: Hash rate norm (0-1, higher = more network security)
+    fv->hash_rate_norm = tick->hash_rate_norm;
+    if (fv->hash_rate_norm < 0.01f) fv->hash_rate_norm = 0.5f;
+    // F26: Difficulty norm (0-1)
+    fv->difficulty_norm = tick->difficulty_norm;
+    if (fv->difficulty_norm < 0.01f) fv->difficulty_norm = 0.5f;
+    // F27: Miner floor norm (0-1, higher = higher miner cost floor)
+    fv->miner_floor_norm = tick->miner_floor_norm;
+    if (fv->miner_floor_norm < 0.01f) fv->miner_floor_norm = 0.5f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
