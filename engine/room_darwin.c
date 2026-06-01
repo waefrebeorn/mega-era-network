@@ -9,7 +9,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "types.h"
+
+// ── Elite genome output directory (same dir hot_reload scans) ──
+#define ELITE_DIR  "/home/wubu2/money-room/data/multi_market"
+
+// ── Market type → elite filename mapping ──
+static const char *market_type_names[] = {
+    "CRYPTO", "EQUITY", "FOREX", "COMMODITY", "BOND",
+    "VOLATILITY", "SPORTS", "WEATHER", "PREDICTION",
+    "ELECTION", "META"
+};
 
 // ── Genome mutation bounds ──
 typedef struct {
@@ -270,6 +283,91 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
     }
     
     return ERR_OK;
+}
+
+// ════════════════════════════════════════════════════════
+//  SAVE ELITE — Write top agent genomes per market type back
+//  to HOT_RELOAD_DIR so the trainer can hot-start from them.
+//  This closes the engine→trainer feedback loop.
+// ════════════════════════════════════════════════════════
+RoomError room_darwin_save_elite(const AgentState *agents, int n, const int *agent_market) {
+    if (!agents || n < 10 || !agent_market) return ERR_NO_AGENTS;
+
+    // Ensure output directory exists
+    mkdir(ELITE_DIR, 0755);
+
+    // Collect agents per market type
+    int mt_counts[N_MARKET_TYPES];
+    memset(mt_counts, 0, sizeof(mt_counts));
+    for (int i = 0; i < n; i++) {
+        if (agents[i].alive) {
+            int mt = (agent_market[i] < N_MARKET_TYPES) ? agent_market[i] : 0;
+            mt_counts[mt]++;
+        }
+    }
+
+    int saved = 0;
+    for (int mt = 0; mt < N_MARKET_TYPES; mt++) {
+        if (mt_counts[mt] < 10) continue;  // Skip tiny groups
+
+        // Collect alive agents of this market type
+        int nmt = mt_counts[mt];
+        typedef struct { int idx; float wr; } IdxWr;
+        IdxWr *ranked = (IdxWr *)malloc(nmt * sizeof(IdxWr));
+        if (!ranked) continue;
+
+        int pos = 0;
+        for (int i = 0; i < n; i++) {
+            if (agents[i].alive) {
+                int amt = (agent_market[i] < N_MARKET_TYPES) ? agent_market[i] : 0;
+                if (amt == mt) {
+                    ranked[pos].idx = i;
+                    ranked[pos].wr = agents[i].win_rate_ema;
+                    pos++;
+                }
+            }
+        }
+
+        // Sort descending by win_rate_ema (simple bubble sort — small group)
+        for (int i = 0; i < pos - 1; i++) {
+            for (int j = i + 1; j < pos; j++) {
+                if (ranked[j].wr > ranked[i].wr) {
+                    IdxWr tmp = ranked[i]; ranked[i] = ranked[j]; ranked[j] = tmp;
+                }
+            }
+        }
+
+        // Pick top 1% (floor at 1)
+        int n_elite = pos / 100;
+        if (n_elite < 1) n_elite = 1;
+        if (n_elite > 10) n_elite = 10;  // Cap at 10 per type
+
+        for (int e = 0; e < n_elite; e++) {
+            int aid = ranked[e].idx;
+            const Genome *best = &agents[aid].genome;
+
+            // Write to ENGINE_<type>_N.bin where N = 0,1,2...
+            char path[512];
+            snprintf(path, sizeof(path), "%s/ENGINE_%s_%d.bin",
+                     ELITE_DIR, market_type_names[mt], e);
+
+            FILE *bfp = fopen(path, "wb");
+            if (!bfp) continue;
+
+            fwrite(best, sizeof(Genome), 1, bfp);
+            int mtype = mt;
+            fwrite(&mtype, sizeof(int), 1, bfp);
+            fclose(bfp);
+            saved++;
+        }
+
+        free(ranked);
+    }
+
+    if (saved > 0) {
+        printf("[DARWIN] Saved %d elite genomes to %s/ENGINE_<type>_N.bin\n", saved, ELITE_DIR);
+    }
+    return saved > 0 ? ERR_OK : ERR_NO_AGENTS;
 }
 
 // ── C19: Compute population weight diversity metrics ──

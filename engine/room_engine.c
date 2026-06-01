@@ -95,6 +95,7 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                FeatureImportance *importance);
 RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord *rec, const int *agent_market);
 RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomStats *stats);
+RoomError room_darwin_save_elite(const AgentState *agents, int n, const int *agent_market);
 void       room_bridge_write(RoomState *state);
 
 // ── Nested model: compute 17-dim features and run inference ──
@@ -1153,6 +1154,8 @@ void room_market_stats(RoomState *state);
             room_darwin_evolve(state->agents, MAX_AGENTS, state->cycle, &state->darwin, g_agent_market);
             // C19: Compute diversity metrics after evolution
             room_darwin_compute_diversity(state->agents, MAX_AGENTS, &state->stats);
+            // ── Loss feedback: save elite engine genomes for trainer hot-start ──
+            room_darwin_save_elite(state->agents, MAX_AGENTS, g_agent_market);
 
             // ── C39: Size scaling — compound position sizes based on agent WR ──
             int scaled = 0;

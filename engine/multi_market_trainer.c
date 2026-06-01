@@ -786,12 +786,68 @@ typedef struct {
     int          generation;
 } MarketPop;
 
+// ── Market type names (must match room_darwin.c) ──
+static const char *market_type_names[] = {
+    "CRYPTO", "EQUITY", "FOREX", "COMMODITY", "BOND",
+    "VOLATILITY", "SPORTS", "WEATHER", "PREDICTION",
+    "ELECTION", "META"
+};
+
+// ── Try to load an elite genome from engine (ENGINE_<TYPE>_0.bin) ──
+// Returns 1 on success, 0 if no elite file found.
+static int load_engine_elite(Genome *out, int *out_market_type, MarketType type) {
+    char path[512];
+    snprintf(path, sizeof(path), "/home/wubu2/money-room/data/multi_market/ENGINE_%s_0.bin",
+             market_type_names[(int)type]);
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;  // No elite file yet
+    int ok = 0;
+    if (fread(out, sizeof(Genome), 1, f) == 1) {
+        int mtype = MARKET_CRYPTO;
+        if (fread(&mtype, sizeof(int), 1, f) == 1) {
+            *out_market_type = mtype;
+            ok = 1;
+        }
+    }
+    fclose(f);
+    return ok;
+}
+
 // Initialize population
 static void init_pop(MarketPop *p, MarketType type, const char *name, int n) {
     memset(p, 0, sizeof(MarketPop));
     p->market_type = type; strncpy(p->name, name, sizeof(p->name) - 1);
     p->n_agents = n; p->agents = malloc(n * sizeof(AgentState));
-    for (int i = 0; i < n; i++) init_agent(&p->agents[i], p->market_type);
+
+    // Try hot-start from engine elite genome
+    Genome elite;
+    int elite_mt = MARKET_CRYPTO;
+    int have_elite = load_engine_elite(&elite, &elite_mt, type);
+
+    for (int i = 0; i < n; i++) {
+        init_agent(&p->agents[i], p->market_type);
+        if (have_elite) {
+            // Seed from elite genome + noise for diversity
+            memcpy(&p->agents[i].genome, &elite, sizeof(Genome));
+            p->agents[i].genome.position_size += ((float)rand() / RAND_MAX - 0.5f) * 0.05f;
+            if (p->agents[i].genome.position_size < 0.01f) p->agents[i].genome.position_size = 0.01f;
+            if (p->agents[i].genome.position_size > 0.50f) p->agents[i].genome.position_size = 0.50f;
+            p->agents[i].genome.conviction_threshold += ((float)rand() / RAND_MAX - 0.5f) * 0.1f;
+            if (p->agents[i].genome.conviction_threshold < 0.05f) p->agents[i].genome.conviction_threshold = 0.05f;
+            if (p->agents[i].genome.conviction_threshold > 0.95f) p->agents[i].genome.conviction_threshold = 0.95f;
+            for (int w = 0; w < N_FEATURES; w++) {
+                float noise = ((float)(rand() % 2001 - 1000)) / 10000.0f;
+                p->agents[i].genome.feat_weight[w] += noise;
+                if (p->agents[i].genome.feat_weight[w] > 1.0f) p->agents[i].genome.feat_weight[w] = 1.0f;
+                if (p->agents[i].genome.feat_weight[w] < -1.0f) p->agents[i].genome.feat_weight[w] = -1.0f;
+            }
+            p->agents[i].genome.bias += ((float)(rand() % 2001 - 1000)) / 10000.0f;
+        }
+    }
+    if (have_elite) {
+        printf("[TRAIN] Hot-started %s population from ENGINE_%s_0.bin (engine evolved elite)\n",
+               name, market_type_names[(int)type]);
+    }
 }
 
 // Train one population on one market
