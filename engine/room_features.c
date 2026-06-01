@@ -713,10 +713,16 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
-    // F1: price_delta_pct — tanh clamp to [-1, 1]
-    fv->price_delta_pct = tanhf(fv->price_delta_pct / 5.0f);
-    // F2: micro_momentum — tanh clamp
-    fv->micro_momentum = tanhf(fv->micro_momentum / 2.0f);
+    // ── B35: Regime-specific scaling for price features ──
+    // Range (0): standard scaling, Trend (1): amplify signals, Volatile (2): compress noise
+    float delta_scale = 5.0f;
+    float mom_scale = 2.0f;
+    if (s->predicted_regime == 1) { delta_scale = 3.0f; mom_scale = 1.2f; }   // trend
+    else if (s->predicted_regime == 2) { delta_scale = 10.0f; mom_scale = 4.0f; } // volatile
+    // F1: price_delta_pct — regime-aware tanh clamp
+    fv->price_delta_pct = tanhf(fv->price_delta_pct / delta_scale);
+    // F2: micro_momentum — regime-aware tanh clamp
+    fv->micro_momentum = tanhf(fv->micro_momentum / mom_scale);
     // F3: RSI 0-100 → 0-1
     fv->rsi_7 = fv->rsi_7 / 100.0f;
     // F4: volume_surge_ratio — log-normalize
