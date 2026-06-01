@@ -337,10 +337,13 @@
 <script>
 if(!localStorage.getItem('cookieDismissed')){document.getElementById('cookieNotice').style.display='block';}
 </script>
+<script src="data_fetcher.js"></script>
 <script>
 /* ═══════════════════════════════════════════
  * Money Room — Client Engine
  * ═══════════════════════════════════════════ */
+
+var DF = window.DATA_FETCHER;
 
 function fmt(n,d) { if(n===undefined||n===null)return'—';if(typeof n==='string')n=parseFloat(n);if(isNaN(n))return'—';return n.toLocaleString(undefined,{minimumFractionDigits:d||0,maximumFractionDigits:d||2}); }
 function pct(n) { if(n===undefined||n===null)return'—';n=typeof n==='string'?parseFloat(n):n;return (n*100).toFixed(1)+'%'; }
@@ -454,13 +457,14 @@ function updateTickerDuplicates(){
 }
 
 async function loadTicker() {
-  try {
-    var s = await fetchData("data/stats.json");
-    if (s && s.capital) setEl("capitalDisplay", "$" + Math.round(s.capital).toLocaleString());
-    if (s && s.cycle) setEl("cycleCount", s.cycle.toLocaleString());
-    if (s && s.agents) setEl("agentCount", s.agents.toLocaleString());
-    if (s && s.trades) setEl("tradeCount", s.trades.toLocaleString());
-  } catch(e) { showError("capitalDisplay"); }
+  DF.fetchStats(function(err, s){
+    if (s) {
+      setEl("capitalDisplay", "$" + Math.round(s.capital || 0).toLocaleString());
+      setEl("cycleCount", s.cycle ? DF.fmt(s.cycle,0) : '--');
+      setEl("agentCount", s.agents ? DF.fmt(s.agents,0) : '--');
+      setEl("tradeCount", s.trades_total ? DF.fmt(s.trades_total,0) : '--');
+    }
+  });
 
   // Original ticker loading follows
   try {
@@ -504,47 +508,43 @@ function loadMarketPrices(){
 
 /* ── Engine Stats from deployed data ── */
 function loadStats(){
-  fetchData('data/stats.json').then(function(r){if(!r.ok)throw Error();return r.json();})
-    .then(function(s){
-      function setStat(id,val,color){
-        var el=$(id);if(!el)return;
-        el.textContent=val; el.className='metric-value live';
-        if(color)el.style.color=color;
-      }
-      setStat('statCycles',fmt(s.cycle,0));
-      setStat('statAgents',fmt(s.agents,0));
-      setStat('statWinRate',pct(s.win_rate),s.win_rate>0.5?'var(--bullish)':s.win_rate>0.45?'var(--text-primary)':'var(--bearish)');
-      setStat('statCapital',s.capital?'$'+fmt(s.capital,0):'—');
-      setStat('statCycleTime',s.cycle_time?s.cycle_time.toFixed(1)+'ms':'—');
-      setStat('statFeatures',s.features?fmt(s.features,0)+'+':'80+');
+  DF.fetchStats(function(err, s){
+    if (err || !s) return;
+    function setStat(id,val,color){
+      var el=$(id);if(!el)return;
+      el.textContent=val; el.className='metric-value live';
+      if(color)el.style.color=color;
+    }
+    setStat('statCycles',DF.fmt(s.cycle,0));
+    setStat('statAgents',DF.fmt(s.agents,0));
+    setStat('statWinRate',DF.pct(s.win_rate),s.win_rate>0.5?'var(--bullish)':s.win_rate>0.45?'var(--text-primary)':'var(--bearish)');
+    setStat('statCapital',s.capital?'$'+DF.fmt(s.capital,0):'—');
+    setStat('statCycleTime',s.cycle_time?s.cycle_time.toFixed(1)+'ms':'—');
 
-      setEl('emCycleTime',s.cycle_time?s.cycle_time.toFixed(1)+'ms':'—');
-      setEl('emVotes',fmt(s.votes,0));
-      setEl('emTopPnl',s.trades_total?'$'+fmt(s.trades_total,0):'—');
-      setEl('emSharpe',s.sharpe?s.sharpe.toFixed(2):'—');
-      setEl('emDd',s.drawdown?pct(s.drawdown):'—');
-      var paperAge=s.paper_age?ago(Date.now()/1000-s.paper_age):null;
-      setEl('emPaperAge',paperAge||'—');
+    setEl('emCycleTime',s.cycle_time?s.cycle_time.toFixed(1)+'ms':'—');
+    setEl('emVotes',DF.fmt(s.votes,0));
+    setEl('emTopPnl',s.trades_total?'$'+DF.fmt(s.trades_total,0):'—');
+    setEl('emSharpe',s.sharpe?s.sharpe.toFixed(2):'—');
+    setEl('emDd',s.drawdown?DF.pct(s.drawdown):'—');
+    var paperAge=s.paper_age?DF.ago(Date.now()/1000-s.paper_age):null;
+    setEl('emPaperAge',paperAge||'—');
 
-      // Ticker integration
-      setEl('tickerCycle',fmt(s.cycle,0));
-      setEl('tickerWr',pct(s.win_rate));
-      setEl('agentCount',s.agents?fmt(s.agents,0):'--');
-      setEl('tradeCount',s.trades_total?fmt(s.trades_total,0):'--');
-      setEl('winRateDisplay',pct(s.win_rate));
-      setEl('capitalDisplay',s.capital?'$'+fmt(s.capital,0):'--');
-      setEl('featureCount',s.features?fmt(s.features,0):'--');
-      setEl('cycleCount',s.cycle?fmt(s.cycle,0):'--');
-      setEl('sharpeDisplay',s.sharpe?s.sharpe.toFixed(2):'--');
-      setEl('priceDisplay',s.price?'$'+fmt(s.price,0):'--');
-      setEl('regimeDisplay',s.regime||'--');
-      updateTickerDuplicates();
+    // Ticker integration
+    setEl('tickerCycle',DF.fmt(s.cycle,0));
+    setEl('tickerWr',DF.pct(s.win_rate));
+    setEl('agentCount',s.agents?DF.fmt(s.agents,0):'--');
+    setEl('tradeCount',s.trades_total?DF.fmt(s.trades_total,0):'--');
+    setEl('winRateDisplay',DF.pct(s.win_rate));
+    setEl('capitalDisplay',s.capital?'$'+DF.fmt(s.capital,0):'--');
+    setEl('cycleCount',s.cycle?DF.fmt(s.cycle,0):'--');
+    setEl('sharpeDisplay',s.sharpe?s.sharpe.toFixed(2):'--');
+    updateTickerDuplicates();
 
-      if(s.timestamp){
-        $('healthRow').innerHTML='<span class="dot green"></span>Cycle '+fmt(s.cycle,0)+' · WR '+pct(s.win_rate)+' · $'+fmt(s.capital,0);
-        setEl('shDeployed',ago(s.timestamp)+' ago');
-      }
-    }).catch(function(){});
+    if(s.timestamp){
+      $('healthRow').innerHTML='<span class="dot green"></span>Cycle '+DF.fmt(s.cycle,0)+' · WR '+DF.pct(s.win_rate)+' · $'+DF.fmt(s.capital,0);
+      setEl('shDeployed',DF.ago(s.timestamp)+' ago');
+    }
+  });
 }
 
 function loadDeploy(){

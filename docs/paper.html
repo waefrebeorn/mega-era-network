@@ -81,31 +81,36 @@
 
 <div class="last-update" id="last-update"></div>
 
-<script src="app.js"></script>
+<script src="data_fetcher.js"></script>
 <script>
+var DF = window.DATA_FETCHER;
+
 async function refresh() {
   try {
-    const snap = await fetch('data/paper_stats.json').then(r => r.json());
-    const evo = await fetch('data/evolution_progress.json').then(r => r.json());
+    // Fetch both data sources via data_fetcher
+    var snap = await new Promise(function(resolve) {
+      DF.fetchJSON('paper_stats.json', function(e, d) { resolve(d); });
+    });
+    var evo = await new Promise(function(resolve) {
+      DF.fetchJSON('evolution_progress.json', function(e, d) { resolve(d); });
+    });
 
-    // Multi-market trainer results — loaded from paper_stats.json dynamically
-    async function loadMktData() {
-      try {
-        const r = await fetch('data/paper_stats.json');
-        if (!r.ok) throw Error();
-        const d = await r.json();
-        let mktHtml = '';
-        (d.markets || []).forEach(m => {
-          const wr = (m.wins && m.trades) ? (m.wins/m.trades*100).toFixed(1)+'%' : '—';
-          const pnl = m.pnl ? (m.pnl > 0 ? '+' : '') + '$' + Math.abs(m.pnl).toLocaleString() : '—';
-          mktHtml += `<tr><td>${m.name||m.market||'—'}</td><td>${wr}</td><td>${m.trades||'—'}</td><td>${pnl}</td></tr>`;
-        });
-        if (mktHtml) document.getElementById('mktBody').innerHTML = mktHtml;
-      } catch(e) { /* keep defaults */ }
+    if (!snap || !evo) {
+      document.getElementById('last-update').textContent = '⏳ Waiting for data...';
+      return;
+    }
+
+    // Multi-market market data from paper_stats.json
+    function loadMktData() {
+      var mktHtml = '';
+      (snap.markets || []).forEach(function(m) {
+        var wr = (m.wins && m.trades) ? (m.wins/m.trades*100).toFixed(1)+'%' : '—';
+        var pnl = m.pnl ? (m.pnl > 0 ? '+' : '') + '$' + Math.abs(m.pnl).toLocaleString() : '—';
+        mktHtml += '<tr><td>'+(m.name||m.market||'—')+'</td><td>'+wr+'</td><td>'+(m.trades||'—')+'</td><td>'+pnl+'</td></tr>';
+      });
+      if (mktHtml) document.getElementById('mktBody').innerHTML = mktHtml;
     }
     loadMktData();
-      '<tr><td>'+m.name+'</td><td class="green">'+m.wr+'</td><td>'+m.trades+'</td><td class="green">'+m.pnl+'</td></tr>'
-    ).join('');
 
     // Overview
     document.getElementById('active-agents').textContent = (snap.active_agents ?? 0).toLocaleString();

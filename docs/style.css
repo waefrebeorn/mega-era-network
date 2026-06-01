@@ -736,3 +736,40 @@ nav .nav-links .nav-cta:hover { background: var(--accent-hover); color: var(--bg
   .pricing-card { padding: 24px 18px; }
   .live-banner-inner { animation-duration: 30s; }
 }
+
+@media (max-width: 380px) {
+  .container { padding: 0 10px; }
+  nav .nav-links { gap: 6px; justify-content: flex-start; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  nav .nav-links a { font-size: 10px; padding: 4px 6px; }
+  .hero { padding: 40px 0 30px; }
+  .hero h1 { font-size: 22px; }
+  .hero .subtitle { font-size: 13px; }
+  .dashboard-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .page-header h1 { font-size: 22px; }
+  .page-header p { font-size: 11px; }
+  .live-card .val { font-size: 18px; }
+  .live-card .label { font-size: 10px; }
+  .stat-block .metric-value { font-size: 16px; }
+  .pricing-card { padding: 18px 14px; }
+  .section-title h2 { font-size: 22px; }
+  .disclaimer { font-size: 11px; padding: 14px; }
+  .footer .bottom { font-size: 10px; }
+  table { font-size: 11px; }
+  td, th { padding: 6px 8px; }
+  code, pre { word-break: break-all; font-size: 10px; }
+  .live-banner-inner { animation-duration: 25s; }
+  .dashboard-row { gap: 12px; }
+  .agent-row { padding: 8px 10px; }
+  .agent-row .name { font-size: 11px; }
+  .agent-row .pnl-val { font-size: 11px; }
+  nav .logo { font-size: 13px; }
+  nav .logo .dot { width: 6px; height: 6px; }
+}
+
+/* Wallet addresses / long text — break everywhere */
+.wallet-addr, code[data-wallet] {
+  word-break: break-all;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-size: 11px;
+}
