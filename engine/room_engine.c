@@ -728,7 +728,10 @@ static RoomError load_or_init_state(void) {
         // ── T18: Position limits defaults ──
         state->max_position_pct_room = 0.02f;      // Max 2% of room total per agent
         state->max_total_exposure_pct = 0.25f;      // Max 25% of total capital at risk
+        state->max_direction_pct = 0.15f;           // C36: Max 15% per direction (YES/NO)
         state->current_total_exposure = 0.0f;
+        state->current_yes_exposure = 0.0f;
+        state->current_no_exposure = 0.0f;
         state->peak_total_exposure = 0.0f;
         // ── T19: Trade rate limit defaults ──
         state->max_trades_per_cycle = 5000;      // Max 5000 new trades per cycle
@@ -1279,6 +1282,8 @@ void room_market_stats(RoomState *state);
                 total_alive_cap += state->agents[i].capital;
         }
         float total_exposure = 0.0f;
+        float yes_exposure = 0.0f;   // C36: Directional exposure tracking
+        float no_exposure = 0.0f;
         for (int i = 0; i < vote_count; i++) {
             int aid = state->votes[i].agent_id;
             float agent_cap = state->agents[aid].capital;
@@ -1294,6 +1299,23 @@ void room_market_stats(RoomState *state);
                        aid, stake, max_stake, state->max_position_pct_room * 100);
                 state->votes[i].position_size = new_pct;
                 stake = max_stake;
+            }
+
+            // C36: Cap per-direction exposure (prevent YES/NO concentration)
+            bool vote_yes = state->votes[i].direction;
+            float dir_exposure = vote_yes ? yes_exposure : no_exposure;
+            float max_dir = total_alive_cap * state->max_direction_pct;
+            if (dir_exposure + stake > max_dir) {
+                float dir_remaining = max_dir - dir_exposure;
+                if (dir_remaining <= 0) {
+                    state->votes[i].position_size = 0;
+                    printf("[DIR] Agent %d: skipped (%s direction at max %.1f%%)\n",
+                           aid, vote_yes ? "YES" : "NO", state->max_direction_pct * 100);
+                    continue;
+                }
+                float new_pct = dir_remaining / agent_cap;
+                state->votes[i].position_size = new_pct;
+                stake = dir_remaining;
             }
 
             // Cap total exposure across all agents
@@ -1312,8 +1334,11 @@ void room_market_stats(RoomState *state);
                 stake = remaining;
             }
             total_exposure += stake;
+            if (vote_yes) yes_exposure += stake; else no_exposure += stake;
         }
         state->current_total_exposure = total_exposure;
+        state->current_yes_exposure = yes_exposure;
+        state->current_no_exposure = no_exposure;
         if (total_exposure > state->peak_total_exposure)
             state->peak_total_exposure = total_exposure;
 

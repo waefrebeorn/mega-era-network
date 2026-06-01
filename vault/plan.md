@@ -31,3 +31,7 @@ Pick next undone P1 from battleship.
 4. ~~B23: VIX regime filter~~ — DONE: F34, continuous VIX<15→0, 15-25→0.5, >25→1
 5. ~~B04: tail_risk_score~~ — DONE: vaulted stale (fixed by B02)
 6. ~~A19: Mini-batch SGD~~ — DONE: batch size 8, persistent accumulators
+
+## Completed (batch 3)
+1. ~~F07: Resource monitoring~~ — DONE: resource_monitor.c /proc monitor (CPU/memory/disk/process)
+2. ~~C36: Directional exposure tracking~~ — DONE: YES/NO concentration capped at 15%/direction (ROM9)

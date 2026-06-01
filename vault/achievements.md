@@ -73,6 +73,11 @@
 - File: `engine/resource_monitor.c`, `engine/Makefile`, `~/.hermes/scripts/resource_monitor.sh`
 - P1 count: 104→103
 
+## Batch 2026-06-01 — C36: Directional exposure tracking (correlation between agent positions)
+- **C36: No correlation between agent positions** — FIXED: room_engine.c:1285-1341 — added YES/NO directional exposure tracking alongside existing total_exposure cap. Each direction capped at 15% of total capital (max_direction_pct). Prevents 6 agents all going long the same asset = 6x same risk. New [DIR] skip log when direction budget exhausted per cycle. Tracked in RoomState: current_yes_exposure, current_no_exposure. STATE_MAGIC: ROM9 (struct size grew 61MB→68MB).
+- File: `engine/room_engine.c`, `engine/types.h`
+- P1 count: 103→102
+
 ## Previous Achievements
 - CB-POLITICIAN PORTED — politician_portfolio.c (388 lines C, compiled, cron 240min)
 - CB-SEASONALITY PORTED — seasonality.c (203 lines C, compiled, cron 30min)

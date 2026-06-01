@@ -199,6 +199,8 @@ stress_json: stress_test
 	@echo "Stress test result written to docs/data/stress_test_result.txt"
 
 # ── Survival stats (agent age, generation, survival rate) ──
+survival_stats: survival_stats.c types.h
+	$(CC) -O2 -o $@ $< -lm
 survival_json: survival_stats
 	./survival_stats /home/wubu2/.hermes/pm_logs/c_room/room_state.bin 2>&1 | head -30
 

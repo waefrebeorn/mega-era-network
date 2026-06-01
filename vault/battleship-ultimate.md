@@ -165,7 +165,7 @@
 || C33 | No position unwind schedule | Risk | ⚪ | ⏳ | If room needs capital, which positions get closed first? |
 || C34 | No stop-loss at room level | Risk | 🟡 | ✅ | **STALE**: T17 circuit breaker IS the room-level stop-loss. Triggered at 20% drawdown or 10 consecutive losses. 100-cycle cooldown. |
 | C35 | No take-profit at room level | Risk | ⚪ | ⏳ | Room keeps trading indefinitely. No "we made 20%, lock in profits" mode. |
-| C36 | No correlation between agent positions | Risk | 🟡 | ⏳ | 6 agents all buying same asset same direction = 6x same risk. |
+|| C36 | No correlation between agent positions | Risk | 🟡 | ✅ | **FIXED**: room_engine.c:1285-1341 — added directional exposure tracking (yes_exposure/no_exposure) with per-direction cap at 15% of total capital per direction (max_direction_pct). Prevents 6 agents from all going long the same asset. New [DIR] skip log when direction cap hit. Tracked in state: current_yes_exposure, current_no_exposure. STATE_MAGIC: ROM9. |
 | C37 | No hedge ratio optimization | Risk | ⚪ | ⏳ | Optimal hedge ratio between positions not computed. |
 | C38 | No tail-risk overlay strategy | Risk | ⚪ | ⏳ | Put options/tail hedge on top of engine strategy. |
 | C39 | No portfolio-level VaR model | Risk | 🟡 | ⏳ | Each room independent. Aggregate portfolio VaR not computed. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 11 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
+||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 ||| F: Infrastructure | 35 | 0 | 14 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|||| **TOTAL** | **365** | **1** | **103** | **0** | **228** | **0** |
+|||| **TOTAL** | **365** | **1** | **102** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 103 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 102 major gaps | ⚪ P3: 228 minor/feature gaps

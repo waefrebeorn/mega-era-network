@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D38  // "ROM8" — bumped for A19 mini-batch SGD accumulators
+#define STATE_MAGIC       0x524F4D39  // "ROM9" — bumped for C36 directional exposure tracking (new yes_exposure/no_exposure/max_direction_pct fields)
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -362,7 +362,10 @@ typedef struct {
     // ── T18: Position limits ──
     float    max_position_pct_room;   // Max % of total room capital any single agent can bet
     float    max_total_exposure_pct;  // Max % of total capital all agents can risk combined
+    float    max_direction_pct;       // C36: Max % of total capital per single direction (YES/NO)
     float    current_total_exposure;  // Sum of all open stakes
+    float    current_yes_exposure;    // C36: Sum of stakes in YES direction
+    float    current_no_exposure;     // C36: Sum of stakes in NO direction
     float    peak_total_exposure;     // Peak total exposure recorded
     // ── T19: Order queue / trade rate limiting ──
     int      max_trades_per_cycle;    // Max new trades per cycle (0 = unlimited)
