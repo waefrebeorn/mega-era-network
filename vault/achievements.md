@@ -68,6 +68,11 @@
   - A15: trade_log.csv has 14.96M rows, trade_journal exports JSON
   - D04: BTC 1-min CSV live at 723K rows
 
+## Batch 2026-06-01 — F07: System resource monitor
+- **F07: No resource monitoring** — FIXED: resource_monitor.c (240 lines C) reads /proc/meminfo, /proc/loadavg, /proc/stat, statvfs, /proc/[pid]/status for engine process memory/uptime. Writes JSON to ~/.hermes/infra/resource_monitor.json + docs/data/. Hermes cron every 5min (no_agent script). Threshold alerts on memory>80%, disk>85%, load>8.
+- File: `engine/resource_monitor.c`, `engine/Makefile`, `~/.hermes/scripts/resource_monitor.sh`
+- P1 count: 104→103
+
 ## Previous Achievements
 - CB-POLITICIAN PORTED — politician_portfolio.c (388 lines C, compiled, cron 240min)
 - CB-SEASONALITY PORTED — seasonality.c (203 lines C, compiled, cron 30min)

@@ -4,7 +4,7 @@
 - **Engine core:** 10K agent paper trading, 2500 active, 17 markets, multi-market training, Darwin evolution
 - **Data pipeline:** 25+ C collectors across 4 speed tiers, timeline.db with 124K hourly rows
 - **Dashboard:** 14 JSON feeds, data_server port 9090, 8 test suite passes
-- **Infrastructure:** systemd services, logrotate, git auto-CHANGELOG, GH Pages auto-deploy
+- **Infrastructure:** systemd services, logrotate, git auto-CHANGELOG, GH Pages auto-deploy, resource monitoring (CPU/memory/disk/process via /proc)
 - **Unusual Whales clone:** 12/15 categories PORTED, 3 PARTIAL
 
 ## What's NOT Working (DA Triple Audit Findings)

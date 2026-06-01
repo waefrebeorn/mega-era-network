@@ -287,7 +287,7 @@
 | F04 | No environment variable management | Infra | 🟡 | ⏳ | secrets.h has hardcoded paths. No .env pattern. |
 | F05 | No graceful shutdown | Infra | 🟡 | ⏳ | SIGTERM kills engine mid-cycle. No state save on shutdown. |
 | F06 | No process health beyond heartbeat | Infra | 🟡 | ✅ | **STALE**: room_watchdog.c already implements responsiveness check — verifies snapshot.json mtime < 5min before declaring healthy. If stale (hung engine), cycles all engines with timeout. 4 per-room heartbeats written on success. |
-| F07 | No resource monitoring (CPU/memory/disk) | Infra | 🟡 | ⏳ | If engine starts OOM-killing, no alert. |
+|| F07 | resource_monitor.c — CPU/memory/disk/process monitoring | Infra | 🟡 | ✅ | **FIXED**: resource_monitor.c (240 lines C) — reads /proc/meminfo, /proc/loadavg, /proc/stat, statvfs for disk, /proc/[pid]/status for engine processes (RSS/VSz/uptime). Writes JSON to ~/.hermes/infra/resource_monitor.json + docs/data/. Cron: every 5min via Hermes job. Threshold alerts: memory>80%=WARN, >90%=CRIT; disk>85%=WARN, >95%=CRIT; load>8=WARN, >16=CRIT on 8-core system. |
 | F08 | No disk space monitoring | Infra | 🟡 | ⏳ | timeline.db grows unbounded. Disk full = silent crash. |
 || F09 | No database backup strategy | Infra | 🟡 | ✅ | **FIXED**: db_backup.c (80 lines C) — copies timeline.db and other key DBs to data/backups/ with daily timestamp. Keeps last 30 days per DB, auto-prunes older. Compiles standalone, no external libs. Make target: `make db_backup`. |
 | F10 | No recovery from corrupt state files | Infra | 🟡 | ⏳ | If room_state.bin is corrupted, engine segfaults. No integrity check. |
@@ -444,10 +444,10 @@
 || C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-|| F: Infrastructure | 35 | 0 | 15 | 0 | 18 | 0 |
+||| F: Infrastructure | 35 | 0 | 14 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **104** | **0** | **228** | **0** |
+|||| **TOTAL** | **365** | **1** | **103** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 104 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 103 major gaps | ⚪ P3: 228 minor/feature gaps
