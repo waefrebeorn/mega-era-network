@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include "types.h"
 
-#define STATE_PATH_DEFAULT "/home/wubu2/.hermes/pm_logs/c_room/room_state.bin"
+#define STATE_PATH_DEFAULT "/home/wubu2/.hermes/pm_logs/c_room/room_state_paper.bin"
 #define MAX_GENOME_PARAMS 10
 
 static const char *param_names[MAX_GENOME_PARAMS] = {
@@ -321,11 +321,17 @@ int main(int argc, char **argv) {
     if (fd < 0) { fprintf(stderr, "Can't open %s\n", path); return 1; }
     struct stat st;
     fstat(fd, &st);
-    RoomState *state = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if ((size_t)st.st_size < sizeof(RoomState)) {
+        fprintf(stderr, "ERROR: state.bin too small (%zu bytes, expected %zu)\n",
+                (size_t)st.st_size, sizeof(RoomState));
+        close(fd);
+        return 1;
+    }
+    RoomState *state = mmap(NULL, sizeof(RoomState), PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (state == MAP_FAILED) { fprintf(stderr, "mmap failed\n"); return 1; }
-    if (state->magic != 0x524F4F4D) {
-        fprintf(stderr, "Bad magic 0x%08X\n", state->magic);
+    if (state->magic != STATE_MAGIC) {
+        fprintf(stderr, "Bad magic 0x%08X (expected 0x%08X)\n", state->magic, STATE_MAGIC);
         munmap(state, st.st_size);
         return 1;
     }
