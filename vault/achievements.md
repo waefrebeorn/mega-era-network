@@ -108,3 +108,12 @@
 - Files: room_features.c:252-267, room_engine.c:100-209, room_engine.c:295-320 — MARKET_TYPE awareness verified
 
 ## P0 Loop Exhaustion
+
+## Batch 2026-06-01 — SIGMA_NORMALIZER 0.001→0.15 + market_type in feeds
+- **SIGMA_NORMALIZER 0.001→0.15** — Critical bug in room_vote.c:20. SIGMA_NORMALIZER=0.001 amplified tiny bias differences (±0.15) to max conviction (sigmoid(150×2.5)≈1.0), so ALL agents voted based on random bias sign — features had zero influence. Result: 26/2500 agents voting (1%), 95.4% NO-direction trades, 93.9% loss rate. FIX: SIGMA_NORMALIZER=0.15f matches bias range. Verified: 1842/1876 voting (98%), WR=51.9%, capital changing dynamically.
+  - File: `room_vote.c:20` — SIGMA_NORMALIZER changed from 0.001f to 0.15f
+- **market_type null in all room feeds** — room_feed_gen.c never wrote market_type field. Room_features.c received tick->market_type=null→0 (MARKET_CRYPTO) for ALL rooms. Sports room got BTC features, prediction rooms got CRYPTO features. FIX: added domain_to_market_type() mapping (room_feed_gen.c:22-40). All 16 rooms now get correct market_type (sports=7, weather=8, prediction=6, etc.).
+  - Verified: sports → market_type=7, weather → 8, consensus → 6, macro → 1, btc → 0
+  - File: `room_feed_gen.c:22-40` — domain_to_market_type() mapping
+- **DA discovery: 88.9% WR and $125K capital were stale artifacts** — Engine restored state from disk, never updated metrics. Rolling WR was 0.0% for entire 616K cycles. Capital identical every cycle. Website displayed stale data. SIGMA_NORMALIZER fix addresses the root cause.
+- **DA discovery: No loss feedback loop** — Engine trades (14.9M) logged to trade_log.csv but trainer never reads them. No path from engine trade outcomes → trainer retraining. P0 gap identified: loss feedback loop. Marked in battleship.

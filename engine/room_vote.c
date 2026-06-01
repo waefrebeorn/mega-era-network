@@ -17,7 +17,7 @@
 #include <math.h>
 #include "types.h"
 
-#define SIGMA_NORMALIZER  0.001f  // Amplify small 1-min BTC signals
+#define SIGMA_NORMALIZER  0.15f  // Match typical bias range [−0.15, 0.15] so bias+features both drive votes
 #define SIGMOID_SCALE     2.5f   // Sharper sigmoid for conviction diversity
 
 static inline float sigmoid(float x) {

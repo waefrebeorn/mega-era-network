@@ -20,6 +20,26 @@
 #include <jansson.h>
 #include <sqlite3.h>
 
+// Map domain string to MarketType integer
+static int domain_to_market_type(const char *domain) {
+    if (!domain) return 0;
+    if (strcmp(domain, "btc") == 0) return 0;       // MARKET_CRYPTO
+    if (strcmp(domain, "stocks") == 0) return 1;    // MARKET_EQUITY
+    if (strcmp(domain, "macro") == 0) return 1;     // MARKET_EQUITY
+    if (strcmp(domain, "forex") == 0) return 2;     // MARKET_FOREX
+    if (strcmp(domain, "options") == 0) return 5;   // MARKET_VOLATILITY
+    if (strcmp(domain, "sports") == 0) return 7;    // MARKET_SPORTS
+    if (strcmp(domain, "weather") == 0) return 8;   // MARKET_WEATHER
+    if (strcmp(domain, "elections") == 0) return 9; // MARKET_ELECTION
+    if (strcmp(domain, "consensus") == 0 || strcmp(domain, "manifold") == 0 ||
+        strcmp(domain, "prediction") == 0 || strcmp(domain, "polymarket") == 0 ||
+        strcmp(domain, "kalshi") == 0 || strcmp(domain, "predictit") == 0 ||
+        strcmp(domain, "science_tech") == 0) return 6; // MARKET_PREDICTION
+    if (strcmp(domain, "bond") == 0) return 4;      // MARKET_BOND
+    if (strcmp(domain, "commodity") == 0) return 3; // MARKET_COMMODITY
+    return 0;  // Default MARKET_CRYPTO
+}
+
 #define C_ROOM_FEED  "/home/wubu2/.hermes/pm_logs/c_room/market_feed.json"
 #define TIMELINE_DB  "/home/wubu2/.hermes/timeline.db"
 #define MAX_PATH 1024
@@ -234,6 +254,7 @@ int main(int argc, char **argv) {
         // Set domain field
         json_object_set_new(base, "room_domain", json_string(rc->domain));
         json_object_set_new(base, "room_volatility", json_real(rc->base_volatility));
+        json_object_set_new(base, "market_type", json_integer(domain_to_market_type(rc->domain)));
     } else {
         // Unknown room — keep existing close
         json_t *jc = json_object_get(base, "close");
