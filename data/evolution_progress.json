@@ -1,0 +1,26 @@
+{
+  "timestamp": 1780274401,
+  "paper_training": {
+    "current_cycle": 31000,
+    "total_candles": 0,
+    "progress_pct": 0.0,
+    "status": "complete",
+    "latest_output": "[NESTED] cycle=31000 pred=0.5784 signal=+0.1567\n",
+    "agent_count": 2500
+  },
+  "paper_live": {
+    "avg_capital": 50.00,
+    "avg_win_rate": 0.5000,
+    "total_trades": 0,
+    "status": "active"
+  },
+  "btc_csv": {
+    "age_sec": 600,
+    "fresh": true
+  },
+  "system": {
+    "paper_daemon_running": false,
+    "paper_training_running": true,
+    "live_engine_running": true
+  }
+}

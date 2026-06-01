@@ -434,6 +434,31 @@ static float compute_tail_risk(const float *px, int len) {
     if (score > 1.0f) score = 1.0f;
     return score;
 }
+
+// ── B12: Rolling Pearson correlation between two price series ──
+// Computes correlation between market price history and SP500 history.
+// Returns value in [-1, 1]. Needs minimum window of 5 matching samples.
+static float calc_sp500_corr(const float *px, int px_len, const float *spx, int spx_len) {
+    int n = px_len < spx_len ? px_len : spx_len;
+    if (n < 5) return 0.0f;
+    if (n > FEED_HISTORY) n = FEED_HISTORY;
+    float sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0, sum_y2 = 0;
+    int offset_x = px_len - n;
+    int offset_y = spx_len - n;
+    for (int i = 0; i < n; i++) {
+        float x = px[offset_x + i];
+        float y = spx[offset_y + i];
+        sum_x  += x;  sum_y  += y;
+        sum_xy += x * y;
+        sum_x2 += x * x;
+        sum_y2 += y * y;
+    }
+    float num = n * sum_xy - sum_x * sum_y;
+    float den = sqrtf((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y));
+    if (den < 1e-10f) return 0.0f;
+    return num / den;
+}
+
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s) {
     memset(fv, 0, sizeof(FeatureVector));
 
@@ -460,6 +485,11 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     s->volume_hist[mt][s->price_hist_idx[mt]] = tick->volume;
     s->price_hist_idx[mt] = (s->price_hist_idx[mt] + 1) % FEED_HISTORY;
     if (s->price_hist_len[mt] < FEED_HISTORY) s->price_hist_len[mt]++;
+
+    // ── B12: Track SP500 history for equity correlation ──
+    s->sp500_hist[s->sp500_hist_idx] = tick->sp500;
+    s->sp500_hist_idx = (s->sp500_hist_idx + 1) % FEED_HISTORY;
+    if (s->sp500_hist_len < FEED_HISTORY) s->sp500_hist_len++;
 
     // Need at least 1 data point for initial features
     if (s->price_hist_len[mt] < 1) return ERR_NO_DATA;
@@ -658,6 +688,15 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     fv->iv_term_slope = tick->iv_term_slope;
     if (fv->iv_term_slope < 0.01f) fv->iv_term_slope = 0.5f;
 
+    // ── B12: BTC-SP500 equity correlation ──
+    // Build linear SP500 array from ring buffer, then compute Pearson correlation
+    float spx[FEED_HISTORY];
+    for (int i = 0; i < s->sp500_hist_len; i++) {
+        int idx = (s->sp500_hist_idx - s->sp500_hist_len + i + FEED_HISTORY) % FEED_HISTORY;
+        spx[i] = s->sp500_hist[idx];
+    }
+    fv->btc_sp500_corr = calc_sp500_corr(px, s->price_hist_len[mt], spx, s->sp500_hist_len);
+
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
     // F1: price_delta_pct — tanh clamp to [-1, 1]
@@ -684,6 +723,9 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     fv->pump_score = fv->pump_score * 0.5f + 0.5f;
     // F11: Regime [0,2] → [0,1]
     fv->regime_indicator = fv->regime_indicator / 2.0f;
+
+    // F33: BTC-SP500 correlation [-1,1] → [0,1]
+    fv->btc_sp500_corr = fv->btc_sp500_corr * 0.5f + 0.5f;
 
     return ERR_OK;
 }

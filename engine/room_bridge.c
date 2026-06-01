@@ -116,8 +116,14 @@ RoomError room_bridge_write(RoomState *state) {
         "ema_fast", "ema_slow", "macd_hist", "bollinger_pct",
         "divergence_score", "pump_score", "regime_indicator",
         "fear_greed_norm", "herd_consensus",
-        "phi_return", "phi_vol", "phi_momentum",
-        "dft_dominant", "tail_risk_score"
+        "ob_imbalance", "ob_depth_ratio", "cvd_signal",
+        "dft_dominant", "tail_risk_score",
+        "funding_signal", "oi_net_signal", "ls_ratio_norm",
+        "liq_ls_ratio_norm", "stable_inflow_norm", "whale_activity_norm",
+        "hash_rate_norm", "difficulty_norm", "miner_floor_norm",
+        "hour_of_day_norm", "day_of_week_norm",
+        "iv_skew", "pcr_volume", "iv_term_slope",
+        "btc_sp500_corr"
     };
     int first = 1;
     for (int i = 0; i < N_FEATURES; i++) {

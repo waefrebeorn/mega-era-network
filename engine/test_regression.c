@@ -61,7 +61,7 @@ static int test_agent_state_serialization(void) {
     ASSERT(expected > 0, "AgentState size > 0");
 
     /* If N_FEATURES changes, AgentState size changes — this catches it */
-    /* Current N_FEATURES = 80 */
+    /* Current N_FEATURES = 33 (B12 BTC-SP500 correlation added) */
     ASSERT(expected == sizeof(Genome) + sizeof(float) * 4
            + sizeof(int) * 7 + sizeof(float) * 7
            + sizeof(float) * N_FEATURES * 2 + sizeof(float) * 4
@@ -75,7 +75,7 @@ static int test_agent_state_serialization(void) {
 static int test_constants_stable(void) {
     ASSERT_EQ((int)sizeof(float), 4, "float is 4 bytes");
     ASSERT_EQ((int)sizeof(double), 8, "double is 8 bytes");
-    ASSERT_EQ(N_FEATURES, 80, "N_FEATURES = 80 (regression check)");
+    ASSERT_EQ(N_FEATURES, 33, "N_FEATURES = 33 (BTC-SP500 corr F33 added)");
 
     /* Foundation fees */
     ASSERT_NEAR(TAKER_FEE, 0.001f, 0.0001f, "Taker fee 0.1%");

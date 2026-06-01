@@ -41,11 +41,11 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        32
+#define N_FEATURES        33
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D35  // "ROM5" — bumped for A13 regime transition model
+#define STATE_MAGIC       0x524F4D36  // "ROM6" — bumped for B12 SP500 history in RoomState
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -129,6 +129,8 @@ typedef struct {
     float iv_skew;              // F30: IV skew (0-1+, >0.5 = high put demand = bearish)
     float pcr_volume;           // F31: put/call ratio by volume (0-1+)
     float iv_term_slope;        // F32: IV term structure slope (0-1+)
+    // ── B12: Macro equity correlation ──
+    float btc_sp500_corr;       // F33: Rolling BTC-SP500 correlation (-1..1)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -366,6 +368,10 @@ typedef struct {
     float    volume_hist[N_FEED_MARKETS][FEED_HISTORY];
     int      price_hist_len[N_FEED_MARKETS];
     int      price_hist_idx[N_FEED_MARKETS];
+    // ── B12: SP500 history for equity correlation ──
+    float    sp500_hist[FEED_HISTORY];
+    int      sp500_hist_len;
+    int      sp500_hist_idx;
 } RoomState;
 
 // ── Error codes ──

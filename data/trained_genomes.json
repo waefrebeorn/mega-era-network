@@ -1,0 +1,25 @@
+{
+  "trainer": "multi_market",
+  "epochs": 10,
+  "markets": 16,
+  "agents_per_market": 500,
+  "best_agents": [
+    {"market":"BTC","type":"CRYPTO","wr":0.676,"trades":176,"wins":119,"pnl":12.17,"pos":0.3136,"bias":0.4353},
+    {"market":"SP500","type":"EQUITY","wr":1.000,"trades":200,"wins":200,"pnl":109268.62,"pos":0.4145,"bias":0.9727},
+    {"market":"DOW","type":"EQUITY","wr":0.733,"trades":172,"wins":126,"pnl":0.48,"pos":0.0120,"bias":0.3024},
+    {"market":"NASDAQ","type":"EQUITY","wr":0.693,"trades":192,"wins":133,"pnl":15.74,"pos":0.3716,"bias":0.0438},
+    {"market":"FTSE100","type":"EQUITY","wr":0.879,"trades":132,"wins":116,"pnl":11.03,"pos":0.1997,"bias":0.1659},
+    {"market":"NIKKEI","type":"EQUITY","wr":0.649,"trades":185,"wins":120,"pnl":11.21,"pos":0.3701,"bias":0.1320},
+    {"market":"EURUSD","type":"FOREX","wr":1.000,"trades":110,"wins":110,"pnl":2.19,"pos":0.0372,"bias":0.2943},
+    {"market":"GBPUSD","type":"FOREX","wr":0.575,"trades":179,"wins":103,"pnl":2.85,"pos":0.2072,"bias":-0.2093},
+    {"market":"USDJPY","type":"FOREX","wr":0.577,"trades":182,"wins":105,"pnl":5.13,"pos":0.3527,"bias":0.6681},
+    {"market":"GOLD","type":"COMMODITY","wr":0.747,"trades":182,"wins":136,"pnl":11.26,"pos":0.2263,"bias":0.1851},
+    {"market":"SILVER","type":"COMMODITY","wr":0.738,"trades":122,"wins":90,"pnl":12.29,"pos":0.3805,"bias":-0.0728},
+    {"market":"CRUDE_OIL","type":"COMMODITY","wr":0.757,"trades":169,"wins":128,"pnl":7.29,"pos":0.1567,"bias":0.0970},
+    {"market":"DGS10","type":"BOND","wr":0.959,"trades":197,"wins":189,"pnl":0.91,"pos":0.0100,"bias":0.8255},
+    {"market":"VIX","type":"VOLATILITY","wr":0.621,"trades":190,"wins":118,"pnl":9.79,"pos":0.3919,"bias":0.0313},
+    {"market":"WEATHER","type":"WEATHER","wr":0.814,"trades":129,"wins":105,"pnl":11.59,"pos":0.2578,"bias":0.2994},
+    {"market":"PMARKET","type":"PREDICTION","wr":0.538,"trades":199,"wins":107,"pnl":0.81,"pos":0.1076,"bias":0.3740}
+  ],
+  "summary": {"markets_trained":16,"generations":10}
+}
