@@ -76,8 +76,8 @@ tr:hover{background:rgba(0,229,255,0.03)}
 
 <div class="page-header">
   <div class="container">
-    <h1>🔬 Pipeline &amp; <span>Data Quality</span></h1>
-    <p>Real-time status of all collectors, engines, data sources, and validation checks</p>
+    <h1>🔬 Pipeline, Data Quality &amp; <span>Performance</span></h1>
+    <p>Real-time collector health, data validation, and engine risk metrics</p>
   </div>
 </div>
 
@@ -88,6 +88,7 @@ tr:hover{background:rgba(0,229,255,0.03)}
     <div style="margin-bottom:0">
       <button class="tab-btn active" id="tabPipeline" onclick="switchTab('pipeline')">📡 Pipeline</button>
       <button class="tab-btn" id="tabQuality" onclick="switchTab('quality')">✅ Data Quality</button>
+      <button class="tab-btn" id="tabPerformance" onclick="switchTab('performance')">📊 Performance</button>
     </div>
 
     <!-- Pipeline Tab -->
@@ -117,27 +118,37 @@ tr:hover{background:rgba(0,229,255,0.03)}
 
     <!-- Quality Tab -->
     <div class="tab-content" id="tabContentQuality">
-      <div class="summary-row" id="qualSummary">
+      <div class="summary-row" id="qualitySummary">
         <div class="summary-card"><div class="num accent" id="qTotal">—</div><div class="label">Checks</div></div>
         <div class="summary-card"><div class="num green" id="qPassed">—</div><div class="label">Passed</div></div>
         <div class="summary-card"><div class="num orange" id="qWarned">—</div><div class="label">Warnings</div></div>
         <div class="summary-card"><div class="num red" id="qFailed">—</div><div class="label">Failed</div></div>
         <div class="summary-card"><div class="num accent" id="qScore">—</div><div class="label">Score</div></div>
       </div>
-
-      <div class="filter-bar" id="qualFilters">
-        <button class="filter-btn active" data-qf="all" onclick="setQF('all')">All</button>
-        <button class="filter-btn" data-qf="pass" onclick="setQF('pass')">Pass</button>
-        <button class="filter-btn" data-qf="warn" onclick="setQF('warn')">⚠ Warn</button>
-        <button class="filter-btn" data-qf="fail" onclick="setQF('fail')">✗ Fail</button>
+      <div class="filter-bar" id="qualityFilters">
+        <button class="filter-btn active" onclick="setQualFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setQualFilter('ok',this)">✅ Pass</button>
+        <button class="filter-btn" onclick="setQualFilter('warn',this)">⚠️ Warn</button>
+        <button class="filter-btn" onclick="setQualFilter('fail',this)">❌ Fail</button>
       </div>
-
-      <table>
-        <thead><tr>
-          <th>Check</th><th>Status</th><th>Age</th><th>Rows</th><th>Issues</th>
-        </tr></thead>
-        <tbody id="qualityBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      <table><thead><tr><th>Source</th><th>Status</th><th>Freshness</th><th>Rows</th><th>Issues</th></tr></thead>
+        <tbody id="qualityBody"></tbody>
       </table>
+    </div>
+
+    <!-- Performance Tab -->
+    <div class="tab-content" id="tabContentPerformance">
+      <div class="summary-row" id="perfSummary">
+        <div class="summary-card"><div class="num accent" id="pfCycle">—</div><div class="label">Cycle</div></div>
+        <div class="summary-card"><div class="num green" id="pfTrades">—</div><div class="label">Trades</div></div>
+        <div class="summary-card"><div class="num green" id="pfProfitFactor">—</div><div class="label">Profit Factor</div></div>
+        <div class="summary-card"><div class="num orange" id="pfVar95">—</div><div class="label">VaR 95%</div></div>
+        <div class="summary-card"><div class="num orange" id="pfEs95">—</div><div class="label">ES 95%</div></div>
+      </div>
+      <table><thead><tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Verdict</th></tr></thead>
+        <tbody id="perfBody"></tbody>
+      </table>
+      <p id="perfTimestamp" style="color:var(--dim);font-size:0.75rem;margin-top:12px;font-family:'JetBrains Mono',monospace"></p>
     </div>
 
     <p id="lastUpdated"></p>
@@ -146,7 +157,7 @@ tr:hover{background:rgba(0,229,255,0.03)}
 
 <script>
 // ── State ──
-let pipelineData = null, qualityData = null;
+let pipelineData = null, qualityData = null, perfData = null;
 let pipeFilter = 'all', qualFilter = 'all';
 let activeTab = 'pipeline';
 
@@ -176,10 +187,11 @@ function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById('tab' + (tab === 'pipeline' ? 'Pipeline' : 'Quality')).classList.add('active');
-  document.getElementById('tabContent' + (tab === 'pipeline' ? 'Pipeline' : 'Quality')).classList.add('active');
+  document.getElementById('tab' + (tab.charAt(0).toUpperCase() + tab.slice(1))).classList.add('active');
+  document.getElementById('tabContent' + (tab.charAt(0).toUpperCase() + tab.slice(1))).classList.add('active');
   if (tab === 'quality' && qualityData) renderQuality();
   if (tab === 'pipeline' && pipelineData) renderPipeline();
+  if (tab === 'performance') renderPerformance();
 }
 
 // ── Pipeline filters ──
@@ -187,9 +199,9 @@ function setPF(f) { pipeFilter = f;
   document.querySelectorAll('#pipeFilters .filter-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`#pipeFilters [data-filter="${f}"]`).classList.add('active');
   renderPipeline(); }
-function setQF(f) { qualFilter = f;
-  document.querySelectorAll('#qualFilters .filter-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`#qualFilters [data-qf="${f}"]`).classList.add('active');
+function setQualFilter(f, btn) { qualFilter = f;
+  document.querySelectorAll('#qualityFilters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
   renderQuality(); }
 
 // ── Render Pipeline ──
@@ -247,6 +259,49 @@ function renderQuality() {
     }).join('');
 }
 
+// ── Render Performance ──
+function renderPerformance() {
+  if (!perfData) {
+    document.getElementById('perfBody').innerHTML = '<tr><td colspan="4" class="error-state">⚠️ No risk data available. Run risk_analytics first.</td></tr>';
+    return;
+  }
+  const d = perfData;
+  document.getElementById('pfCycle').textContent = d.cycle || '—';
+  document.getElementById('pfTrades').textContent = d.trades ? d.trades.toLocaleString() : '—';
+
+  const pf = d.profit_factor;
+  document.getElementById('pfProfitFactor').textContent = pf ? pf.toFixed(2) : '—';
+  document.getElementById('pfProfitFactor').className = 'num ' + (pf >= 1.5 ? 'green' : pf >= 1.0 ? 'orange' : 'red');
+
+  const var95 = d.var_95;
+  document.getElementById('pfVar95').textContent = var95 ? (var95 * 100).toFixed(1) + '%' : '—';
+  document.getElementById('pfVar95').className = 'num ' + (var95 && var95 < 0.25 ? 'green' : var95 && var95 < 0.35 ? 'orange' : 'red');
+
+  const es95 = d.es_95;
+  document.getElementById('pfEs95').textContent = es95 ? (es95 * 100).toFixed(1) + '%' : '—';
+  document.getElementById('pfEs95').className = 'num ' + (es95 && es95 < 0.30 ? 'green' : es95 && es95 < 0.40 ? 'orange' : 'red');
+
+  const rows = [
+    { metric: 'Profit Factor', value: pf ? pf.toFixed(4) : '—', threshold: '≥ 1.5', verdict: pf >= 1.5 ? '✅ Pass' : pf >= 1.0 ? '⚠️ Warning' : '❌ Fail', ok: pf >= 1.5 },
+    { metric: 'VaR 95%', value: var95 ? (var95 * 100).toFixed(2) + '%' : '—', threshold: '< 25%', verdict: var95 < 0.25 ? '✅ Pass' : var95 < 0.35 ? '⚠️ Warning' : '❌ Fail', ok: var95 < 0.25 },
+    { metric: 'ES 95%', value: es95 ? (es95 * 100).toFixed(2) + '%' : '—', threshold: '< 30%', verdict: es95 < 0.30 ? '✅ Pass' : es95 < 0.40 ? '⚠️ Warning' : '❌ Fail', ok: es95 < 0.30 },
+    { metric: 'Cycle', value: d.cycle ? d.cycle.toLocaleString() : '—', threshold: '> 0', verdict: d.cycle > 0 ? '✅ Running' : '❌ Stopped', ok: d.cycle > 0 },
+    { metric: 'Total Trades', value: d.trades ? d.trades.toLocaleString() : '—', threshold: '> 1000', verdict: d.trades >= 1000 ? '✅ Sufficient' : d.trades >= 100 ? '⚠️ Low' : '❌ Insufficient', ok: d.trades >= 1000 },
+  ];
+
+  document.getElementById('perfBody').innerHTML = rows.map(r => `<tr>
+    <td><strong>${r.metric}</strong></td>
+    <td class="mono">${r.value}</td>
+    <td style="color:var(--dim)">${r.threshold}</td>
+    <td><span class="badge ${r.ok ? 'badge-pass' : 'badge-fail'}">${r.verdict}</span></td>
+  </tr>`).join('');
+
+  if (d.generated_at) {
+    const d2 = new Date(d.generated_at * 1000);
+    document.getElementById('perfTimestamp').textContent = 'Updated: ' + d2.toLocaleString();
+  }
+}
+
 // ── Load data ──
 async function loadAll() {
   const t0 = Date.now();
@@ -263,13 +318,21 @@ async function loadAll() {
     qualityData = await r.json();
   } catch(e) { qualityData = null; }
 
+  // Performance data
+  try {
+    const r = await fetch('data/risk_analytics.json?_=' + t0);
+    perfData = await r.json();
+  } catch(e) { perfData = null; }
+
   if (pipelineData) renderPipeline();
   else document.getElementById('pipelineBody').innerHTML =
     '<tr><td colspan="6" class="error-state">\u26a0 Cannot connect. Run pipeline_monitor first.</td></tr>';
 
   if (qualityData) renderQuality();
-  else document.getElementById('qualityBody').innerHTML =
-    '<tr><td colspan="5" class="error-state">\u26a0 Cannot connect. Run data_quality first.</td></tr>';
+  else if (activeTab === 'quality') document.getElementById('qualityBody').innerHTML =
+    '<tr><td colspan="5" class="error-state">⚠️ Cannot connect. Run data_quality first.</td></tr>';
+
+  if (perfData) renderPerformance();
 
   const ts = (pipelineData && pipelineData.generated_at) || (qualityData && qualityData.generated_at);
   if (ts) {
