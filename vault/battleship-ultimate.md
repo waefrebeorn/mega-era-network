@@ -78,7 +78,7 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| B01 | N_FEATURES=18 but only ~10 populated | Features | 🔴 | ⚪ | STALE — verified: all 18 features computed in room_features.c. Price_delta, momentum, RSI, volume, EMAs, MACD, Bollinger, divergence, pump, regime, F&G, consensus, phi×3, DFT, tail_risk all set. |
+|| B01 | N_FEATURES=18 but only ~10 populated | Features | 🔴 | ✅ | **FALSE CLAIM**: verified room_features.c — all 18 features computed: price_delta, momentum, RSI, EMA_fast/slow, MACD, Bollinger, divergence, pump, regime, F&G, herd_consensus, phi×3, DFT, tail_risk. |
 | B02 | dft_dominant always shows 0.0 | Features | 🟡 | ⏳ | DFT frequency feature appears never computed. Computational gap in feature pipeline. |
 | B03 | phi_return/phi_vol/phi_momentum may be uninitialized | Features | 🟡 | ⚪ | STALE — compute_phi_features() called in room_features.c:364. All φ-interval features populated. |
 | B04 | tail_risk_score always shows 0.0-0.1 range | Features | 🟡 | ⏳ | Tailslayer feature rarely triggers. Either no tail risk detected or feature broken. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
 | A: Training Engine | 60 | 8 | 22 | 0 | 30 | 0 |
-| B: Features | 45 | 3 | 23 | 0 | 19 | 0 |
+| B: Features | 45 | 2 | 23 | 0 | 20 | 0 |
 | C: Risk Management | 40 | 4 | 21 | 0 | 15 | 0 |
 | D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
 | E: Execution | 35 | 4 | 10 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **29** | **172** | **0** | **164** | **0** |
+| **TOTAL** | **365** | **28** | **172** | **0** | **165** | **0** |
 
-🔴 P0: 29 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 164 minor/feature gaps
+🔴 P0: 28 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 165 minor/feature gaps
