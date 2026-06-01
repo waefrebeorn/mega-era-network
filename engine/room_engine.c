@@ -139,6 +139,33 @@ static void prune_dead_features(AgentState *agents, int n, FeatureImportance *im
                 }
             }
         }
+
+        // ── A17: Convergence check — detect flat importance over many cycles ──
+        #define STAGNANT_THRESHOLD 0.05f   // Max absolute change to consider "flat"
+        #define STAGNANT_MAX_CYCLES 1000   // Prune after this many flat cycles
+        float imp_change = score - imp->last_importance[f];
+        if (imp_change < 0) imp_change = -imp_change;
+        if (imp_change < STAGNANT_THRESHOLD) {
+            imp->stagnant_cycles[f]++;
+        } else {
+            imp->stagnant_cycles[f] = 0;
+        }
+        imp->last_importance[f] = score;
+
+        if (imp->stagnant_cycles[f] >= STAGNANT_MAX_CYCLES && (pos_total + neg_total) > 100) {
+            // Feature has been flat for too long — aggressively prune
+            for (int a = 0; a < n; a++) {
+                if (!agents[a].alive) continue;
+                agents[a].genome.feat_weight[f] *= 0.5f;
+                for (int r = 0; r < N_REGS; r++) {
+                    agents[a].genome.regime_weight[r][f] *= 0.5f;
+                }
+            }
+            if (imp->stagnant_cycles[f] == STAGNANT_MAX_CYCLES) {
+                printf("[CONV] Feature %d stagnant for %d cycles — pruning weight\\n",
+                       f, imp->stagnant_cycles[f]);
+            }
+        }
     }
 }
 

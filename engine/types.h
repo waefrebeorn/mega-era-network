@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D33  // "ROM3" — bumped for C05 daily loss limit
+#define STATE_MAGIC       0x524F4D34  // "ROM4" — bumped for A17 stagnant_cycles in FeatureImportance
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -281,6 +281,8 @@ typedef struct {
     int   pos_contrib_total[N_FEATURES];  // Total trades when feature pushed signal
     float neg_contrib_wins[N_FEATURES];   // Wins when feature opposed signal direction
     int   neg_contrib_total[N_FEATURES];  // Total trades when feature opposed signal
+    float last_importance[N_FEATURES];    // A17: Last computed importance score per feature
+    int   stagnant_cycles[N_FEATURES];    // A17: Consecutive cycles with flat importance
 } FeatureImportance;
 
 // ── Darwin evolution command ──

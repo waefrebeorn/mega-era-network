@@ -27,7 +27,7 @@
 | A14 | No position sizing by volatility regime | Training | 🟡 | ⏳ | Volatile regime gets same stake as calm regime. Should reduce 50%. |
 | A15 | No per-agent trade journal | Training | 🟡 | ✅ | **STALE**: trade_log.csv has 14.96M rows in ~/.hermes/pm_logs/c_room/. trade_journal binary exports per-agent audit to docs/data/trade_journal.json. |
 | A16 | No feature importance feedback loop | Training | 🟡 | ✅ | **FIXED**: prune_dead_features() in room_engine.c decays weights of features with negative importance score (pos_wr - neg_wr < -0.1). Called every 100 cycles after Darwin. |
-| A17 | N_FEATURES=18 but no convergence check | Training | 🟡 | ⏳ | No check for features that have flat importance for 1000+ cycles. Should auto-remove. |
+|| A17 | N_FEATURES=18 but no convergence check | Training | 🟡 | ✅ | **FIXED**: Added stagnant_cycles tracking to prune_dead_features() (room_engine.c:142-170). Features with flat importance (<0.05 change) for 1000+ cycles get weight halved. [CONV] log on first prune. Detects features that have converged and no longer provide signal. |
 || A18 | No learning rate scheduler | Training | 🟡 | ✅ | **FIXED**: Cosine LR scheduler in room_engine.c:1107-1111. Decays from 1.0 to LR_MIN(0.1) over 100K cycles. Applied in room_capital.c:264 via lr_decay multiplier. |
 | A19 | SGD uses last_trade only, not full batch | Training | 🟡 | ⏳ | gradient step computed from single trade outcome. No mini-batch. High variance. |
 | A20 | No gradient clipping | Training | ⚪ | ⏳ | No limit on SGD step size. One outlier trade can destroy learned weights. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 17 | 0 | 37 | 0 |
+|| A: Training Engine | 60 | 0 | 16 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 12 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **123** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **122** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 123 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 122 major gaps | ⚪ P3: 228 minor/feature gaps
