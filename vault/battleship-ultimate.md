@@ -286,7 +286,7 @@
 | F03 | No hermetic build environment | Infra | 🟡 | ⏳ | Builds depend on global libraries. Version pinning absent. |
 | F04 | No environment variable management | Infra | 🟡 | ⏳ | secrets.h has hardcoded paths. No .env pattern. |
 | F05 | No graceful shutdown | Infra | 🟡 | ⏳ | SIGTERM kills engine mid-cycle. No state save on shutdown. |
-| F06 | No process health beyond heartbeat | Infra | 🟡 | ⏳ | watchdog.sh only checks process existence. Not responsiveness. |
+| F06 | No process health beyond heartbeat | Infra | 🟡 | ✅ | **STALE**: room_watchdog.c already implements responsiveness check — verifies snapshot.json mtime < 5min before declaring healthy. If stale (hung engine), cycles all engines with timeout. 4 per-room heartbeats written on success. |
 | F07 | No resource monitoring (CPU/memory/disk) | Infra | 🟡 | ⏳ | If engine starts OOM-killing, no alert. |
 | F08 | No disk space monitoring | Infra | 🟡 | ⏳ | timeline.db grows unbounded. Disk full = silent crash. |
 || F09 | No database backup strategy | Infra | 🟡 | ✅ | **FIXED**: db_backup.c (80 lines C) — copies timeline.db and other key DBs to data/backups/ with daily timestamp. Keeps last 30 days per DB, auto-prunes older. Compiles standalone, no external libs. Make target: `make db_backup`. |
@@ -444,10 +444,10 @@
 || C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-|| F: Infrastructure | 35 | 0 | 16 | 0 | 18 | 0 |
+|| F: Infrastructure | 35 | 0 | 15 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **106** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **105** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 106 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 105 major gaps | ⚪ P3: 228 minor/feature gaps
