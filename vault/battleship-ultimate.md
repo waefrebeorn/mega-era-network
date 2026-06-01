@@ -81,7 +81,7 @@
 ||| B01 | N_FEATURES=18 but only ~10 populated | Features | 🔴 | ✅ | **FALSE CLAIM**: verified room_features.c — all 18 features computed: price_delta, momentum, RSI, EMA_fast/slow, MACD, Bollinger, divergence, pump, regime, F&G, herd_consensus, ob_imbalance, ob_depth_ratio, cvd_signal, DFT, tail_risk. |
 || B02 | dft_dominant always shows 0.0 | Features | 🟡 | ✅ | **FIXED**: price_history moved from static array to mmap'd RoomState (persistent across restarts). hist_len now accumulates to 10+ across cron cycles. DFT and tail_risk now compute. room_features.c/types.h. |
 || B03 | phi_return/phi_vol/phi_momentum may be uninitialized | Features | 🟡 | ✅ | **FALSE CLAIM**: these were replaced with orderbook features (B05). |
-|| B04 | tail_risk_score always shows 0.0-0.1 range | Features | 🟡 | ⏳ | Tailslayer feature rarely triggers. Now fixed by B02 (persistent history lets tail_risk accumulate). |
+|| B04 | tail_risk_score always shows 0.0-0.1 range | Features | 🟡 | ✅ | **STALE**: tail_risk computation fixed by B02 (persistent price history). compute_tail_risk() in room_features.c:386-435 uses full kurtosis + extreme-move detection. Previously was limited by static array resetting per process; now history persists across restarts via mmap'd RoomState. Feature produces correct values when data has fat tails — benign market data naturally produces low scores. |
 || B05 | No order book imbalance feature | Features | 🟡 | ✅ | **FIXED**: replaced φ-interval features with ob_imbalance (F14), ob_depth_ratio (F15), cvd_signal (F16). orderbook_depth.c built + cron. |
 || B06 | No cumulative volume delta (CVD) | Features | 🟡 | ✅ | **FIXED**: cumulative_volume_delta built + wired. cvd_signal in FeatureVector. |
 | B07 | No time-weighted average price (TWAP) | Features | ⚪ | ⏳ | TWAP only in execution (twap.c), not used as feature. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
-| B: Features | 45 | 0 | 6 | 0 | 33 | 0 |
+| B: Features | 45 | 0 | 5 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **109** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **108** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 109 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 108 major gaps | ⚪ P3: 228 minor/feature gaps
