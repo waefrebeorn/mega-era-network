@@ -1,6 +1,7 @@
 #!/bin/bash
 # multi_training_loop.sh — Full multi-market training pipeline
 # Runs every 60 min. Refreshes all market data → trains across 17 markets → distills
+# G06 fix: run in background via nohup to avoid cron 120s timeout
 set -euo pipefail
 cd /home/wubu2/money-room/engine
 
@@ -8,6 +9,14 @@ LOCKFILE="/tmp/multi_training_loop.lock"
 [ -f "$LOCKFILE" ] && [ -f /proc/$(cat $LOCKFILE)/status ] && { echo "[MULTI-TRAIN] Already running"; exit 0; }
 echo $$ > "$LOCKFILE"
 trap 'rm -f "$LOCKFILE"' EXIT
+
+# If we're being called directly by cron, relaunch in background and exit fast
+if [ "${CRON_RELAUNCHED:-}" != "1" ]; then
+    export CRON_RELAUNCHED=1
+    nohup "$0" "$@" > /dev/null 2>&1 &
+    echo "[MULTI-TRAIN] Launched in background (PID $!)"
+    exit 0
+fi
 
 PAPER_STATE="/home/wubu2/.hermes/pm_logs/c_room/room_state_paper.bin"
 LIVE_STATE="/home/wubu2/.hermes/pm_logs/c_room/room_state.bin"
