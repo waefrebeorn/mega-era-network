@@ -282,4 +282,15 @@
 |  - Writes JSON alert to docs/data/data_gap_alert.json
 |  - Cron: */30min via Hermes no_agent script
 |  - Tested: detected 4 stale sources (NewsGDELT, CBOE, Fear&Greed, FRED)
+|
+|## Batch 2026-06-01 — T096: PDT (Pattern Day Trader) enforcement
+|- **T096: No PDT enforcement** — FIXED: room_capital.c, room_engine.c, types.h
+|  - SEC Pattern Day Trader Rule: accounts under $25K limited to 3 day trades per rolling 5-day window
+|  - Added `day_trades_5d` + `day_trade_roll_ts` fields to AgentState (types.h:222-224)
+|  - Enforcement in room_capital_apply() Pass 1 (room_capital.c:84-105): skips agents with ≥3 day trades in 5-calendar-day window when capital < $25K
+|  - Initialized in init_agents() and load_warmstart_genomes() (room_engine.c:624-626,570-572)
+|  - Rolling 5-day window auto-resets after 5 calendar days; every trade counts as day trade (P2P resolves next cycle)
+|  - Both room_engine and room_engine_paper compile clean (0 new warnings), paper engine starts/cycles/shuts clean
+|  - Committed: d10393f
+|  - REAL GAP count: 15→14
 |  - P1: 93→92
