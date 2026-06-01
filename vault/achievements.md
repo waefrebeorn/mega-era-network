@@ -130,6 +130,14 @@
 - **D51: T-bill risk-free rate** — ab_test.c:69-70, room_engine.c:1373-1374. rf_per_period = 0.045 / periods_per_year.
 - Fixed battleship stale ⏳ → ✅ for all 4. P1 count: 140→136.
 
+## Batch 2026-06-01 — B14/B15/B16: Funding rate, OI, L/S ratio wired as features F19-F21
+- **B14: Funding rate feature** — load_funding_features() reads funding_features.json from collector_runner (30min cron). F19: funding_signal (-1..1, <0 = negative funding = bullish perp).
+- **B15: Open interest change** — load_open_interest_features() reads open_interest_features.json. F20: oi_net_signal (0-1, BTC OI + SPY PCR).
+- **B16: L/S ratio** — load_ls_ratio_features() reads ls_ratio_features.json. F21: ls_ratio_norm (0-1, OKX taker buy/sell volume proxy).
+- Bumped N_FEATURES 18→21, STATE_MAGIC bumped for clean reinit.
+- Files: room_features.c (+80 lines), types.h (+12 lines).
+- P1 count: 136→133. Build: clean.
+
 
 ## Batch 2026-06-01 — SIGMA_NORMALIZER 0.001→0.15 + market_type in feeds
 - **SIGMA_NORMALIZER 0.001→0.15** — Critical bug in room_vote.c:20. SIGMA_NORMALIZER=0.001 amplified tiny bias differences (±0.15) to max conviction (sigmoid(150×2.5)≈1.0), so ALL agents voted based on random bias sign — features had zero influence. Result: 26/2500 agents voting (1%), 95.4% NO-direction trades, 93.9% loss rate. FIX: SIGMA_NORMALIZER=0.15f matches bias range. Verified: 1842/1876 voting (98%), WR=51.9%, capital changing dynamically.

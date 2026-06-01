@@ -91,9 +91,9 @@
 | B11 | No seasonal/time-of-day features | Features | 🟡 | ⏳ | Hour-of-day, day-of-week, month-of-year effects unmodeled. |
 | B12 | No macro regime feature for equity correlation | Features | 🟡 | ⏳ | BTC correlation to SP500 changes in crisis vs calm regimes. |
 | B13 | No on-chain feature beyond BTC dominance | Features | 🟡 | ⏳ | MVRV Z-score, Puell Multiple, SOPR all available from coingecko but not used. |
-| B14 | No funding rate feature | Features | 🟡 | ⏳ | Perpetual futures funding rate is a strong short-term signal. Feature exists as standalone binary but not in engine. |
-| B15 | No open interest change | Features | 🟡 | ⏳ | OI delta shows new money entering vs exiting. Feature exists as standalone. |
-| B16 | No long/short ratio feature | Features | 🟡 | ⏳ | Exchange L/S ratio available. Feature exists as standalone but may not feed engine. |
+| B14 | No funding rate feature | Features | 🟡 | ✅ | **FIXED**: funding_signal (F19) loaded from funding_features.json. Collector runs every 30min via collector_runner. |
+| B15 | No open interest change | Features | 🟡 | ✅ | **FIXED**: oi_net_signal (F20) from open_interest_features.json. BTC OI + SPY PCR combined. |
+| B16 | No long/short ratio feature | Features | 🟡 | ✅ | **FIXED**: ls_ratio_norm (F21) from ls_ratio_features.json. OKX taker buy/sell volume proxy. |
 | B17 | No liquidation cascade feature | Features | 🟡 | ⏳ | Cumulative liquidations signal capitulation events. Feature exists as standalone. |
 | B18 | No stablecoin inflow/outflow | Features | 🟡 | ⏳ | Stablecoin flows to exchanges show buying power entering market. |
 | B19 | No whale transaction tracking | Features | 🟡 | ⏳ | Large transactions flagged. Feature exists as standalone binary. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 18 | 0 | 36 | 0 |
-| B: Features | 45 | 0 | 16 | 0 | 25 | 0 |
+| B: Features | 45 | 0 | 13 | 0 | 28 | 0 |
 | C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
 | D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **136** | **0** | **219** | **0** |
+|| **TOTAL** | **365** | **1** | **133** | **0** | **222** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 136 major gaps | ⚪ P3: 219 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 133 major gaps | ⚪ P3: 222 minor/feature gaps

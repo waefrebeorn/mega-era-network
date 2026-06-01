@@ -223,6 +223,75 @@ static int load_ls_ratio_features(MarketTick *tick) {
     return 0;
 }
 
+// ── B17: Load liquidation features ──
+#define LIQ_FEAT_PATH "/home/wubu2/.hermes/options_cache/liquidation_features.json"
+static int load_liquidation_features(MarketTick *tick) {
+    FILE *f = fopen(LIQ_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"liq_ls_ratio_norm\"");
+    if (p) tick->liq_ls_ratio_norm = strtof(p + 19, NULL);
+    if (tick->liq_ls_ratio_norm < 0.01f) {
+        p = strstr(buf, "\"total_liq_usd\"");
+        if (p) tick->liq_ls_ratio_norm = fminf(strtof(p + 14, NULL) / 100000000.0f, 1.0f);
+    }
+    free(buf);
+    return 0;
+}
+
+// ── B18: Load stablecoin inflow features ──
+#define STABLE_FEAT_PATH "/home/wubu2/.hermes/options_cache/stablecoin_features.json"
+static int load_stablecoin_features(MarketTick *tick) {
+    FILE *f = fopen(STABLE_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"stable_vol_ratio\"");
+    if (p) tick->stable_inflow_norm = strtof(p + 18, NULL);
+    if (tick->stable_inflow_norm > 1.0f) tick->stable_inflow_norm = 1.0f;
+    free(buf);
+    return 0;
+}
+
+// ── B19: Load whale tracking features ──
+#define WHALE_FEAT_PATH "/home/wubu2/.hermes/options_cache/whale_features.json"
+static int load_whale_features(MarketTick *tick) {
+    FILE *f = fopen(WHALE_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"whale_activity\"");
+    if (p) tick->whale_activity_norm = strtof(p + 16, NULL);
+    if (tick->whale_activity_norm < 0.01f) {
+        p = strstr(buf, "\"acc_signal_norm\"");
+        if (p) tick->whale_activity_norm = strtof(p + 17, NULL);
+    }
+    free(buf);
+    return 0;
+}
+
 // ── P13: Goertzel DFT — extract dominant frequency ──
 // Single-frequency DFT using Goertzel algorithm.
 // Finds dominant cycle in price history.
@@ -468,6 +537,21 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // F21: L/S ratio normalized (0-1, >0.5 = more long buying)
     fv->ls_ratio_norm = tick->ls_ratio_norm;
     if (fv->ls_ratio_norm < 0.01f) fv->ls_ratio_norm = 0.5f;
+
+    // ── B17-B19: Load liquidation/stablecoin/whale features ──
+    load_liquidation_features((MarketTick *)tick);
+    load_stablecoin_features((MarketTick *)tick);
+    load_whale_features((MarketTick *)tick);
+
+    // F22: Liquidation L/S ratio (0-1, >0.5 = more longs being liquidated = bearish)
+    fv->liq_ls_ratio_norm = tick->liq_ls_ratio_norm;
+    if (fv->liq_ls_ratio_norm < 0.01f) fv->liq_ls_ratio_norm = 0.5f;
+    // F23: Stablecoin inflow norm (0-1, >0.5 = high volume activity = bullish exchanges)
+    fv->stable_inflow_norm = tick->stable_inflow_norm;
+    if (fv->stable_inflow_norm < 0.01f) fv->stable_inflow_norm = 0.5f;
+    // F24: Whale activity norm (0-1, >0.5 = high large-tx activity)
+    fv->whale_activity_norm = tick->whale_activity_norm;
+    if (fv->whale_activity_norm < 0.01f) fv->whale_activity_norm = 0.5f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)

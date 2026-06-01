@@ -41,7 +41,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        21
+#define N_FEATURES        24
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
@@ -114,6 +114,10 @@ typedef struct {
     float funding_signal;       // F19: funding rate deviation from 7d avg (-1..1)
     float oi_net_signal;        // F20: aggregated OI signal (0-1: 0 = bearish/bullish)
     float ls_ratio_norm;        // F21: L/S taker volume ratio normalized (0-1)
+    // ── B17-B19: Liquidation/Stablecoin/Whale ──
+    float liq_ls_ratio_norm;    // F22: liquidation long/short ratio (0-1)
+    float stable_inflow_norm;   // F23: stablecoin volume ratio (0-1+)
+    float whale_activity_norm;  // F24: whale transaction activity (0-1)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -142,6 +146,10 @@ typedef struct {
     float    funding_signal;     // funding rate deviation from 7d avg (-1..1)
     float    oi_net_signal;      // aggregated OI signal (0-1: 0 = bearish/bullish)
     float    ls_ratio_norm;      // L/S taker volume ratio normalized (0-1)
+    // ── B17-B19: Liquidation/Stablecoin/Whale ──
+    float    liq_ls_ratio_norm;  // liquidation long/short ratio (0-1)
+    float    stable_inflow_norm; // stablecoin volume ratio (0-1+)
+    float    whale_activity_norm; // whale transaction activity (0-1)
 } MarketTick;
 
 // ── Agent vote result ──
