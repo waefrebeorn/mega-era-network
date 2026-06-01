@@ -41,3 +41,6 @@ Pick next undone P1 from battleship.
 
 ## Completed (batch 5)
 1. ~~A57: Cycle count persistence~~ — DONE: prev_cycle saved before boot-time reset, restored after. P1: 98→97.
+
+## Completed (batch 6)
+1. ~~A58: Heartbeat timeout alert~~ — DONE: heartbeat.json/alert_timeout.json written by cycle_all_rooms on launch/completion/timeout. P1: 97→96.

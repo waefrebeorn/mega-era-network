@@ -9,7 +9,7 @@
 
 ## What's NOT Working (DA Triple Audit Findings)
 - **16 rooms, identical binary** — by design (single-binary architecture reads per-room config)
-- **1 🔴 P0 remaining, 97 🟡 P1** — 228 ⚪ P3 features on roadmap
+- **1 🔴 P0 remaining, 96 🟡 P1** — 228 ⚪ P3 features on roadmap
 
 ## Key Stats (from audit)
 - 210 C files in engine/

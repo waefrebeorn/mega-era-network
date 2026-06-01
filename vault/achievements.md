@@ -236,6 +236,16 @@
   - trade_count already preserved by A02 — cycle was the last counter resetting
   - P1: 98→97
 
+## Batch 2026-06-01 — A58: Heartbeat timeout alert in cycle_all_rooms
+- **A58: No heartbeat timeout alert** — FIXED: cycle_all_rooms.c: added heartbeat/alert file writes
+  - `write_heartbeat()` writes `heartbeat.json` with timestamp, status ("starting"/"ok"/"degraded"), room counts
+  - `write_alert()` writes `alert_timeout.json` on any room timeout (-2) or failure
+  - Start heartbeat written before any work, final heartbeat after completion
+  - Timeouts and failures tracked separately in Phase 3 (room engines)
+  - Non-zero exit code when any engine failed or timed out
+  - Heartbeat at `~/.hermes/pm_logs/c_room/heartbeat.json`, alerts at `alert_timeout.json`
+  - P1: 97→96
+
 - **B04: tail_risk_score range** — vaulted stale. compute_tail_risk() in room_features.c:386-435 uses kurtosis + extreme-move detection. Fixed by B02 (persistent mmap'd history). Feature produces correct values when data has fat tails — benign data = low scores. P1: 109→108.
 - **A19: Mini-batch SGD** — FIXED: Changed per-trade SGD to mini-batch (batch size 8). grad_accum[N_REGS][N_FEATURES] + bias_accum[N_REGS] + batch_count added to AgentState (types.h). Gradients accumulate per (regime, feature), applied when count reaches SGD_BATCH_SIZE. Partial batches persist in mmap'd state. STATE_MAGIC ROM8. P1: 108→107.
 - **F06: Process responsiveness watchdog** — vaulted stale. room_watchdog.c already checks snapshot.json mtime < 5min. Snapshot stale = restart all engines. Per-room heartbeats on success. P1: 106→105.

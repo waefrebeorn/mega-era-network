@@ -23,6 +23,28 @@
 #define C_ENG    "/home/wubu2/.hermes/pm_logs/c_room/room_engine"
 #define ROOMS_DIR "/home/wubu2/.hermes/pm_logs/rooms"
 #define FEED_GEN "/home/wubu2/.hermes/scripts/room_feed_gen"
+#define HEARTBEAT_FILE "/home/wubu2/.hermes/pm_logs/c_room/heartbeat.json"
+#define ALERT_FILE     "/home/wubu2/.hermes/pm_logs/c_room/alert_timeout.json"
+
+// ── A58: Write heartbeat / alert file ──
+static void write_heartbeat(const char *path, int ok, int total, const char *status) {
+    FILE *f = fopen(path, "w");
+    if (!f) return;
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    fprintf(f, "{\"timestamp\":%ld,\"time\":\"%02d:%02d:%02d\","
+               "\"status\":\"%s\",\"rooms_ok\":%d,\"rooms_total\":%d}\n",
+            (long)now, tm->tm_hour, tm->tm_min, tm->tm_sec,
+            status ? status : "ok", ok, total);
+    fclose(f);
+}
+static void write_alert(const char *msg) {
+    FILE *f = fopen(ALERT_FILE, "w");
+    if (!f) return;
+    time_t now = time(NULL);
+    fprintf(f, "{\"timestamp\":%ld,\"alert\":\"%s\"}\n", (long)now, msg ? msg : "unknown");
+    fclose(f);
+}
 
 static const char *ROOMS[] = {
     "consensus", "crypto_prices", "economic", "elections", "kalshi",
@@ -86,6 +108,9 @@ int main(void) {
     printf("[ROOMS] Cycling all engines...\n");
     int total = 0, ok = 0;
 
+    // ── A58: Write start heartbeat ──
+    write_heartbeat(HEARTBEAT_FILE, 0, 0, "starting");
+
     // ── Phase 1: Generate per-room feeds ──
     struct stat st;
     if (stat(FEED_GEN, &st) == 0 && (st.st_mode & S_IXUSR)) {
@@ -109,10 +134,13 @@ int main(void) {
         int rc = run_cmd(C_ENG, NULL, 15);
         printf("[ROOMS] Phase 2: main engine %s\n",
                rc == 0 ? "OK" : (rc == -2 ? "TIMEOUT" : "FAILED"));
+        if (rc == -2) write_alert("main_engine_timeout");
+        else if (rc != 0) write_alert("main_engine_failed");
     }
 
     // ── Phase 3: All room engines ──
     total = 0; ok = 0;
+    int timeouts = 0, failures = 0;
     for (int i = 0; ROOMS[i]; i++) {
         char eng_path[256], room_dir[256];
         snprintf(eng_path, sizeof(eng_path), "%s/%s/room_engine", ROOMS_DIR, ROOMS[i]);
@@ -124,11 +152,21 @@ int main(void) {
         int rc = run_cmd(eng_path, room_dir, 5);
         total++;
         if (rc == 0 || rc == -1) ok++;
+        else if (rc == -2) timeouts++;
+        else failures++;
     }
-    printf("[ROOMS] Phase 3: %d/%d rooms cycled\n", ok, total);
+    printf("[ROOMS] Phase 3: %d/%d rooms cycled (%d timeout, %d failed)\n",
+           ok, total, timeouts, failures);
+    if (timeouts > 0) write_alert("room_engine_timeout");
+    if (failures > 0) write_alert("room_engine_failed");
 
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
     printf("[ROOMS] %02d:%02d: All engines cycled\n", tm->tm_hour, tm->tm_min);
-    return 0;
+
+    // ── A58: Write final heartbeat with status ──
+    const char *status = (timeouts > 0 || failures > 0) ? "degraded" : "ok";
+    write_heartbeat(HEARTBEAT_FILE, ok, total, status);
+
+    return timeouts > 0 || failures > 0 ? 1 : 0;
 }
