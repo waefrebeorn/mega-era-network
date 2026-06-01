@@ -317,6 +317,35 @@ static int load_whale_features(MarketTick *tick) {
     return 0;
 }
 
+// ── T088: Load on-chain blockchain.com features (supplementary to hashrate) ──
+// Loaded BEFORE hashrate features — blockchain provides baseline, mempool.space
+// overrides when fresh. This ensures F25-F27 have data even when mempool is stale.
+#define BLOCKCHAIN_FEAT_PATH "/home/wubu2/.hermes/options_cache/blockchain_features.json"
+static int load_blockchain_features(MarketTick *tick) {
+    FILE *f = fopen(BLOCKCHAIN_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    // Map blockchain.com chart IDs to MarketTick fields
+    // hash_rate → F25, difficulty → F26, miners_revenue → F27
+    // These are baselines; load_hashrate_features() overrides when fresh
+    const char *p = strstr(buf, "\"hash_rate\"");
+    if (p) tick->hash_rate_norm = strtof(p + 12, NULL);
+    p = strstr(buf, "\"difficulty\"");
+    if (p) tick->difficulty_norm = strtof(p + 13, NULL);
+    p = strstr(buf, "\"miners_revenue\"");
+    if (p) tick->miner_floor_norm = strtof(p + 16, NULL);
+    free(buf);
+    return 0;
+}
+
 // ── Hashrate: Load BTC hashrate/difficulty/miner-floor features ──
 #define HASHRATE_FEAT_PATH "/home/wubu2/.hermes/options_cache/hashrate_features.json"
 static int load_hashrate_features(MarketTick *tick) {
@@ -675,6 +704,8 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     load_liquidation_features((MarketTick *)tick);
     load_stablecoin_features((MarketTick *)tick);
     load_whale_features((MarketTick *)tick);
+    // ── T088: Blockchain.com on-chain features (baseline before hashrate override) ──
+    load_blockchain_features((MarketTick *)tick);
     load_hashrate_features((MarketTick *)tick);
     load_options_features((MarketTick *)tick);
 
@@ -690,6 +721,7 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
             {STABLE_FEAT_PATH,  "stablecoin"},
             {WHALE_FEAT_PATH,   "whale"},
             {HASHRATE_FEAT_PATH,"hashrate"},
+            {BLOCKCHAIN_FEAT_PATH,"blockchain"},
             {OPTIONS_FEAT_PATH, "options"},
             {NULL, NULL}
         };

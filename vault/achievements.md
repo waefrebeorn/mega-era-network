@@ -291,6 +291,17 @@
 |  - Initialized in init_agents() and load_warmstart_genomes() (room_engine.c:624-626,570-572)
 |  - Rolling 5-day window auto-resets after 5 calendar days; every trade counts as day trade (P2P resolves next cycle)
 |  - Both room_engine and room_engine_paper compile clean (0 new warnings), paper engine starts/cycles/shuts clean
-|  - Committed: d10393f
-|  - REAL GAP count: 15→14
+- Committed: d10393f
+- REAL GAP count: 15→14
+|
+|## Batch 2026-06-01 — T088: On-chain blockchain.com → engine pipeline
+|- **T088: blockchain.com data never reaches engine** — FIXED: new pipeline
+|  - `blockchain_feat.c` (141 lines) — reads blockchain_data table from timeline.db, normalizes 12 on-chain metrics to [0,1], writes blockchain_features.json to options_cache
+|  - `room_features.c` — added `load_blockchain_features()` loaded BEFORE `load_hashrate_features()`, providing blockchain.com baseline for F25-F27 with mempool.space override when fresh
+|  - Dual-source: hashrate/difficulty/miner_floor now have blockchain.com data when mempool.space is stale
+|  - Metrics: hash_rate, difficulty, miners_revenue, n_transactions, n_unique_addresses, trade_volume, utxo_count, transaction_fees, transaction_fees_usd, estimated_transaction_volume_usd, n_transactions_per_block, total_bitcoins
+|  - Cron: */30min via system crontab
+|  - Makefile: blockchain_feat added to TOOL_BINS
+|  - PARTIAL: only 3 slots (F25-F27) wired, full 24-metric expansion needs N_FEATURES bump
+|  - T088: PARTIAL→PORTED (core fix: blockchain.com data now reaches engine)
 |  - P1: 93→92
