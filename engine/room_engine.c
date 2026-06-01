@@ -775,6 +775,11 @@ static RoomError load_or_init_state(void) {
         state->stats.active_agents = MAX_AGENTS;
         state->stats.capital_current = 50.0f * MAX_AGENTS;
         state->stats.capital_peak = 50.0f * MAX_AGENTS;
+        state->stats.sharpe_ratio = 0.0f;
+        state->stats.win_rate = 0.5f;
+        state->stats.max_drawdown = 0.0f;
+        state->stats.return_count = 0;
+        state->stats.return_idx = 0;
         state->room_capital = 50.0f;  // Real $50 seed
         state->room_capital_peak = 50.0f;
         state->prev_room_capital = 50.0f;
@@ -1599,11 +1604,15 @@ skip_trading:
         if (s->return_count >= 3) {
             float mean_r = 0, var_r = 0;
             int n = s->return_count < 128 ? s->return_count : 128;
-            for (int i = 0; i < n; i++)
-                mean_r += s->cycle_returns[i];
+            int base = s->return_count >= 128 ? s->return_idx : 0;
+            for (int i = 0; i < n; i++) {
+                int idx = (base + i) % 128;
+                mean_r += s->cycle_returns[idx];
+            }
             mean_r /= n;
             for (int i = 0; i < n; i++) {
-                float d = s->cycle_returns[i] - mean_r;
+                int idx = (base + i) % 128;
+                float d = s->cycle_returns[idx] - mean_r;
                 var_r += d * d;
             }
             float std_r = sqrtf(var_r / n);
