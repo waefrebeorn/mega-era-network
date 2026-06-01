@@ -12,6 +12,8 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 6. ~~A06: Feed generator may not work~~ — DONE: FALSE CLAIM, feed_gen runs correctly with valid output
 7. ~~A10: Trainer not wired into cron~~ — DONE: FALSE CLAIM, verified crontab daily+15min
 8. ~~A48: Darwin epoch=0 in snapshot~~ — DONE: resolved by A02 trade_count persistence
+9. ~~B01: N_FEATURES=18 ~10 populated~~ — DONE: FALSE CLAIM, all 18 computed
+10. ~~B03: phi features uninitialized~~ — DONE: FALSE CLAIM, compute_phi_features called
 
 ## Next Cell
-B01: N_FEATURES=18 but only ~10 populated
+A04: 7 rooms on fake 0.50 data (random, not real prediction market prices)

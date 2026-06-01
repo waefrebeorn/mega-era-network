@@ -1,6 +1,6 @@
 WALKWAY: battleship-ultimate → homework-list → go
 
-365 cells. 9 domains. 34 🔴P0 killers.
+365 cells. 9 domains. 28 🔴P0 killers.
 
 Reality: 16 rooms, 1 binary, 7 fake feeds, 0 evolution. Darwin never fired.
 

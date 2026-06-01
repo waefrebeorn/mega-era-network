@@ -79,8 +79,8 @@
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
 || B01 | N_FEATURES=18 but only ~10 populated | Features | 🔴 | ✅ | **FALSE CLAIM**: verified room_features.c — all 18 features computed: price_delta, momentum, RSI, EMA_fast/slow, MACD, Bollinger, divergence, pump, regime, F&G, herd_consensus, phi×3, DFT, tail_risk. |
-| B02 | dft_dominant always shows 0.0 | Features | 🟡 | ⏳ | DFT frequency feature appears never computed. Computational gap in feature pipeline. |
-| B03 | phi_return/phi_vol/phi_momentum may be uninitialized | Features | 🟡 | ⚪ | STALE — compute_phi_features() called in room_features.c:364. All φ-interval features populated. |
+| B02 | dft_dominant always shows 0.0 | Features | 🟡 | ⏳ | ROOT CAUSE: price_history[mt] is static array, resets per engine restart. DFT requires len>=10 (room_features.c:159). With 1 tick per cron run, hist_len never reaches 10. Fix: persist price history in mmap'd RoomState. |
+| B03 | phi_return/phi_vol/phi_momentum may be uninitialized | Features | 🟡 | ✅ | **FALSE CLAIM**: verified room_features.c:364 — compute_phi_features() called on every cycle. All φ-interval features populated. |
 | B04 | tail_risk_score always shows 0.0-0.1 range | Features | 🟡 | ⏳ | Tailslayer feature rarely triggers. Either no tail risk detected or feature broken. |
 | B05 | No order book imbalance feature | Features | 🟡 | ⏳ | Order depth data (bids/asks) available from Kraken but not incorporated. |
 | B06 | No cumulative volume delta (CVD) | Features | 🟡 | ⏳ | CVD shows aggressive buying/selling but cumulative_volume_delta.c exists as orphan. |
