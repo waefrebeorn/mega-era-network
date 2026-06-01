@@ -157,6 +157,72 @@ static int load_cvd_features(MarketTick *tick) {
     return 0;
 }
 
+// ── B14: Load funding rate features ──
+#define FUNDING_FEAT_PATH "/home/wubu2/.hermes/options_cache/funding_features.json"
+static int load_funding_features(MarketTick *tick) {
+    FILE *f = fopen(FUNDING_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"funding_signal\"");
+    if (p) tick->funding_signal = strtof(p + 16, NULL);
+    p = strstr(buf, "\"funding_rate_norm\"");
+    if (p && tick->funding_signal == 0.0f) tick->funding_signal = strtof(p + 19, NULL) * 2.0f - 1.0f;
+    free(buf);
+    return 0;
+}
+
+// ── B15: Load open interest features ──
+#define OI_FEAT_PATH "/home/wubu2/.hermes/options_cache/open_interest_features.json"
+static int load_open_interest_features(MarketTick *tick) {
+    FILE *f = fopen(OI_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"btc_oi_signal\"");
+    if (p) tick->oi_net_signal = strtof(p + 16, NULL) * 0.5f + 0.5f;  // [-1,1] → [0,1]
+    free(buf);
+    return 0;
+}
+
+// ── B16: Load L/S ratio features ──
+#define LS_FEAT_PATH "/home/wubu2/.hermes/options_cache/ls_ratio_features.json"
+static int load_ls_ratio_features(MarketTick *tick) {
+    FILE *f = fopen(LS_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"ls_ratio_norm\"");
+    if (p) tick->ls_ratio_norm = strtof(p + 16, NULL);
+    if (tick->ls_ratio_norm < 0.01f) {  // fallback
+        p = strstr(buf, "\"buy_pct_norm\"");
+        if (p) tick->ls_ratio_norm = strtof(p + 15, NULL);
+    }
+    free(buf);
+    return 0;
+}
+
 // ── P13: Goertzel DFT — extract dominant frequency ──
 // Single-frequency DFT using Goertzel algorithm.
 // Finds dominant cycle in price history.
@@ -388,6 +454,20 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
 
     // F18: Tailslayer tail risk score (P15)
     fv->tail_risk_score = compute_tail_risk(px, s->price_hist_len[mt]);
+
+    // ── B14-B16: Load funding/OI/LS ratio features ──
+    load_funding_features((MarketTick *)tick);
+    load_open_interest_features((MarketTick *)tick);
+    load_ls_ratio_features((MarketTick *)tick);
+
+    // F19: Funding rate signal (-1..1, <0 = negative funding = bullish perp)
+    fv->funding_signal = tick->funding_signal;
+    // F20: OI net signal (0-1, >0.5 = bullish OI expansion)
+    fv->oi_net_signal = tick->oi_net_signal;
+    if (fv->oi_net_signal < 0.01f) fv->oi_net_signal = 0.5f;
+    // F21: L/S ratio normalized (0-1, >0.5 = more long buying)
+    fv->ls_ratio_norm = tick->ls_ratio_norm;
+    if (fv->ls_ratio_norm < 0.01f) fv->ls_ratio_norm = 0.5f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)

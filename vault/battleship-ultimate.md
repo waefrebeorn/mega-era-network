@@ -28,7 +28,7 @@
 | A15 | No per-agent trade journal | Training | 🟡 | ✅ | **STALE**: trade_log.csv has 14.96M rows in ~/.hermes/pm_logs/c_room/. trade_journal binary exports per-agent audit to docs/data/trade_journal.json. |
 | A16 | No feature importance feedback loop | Training | 🟡 | ✅ | **FIXED**: prune_dead_features() in room_engine.c decays weights of features with negative importance score (pos_wr - neg_wr < -0.1). Called every 100 cycles after Darwin. |
 | A17 | N_FEATURES=18 but no convergence check | Training | 🟡 | ⏳ | No check for features that have flat importance for 1000+ cycles. Should auto-remove. |
-| A18 | No learning rate scheduler | Training | 🟡 | ⏳ | learning_rate in Genome is fixed per agent. No decay or cosine annealing. |
+|| A18 | No learning rate scheduler | Training | 🟡 | ✅ | **FIXED**: Cosine LR scheduler in room_engine.c:1107-1111. Decays from 1.0 to LR_MIN(0.1) over 100K cycles. Applied in room_capital.c:264 via lr_decay multiplier. |
 | A19 | SGD uses last_trade only, not full batch | Training | 🟡 | ⏳ | gradient step computed from single trade outcome. No mini-batch. High variance. |
 | A20 | No gradient clipping | Training | ⚪ | ⏳ | No limit on SGD step size. One outlier trade can destroy learned weights. |
 | A21 | No weight decay / L2 regularization | Training | ⚪ | ⏳ | No penalty on large weights. Overfitting likely. |
@@ -47,7 +47,7 @@
 | A34 | No profit factor tracking | Training | ⚪ | ⏳ | TotalWins/TotalLosses ratio not computed anywhere. |
 | A35 | No Sortino ratio | Training | ⚪ | ⏳ | Only Sharpe computed. Downside deviation ignored. |
 | A36 | No Calmar ratio | Training | ⚪ | ⏳ | Return/maxDrawdown not tracked. |
-| A37 | No Kelly criterion position sizing | Training | 🟡 | ⏳ | Position size is genome-evolved, not analytically computed from win rate and edge. |
+| A37 | No Kelly criterion position sizing | Training | 🟡 | ✅ | **FIXED**: room_capital.c:63-67 — kelly_f = win_rate_ema - 0.5f, caps genome stake: stake = min(stake, kelly_f * capital). Fractional Kelly, WR<50%→reduced. |
 | A38 | No minimum sample filter | Training | 🟡 | ✅ | **FIXED**: Bayesian confidence-adjustment in Darwin ranking (room_darwin.c). Agents with <20 trades: win_rate pulled toward 0.5. |
 | A39 | No trade count filter for Darwin ranking | Training | 🟡 | ✅ | **FIXED by A38**: same Bayesian-adjusted agent_fitness() handles both. |
 | A40 | No multi-objective evolution | Training | ⚪ | ⏳ | Only PnL optimizes. Sharpe, drawdown, trade frequency not in Darwin fitness. |
@@ -104,7 +104,7 @@
 | B24 | No economic surprise index | Features | ⚪ | ⏳ | Actual vs expected macro data releases. |
 | B25 | No news sentiment delta (change over time) | Features | ⚪ | ⏳ | Current sentiment only. Sentiment change (d(sentiment)/dt) is stronger signal. |
 | B26 | No social media volume spike | Features | ⚪ | ⏳ | Sudden increase in social mentions precedes volatility. |
-| B27 | No feature normalization/scaling | Features | 🟡 | ⏳ | RSI (0-100) and price_delta (-999 to 999) fed to same genome with equal weight. |
+| B27 | No feature normalization/scaling | Features | 🟡 | ✅ | **FIXED**: room_features.c:394-410 — all 18 features normalized to [0,1] or [-1,1] via tanh, /100, log-normalize, or /2. RSI=100→1.0, price_delta±999→tanh/5. |
 | B28 | No feature interaction terms | Features | ⚪ | ⏳ | pump_score * regime_indicator, volume_surge * volatility, etc. |
 | B29 | No feature lag transforms | Features | ⚪ | ⏳ | Feature at t-1, t-2, t-3 as separate inputs. Temporally-aware features. |
 | B30 | No feature difference transforms (delta) | Features | ⚪ | ⏳ | Feature[i]_t - Feature[i]_{t-1} gives momentum of features themselves. |
@@ -227,7 +227,7 @@
 | D48 | No human-readable trade journal | Data | 🟡 | ⏳ | Trade journal JSON exists but format may be machine-optimized. |
 | D49 | No PnL attribution by market type | Data | 🟡 | ⏳ | Total PnL tracked but not by asset class. |
 | D50 | No benchmark comparison | Data | 🟡 | ⏳ | Buy-and-hold BTC benchmark not tracked alongside room PnL. |
-| D51 | No risk-free rate for Sharpe | Data | 🟡 | ⏳ | Currently uses 0% as risk-free rate. Should use T-bill rate. |
+| D51 | No risk-free rate for Sharpe | Data | 🟡 | ✅ | **FIXED**: ab_test.c:69-70 + room_engine.c:1373-1374 — rf_per_period = 0.045 / periods_per_year. Sharpe now subtracts 4.5% annual T-bill rate from returns. |
 | D52 | No multi-timeframe data (1m, 5m, 1h, 1d) | Data | 🟡 | ⏳ | All features computed on single timeframe. Multi-scale analysis missing. |
 | D53 | No data compression archive | Data | ⚪ | ⏳ | Raw data accumulates unbounded. No archival strategy for old data. |
 | D54 | No data retention policy | Data | ⚪ | ⏳ | How long to keep 1-min ticks? 1 year? Forever? No policy. |
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 20 | 0 | 34 | 0 |
-| B: Features | 45 | 0 | 17 | 0 | 24 | 0 |
+|| A: Training Engine | 60 | 0 | 18 | 0 | 36 | 0 |
+| B: Features | 45 | 0 | 16 | 0 | 25 | 0 |
 | C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
-| D: Data Pipeline | 55 | 0 | 40 | 0 | 14 | 0 |
+| D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **1** | **140** | **0** | **179** | **0** |
+|| **TOTAL** | **365** | **1** | **136** | **0** | **219** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 140 major gaps | ⚪ P3: 179 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 136 major gaps | ⚪ P3: 219 minor/feature gaps

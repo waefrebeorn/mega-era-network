@@ -41,11 +41,11 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        18
+#define N_FEATURES        21
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4F4D  // "ROOM" in hex
+#define STATE_MAGIC       0x524F4D32  // "ROM2" — bumped for N_FEATURES 18→21
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -110,6 +110,10 @@ typedef struct {
     float dft_dominant;         // F17: Dominant frequency strength (0-1)
     // ── P15: Tailslayer tail risk score ──
     float tail_risk_score;      // F18: 0-1: 0=normal, 1=extreme tail risk
+    // ── B14-B16: Funding/OI/LS ratio (loaded from collector cache) ──
+    float funding_signal;       // F19: funding rate deviation from 7d avg (-1..1)
+    float oi_net_signal;        // F20: aggregated OI signal (0-1: 0 = bearish/bullish)
+    float ls_ratio_norm;        // F21: L/S taker volume ratio normalized (0-1)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -134,6 +138,10 @@ typedef struct {
     float    ob_spread_norm;    // spread bps / 100 (0-1)
     // ── B06: Cumulative volume delta ──
     float    cvd_signal;        // bid-ask volume delta normalized (0-1)
+    // ── B14-B16: Funding/OI/LS ratio (loaded from collector cache) ──
+    float    funding_signal;     // funding rate deviation from 7d avg (-1..1)
+    float    oi_net_signal;      // aggregated OI signal (0-1: 0 = bearish/bullish)
+    float    ls_ratio_norm;      // L/S taker volume ratio normalized (0-1)
 } MarketTick;
 
 // ── Agent vote result ──
