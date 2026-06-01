@@ -246,6 +246,15 @@
   - Heartbeat at `~/.hermes/pm_logs/c_room/heartbeat.json`, alerts at `alert_timeout.json`
   - P1: 97→96
 
+## Batch 2026-06-01 — B37: Feature staleness detection
+- **B37: No feature staleness detection** — FIXED: room_features.c
+  - Added `check_feature_staleness(path, name)` — checks file mtime vs current time
+  - Writes `[STALE] WARN` to stderr when file age > 1h, `[STALE] CRIT` > 4h
+  - Appends each staleness event to `feature_staleness.json` report file
+  - Checks all 10 external feature files per cycle: orderbook, CVD, funding, OI, L/S, liquidation, stablecoin, whale, hashrate, options
+  - Silent when all features are fresh (no overhead when healthy)
+  - P1: 96→95
+
 - **B04: tail_risk_score range** — vaulted stale. compute_tail_risk() in room_features.c:386-435 uses kurtosis + extreme-move detection. Fixed by B02 (persistent mmap'd history). Feature produces correct values when data has fat tails — benign data = low scores. P1: 109→108.
 - **A19: Mini-batch SGD** — FIXED: Changed per-trade SGD to mini-batch (batch size 8). grad_accum[N_REGS][N_FEATURES] + bias_accum[N_REGS] + batch_count added to AgentState (types.h). Gradients accumulate per (regime, feature), applied when count reaches SGD_BATCH_SIZE. Partial batches persist in mmap'd state. STATE_MAGIC ROM8. P1: 108→107.
 - **F06: Process responsiveness watchdog** — vaulted stale. room_watchdog.c already checks snapshot.json mtime < 5min. Snapshot stale = restart all engines. Per-room heartbeats on success. P1: 106→105.

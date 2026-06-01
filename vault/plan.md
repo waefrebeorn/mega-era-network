@@ -44,3 +44,6 @@ Pick next undone P1 from battleship.
 
 ## Completed (batch 6)
 1. ~~A58: Heartbeat timeout alert~~ — DONE: heartbeat.json/alert_timeout.json written by cycle_all_rooms on launch/completion/timeout. P1: 97→96.
+
+## Completed (batch 7)
+1. ~~B37: Feature staleness detection~~ — DONE: check_feature_staleness() in room_features.c checks mtime on 10 external feature files per cycle. [STALE] WARN/CRIT to stderr + report file. P1: 96→95.

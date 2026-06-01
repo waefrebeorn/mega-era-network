@@ -9,7 +9,31 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <sys/stat.h>
+#include "paper_feature_bridge.h"
 #include "types.h"
+
+// ── B37: Feature staleness detection — thresholds ──
+#define STALE_WARN_SEC  3600    // 1h: warn
+#define STALE_CRIT_SEC  14400   // 4h: critical
+#define STALE_REPORT    "/home/wubu2/.hermes/pm_logs/c_room/feature_staleness.json"
+static void check_feature_staleness(const char *filepath, const char *feat_name) {
+    struct stat st;
+    if (stat(filepath, &st) != 0) return;
+    time_t now = time(NULL);
+    int age = (int)(now - st.st_mtime);
+    if (age < STALE_WARN_SEC) return;
+    const char *level = (age >= STALE_CRIT_SEC) ? "CRIT" : "WARN";
+    fprintf(stderr, "[STALE] %s: %s age=%ds (%dh) — feature data stale!\n",
+            level, feat_name, age, age / 3600);
+    // Append to staleness report
+    FILE *f = fopen(STALE_REPORT, "a");
+    if (f) {
+        fprintf(f, "{\"ts\":%ld,\"feat\":\"%s\",\"age_s\":%d,\"level\":\"%s\"}\n",
+                (long)now, feat_name, age, level);
+        fclose(f);
+    }
+}
 
 // ── History ring buffers — per-market-type ──
 // NOTE: These are now persisted in RoomState (types.h) so they survive engine restarts.
@@ -653,6 +677,26 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     load_whale_features((MarketTick *)tick);
     load_hashrate_features((MarketTick *)tick);
     load_options_features((MarketTick *)tick);
+
+    // ── B37: Check feature staleness for ALL external sources ──
+    {
+        static const struct { const char *path; const char *name; } STALE_CHECKS[] = {
+            {OB_FEAT_PATH,      "orderbook"},
+            {CVD_FEAT_PATH,     "cvd"},
+            {FUNDING_FEAT_PATH, "funding"},
+            {OI_FEAT_PATH,      "open_interest"},
+            {LS_FEAT_PATH,      "ls_ratio"},
+            {LIQ_FEAT_PATH,     "liquidation"},
+            {STABLE_FEAT_PATH,  "stablecoin"},
+            {WHALE_FEAT_PATH,   "whale"},
+            {HASHRATE_FEAT_PATH,"hashrate"},
+            {OPTIONS_FEAT_PATH, "options"},
+            {NULL, NULL}
+        };
+        for (int i = 0; STALE_CHECKS[i].path; i++) {
+            check_feature_staleness(STALE_CHECKS[i].path, STALE_CHECKS[i].name);
+        }
+    }
 
     // F22: Liquidation L/S ratio (0-1, >0.5 = more longs being liquidated = bearish)
     fv->liq_ls_ratio_norm = tick->liq_ls_ratio_norm;

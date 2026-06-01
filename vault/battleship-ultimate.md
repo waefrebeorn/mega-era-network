@@ -114,7 +114,7 @@
 | B34 | No autoencoder for unsupervised features | Features | ⚪ | ⏳ | Neural feature extraction from raw market data. |
 | B35 | No regime-specific feature scaling | Features | 🟡 | ✅ | **FIXED**: Normalization constants for price_delta (F1) and micro_momentum (F2) now vary by predicted_regime from A13 Markov model. Range(0): standard /5,/2. Trend(1): /3,/1.2 (amplify signals). Volatile(2): /10,/4 (compress noise). room_features.c normalization block. No struct changes needed. |
 | B36 | No feature timestamp tracking | Features | ⚪ | ⏳ | Engine doesn't track WHEN each feature was last updated. Stale features are invisible. |
-| B37 | No feature staleness detection | Features | 🟡 | ⏳ | If GDELT goes down, pump_score stays at 0 without warning. Feature appears valid but is stale. |
+| B37 | No feature staleness detection | Features | 🟡 | ✅ | **FIXED**: Added `check_feature_staleness()` to room_features.c. After each cycle, checks mtime of all 10 external feature files (orderbook, CVD, funding, OI, L/S, liquidation, stablecoin, whale, hashrate, options). Writes `[STALE] WARN` (age>1h) or `[STALE] CRIT` (age>4h) to stderr. Appends to `feature_staleness.json` report for dashboard consumption. |
 | B38 | No feature gradient reset | Features | ⚪ | ⏳ | If market regime changes fundamentally, old feature correlations become misleading. |
 | B39 | No continuous feature ID system | Features | 🟡 | ⏳ | Adding a feature requires recompiling types.h and all binaries. No plug-in architecture. |
 | B40 | Feature contribution to variance not tracked | Features | ⚪ | ⏳ | PCA variance explained per feature not computed. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 | A: Training Engine | 60 | 0 | 8 | 0 | 37 | 0 |
-| B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
+| B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 36 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **1** | **96** | **0** | **228** | **0** |
+| **TOTAL** | **365** | **1** | **95** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 96 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 95 major gaps | ⚪ P3: 228 minor/feature gaps
