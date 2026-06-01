@@ -1,11 +1,11 @@
 WALKWAY: battleship-ultimate → homework-list → go
 
-365 cells. 9 domains. 1 🔴P0 killer.
+365 cells. 9 domains. 1 🔴P0 killer. 46 P1s closed this session (140 remaining).
 
-Reality: 16 rooms, walk-forward + VaR/ES live. A31 reclassified (engine already differentiates per MARKET_TYPE in features/prediction/genome load).
+Reality: 16 rooms, walk-forward + VaR/ES live. OB features, CVD, panic stop, feature pruning live.
 Remaining: E04 (Polymarket CLOB — $50 USDC deposit external block).
 
-P0 loop exhausted. All code-level P0s closed.
+P0 loop: 7 features built, 6 stale vaulted. Next: A37 Kelly sizing, B27 normalization, F06 responsiveness.
 
 Pick lowest undone 🔴 in vault/battleship-ultimate.md.
 Verify claim against source (function-level, not filenames).

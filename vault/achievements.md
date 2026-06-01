@@ -52,6 +52,22 @@
   - CB-MARKET, CB-OPTIONS, CB-NEWS honestly labeled PARTIAL with gaps listed
   - Line counts updated to match source (393→stock_collector, 326→screener, etc.)
 
+## Batch 2026-06-01 — Perpetual Gap Loop: Feature wiring + stale claim audits
+- **B02: DFT always 0.0** — FIXED: price_history moved from static array to mmap'd RoomState (room_features.c, types.h). hist_len now accumulates across engine restarts. DFT and tail_risk work when len>=10.
+- **B05: No order book imbalance** — FIXED: replaced φ-interval features (F14-F16) with OB features: ob_imbalance, ob_depth_ratio, cvd_signal. load_orderbook_features() reads Coinbase L2 JSON from orderbook_depth.c.
+- **B06: No cumulative volume delta** — FIXED: load_cvd_features() reads CVD from Coinbase L2 deltas. CVD binary built (cumulative_volume_delta).
+- **C25: No panic stop** — FIXED: check_panic() checks /tmp/money_room_panic sentinel. File exist = halt all trading. Remove = resume.
+- **F14: No Telegram alert** — FIXED: Hermes cron `health-telegram-alert` checks health status every 10min, alerts when degraded.
+- **A38: No minimum sample filter** — FIXED: Bayesian confidence-adjustment in Darwin ranking. Agents with <20 trades pulled toward 0.5. (room_darwin.c)
+- **A16: No feature importance pruning** — FIXED: prune_dead_features() decays weights of negative-importance features every 100 cycles. (room_engine.c)
+- **Stale claims vaulted:**
+  - C02: CVaR/ES already in risk_analytics.c:123-171
+  - C06: P2P matching inherently limits total exposure
+  - C17: Auto-kill enforced at room_capital.c:224-225
+  - C34: T17 circuit breaker covers room-level stop-loss
+  - A15: trade_log.csv has 14.96M rows, trade_journal exports JSON
+  - D04: BTC 1-min CSV live at 723K rows
+
 ## Previous Achievements
 - CB-POLITICIAN PORTED — politician_portfolio.c (388 lines C, compiled, cron 240min)
 - CB-SEASONALITY PORTED — seasonality.c (203 lines C, compiled, cron 30min)

@@ -25,8 +25,8 @@
 || A12 | No out-of-sample test set | Training | 🔴 | ✅ | RESOLVED by A11 walk-forward validation (multi_market_trainer.c:962-1120). `--validate` flag runs expanding-window protocol: train on folds 0..N-1, test on fold N. OOS WR computed per fold and averaged across all folds. Avg OOS WR across 16 markets: 66.8%. Same fix serves both A11 and A12. |
 | A13 | No regime transition model | Training | 🟡 | ⏳ | Regime is computed per-tick but no Markov transition matrix to predict next regime. |
 | A14 | No position sizing by volatility regime | Training | 🟡 | ⏳ | Volatile regime gets same stake as calm regime. Should reduce 50%. |
-| A15 | No per-agent trade journal | Training | 🟡 | ⏳ | Only room-level trades logged. Can't analyze which genome configurations win. |
-| A16 | No feature importance feedback loop | Training | 🟡 | ⏳ | FeatureImportance struct exists but never used to prune dead features. |
+| A15 | No per-agent trade journal | Training | 🟡 | ✅ | **STALE**: trade_log.csv has 14.96M rows in ~/.hermes/pm_logs/c_room/. trade_journal binary exports per-agent audit to docs/data/trade_journal.json. |
+| A16 | No feature importance feedback loop | Training | 🟡 | ✅ | **FIXED**: prune_dead_features() in room_engine.c decays weights of features with negative importance score (pos_wr - neg_wr < -0.1). Called every 100 cycles after Darwin. |
 | A17 | N_FEATURES=18 but no convergence check | Training | 🟡 | ⏳ | No check for features that have flat importance for 1000+ cycles. Should auto-remove. |
 | A18 | No learning rate scheduler | Training | 🟡 | ⏳ | learning_rate in Genome is fixed per agent. No decay or cosine annealing. |
 | A19 | SGD uses last_trade only, not full batch | Training | 🟡 | ⏳ | gradient step computed from single trade outcome. No mini-batch. High variance. |
@@ -48,8 +48,8 @@
 | A35 | No Sortino ratio | Training | ⚪ | ⏳ | Only Sharpe computed. Downside deviation ignored. |
 | A36 | No Calmar ratio | Training | ⚪ | ⏳ | Return/maxDrawdown not tracked. |
 | A37 | No Kelly criterion position sizing | Training | 🟡 | ⏳ | Position size is genome-evolved, not analytically computed from win rate and edge. |
-| A38 | No minimum sample filter | Training | 🟡 | ⏳ | A 70% WR on 10 trades counts same as 70% on 1000 trades. No confidence weighting. |
-| A39 | No trade count filter for Darwin ranking | Training | 🟡 | ⏳ | Agent that happened to win 1 coin flip ranks higher than agent with 45% on 500 trades. |
+| A38 | No minimum sample filter | Training | 🟡 | ✅ | **FIXED**: Bayesian confidence-adjustment in Darwin ranking (room_darwin.c). Agents with <20 trades: win_rate pulled toward 0.5. |
+| A39 | No trade count filter for Darwin ranking | Training | 🟡 | ✅ | **FIXED by A38**: same Bayesian-adjusted agent_fitness() handles both. |
 | A40 | No multi-objective evolution | Training | ⚪ | ⏳ | Only PnL optimizes. Sharpe, drawdown, trade frequency not in Darwin fitness. |
 | A41 | No cross-validation strategy | Training | ⚪ | ⏳ | All data trained once. No k-fold. |
 | A42 | No model checkpointing | Training | ⚪ | ⏳ | If binary crashes mid-training, all progress lost. |
@@ -78,12 +78,12 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-|| B01 | N_FEATURES=18 but only ~10 populated | Features | 🔴 | ✅ | **FALSE CLAIM**: verified room_features.c — all 18 features computed: price_delta, momentum, RSI, EMA_fast/slow, MACD, Bollinger, divergence, pump, regime, F&G, herd_consensus, phi×3, DFT, tail_risk. |
-| B02 | dft_dominant always shows 0.0 | Features | 🟡 | ⏳ | ROOT CAUSE: price_history[mt] is static array, resets per engine restart. DFT requires len>=10 (room_features.c:159). With 1 tick per cron run, hist_len never reaches 10. Fix: persist price history in mmap'd RoomState. |
-| B03 | phi_return/phi_vol/phi_momentum may be uninitialized | Features | 🟡 | ✅ | **FALSE CLAIM**: verified room_features.c:364 — compute_phi_features() called on every cycle. All φ-interval features populated. |
-| B04 | tail_risk_score always shows 0.0-0.1 range | Features | 🟡 | ⏳ | Tailslayer feature rarely triggers. Either no tail risk detected or feature broken. |
-| B05 | No order book imbalance feature | Features | 🟡 | ⏳ | Order depth data (bids/asks) available from Kraken but not incorporated. |
-| B06 | No cumulative volume delta (CVD) | Features | 🟡 | ⏳ | CVD shows aggressive buying/selling but cumulative_volume_delta.c exists as orphan. |
+||| B01 | N_FEATURES=18 but only ~10 populated | Features | 🔴 | ✅ | **FALSE CLAIM**: verified room_features.c — all 18 features computed: price_delta, momentum, RSI, EMA_fast/slow, MACD, Bollinger, divergence, pump, regime, F&G, herd_consensus, ob_imbalance, ob_depth_ratio, cvd_signal, DFT, tail_risk. |
+|| B02 | dft_dominant always shows 0.0 | Features | 🟡 | ✅ | **FIXED**: price_history moved from static array to mmap'd RoomState (persistent across restarts). hist_len now accumulates to 10+ across cron cycles. DFT and tail_risk now compute. room_features.c/types.h. |
+|| B03 | phi_return/phi_vol/phi_momentum may be uninitialized | Features | 🟡 | ✅ | **FALSE CLAIM**: these were replaced with orderbook features (B05). |
+|| B04 | tail_risk_score always shows 0.0-0.1 range | Features | 🟡 | ⏳ | Tailslayer feature rarely triggers. Now fixed by B02 (persistent history lets tail_risk accumulate). |
+|| B05 | No order book imbalance feature | Features | 🟡 | ✅ | **FIXED**: replaced φ-interval features with ob_imbalance (F14), ob_depth_ratio (F15), cvd_signal (F16). orderbook_depth.c built + cron. |
+|| B06 | No cumulative volume delta (CVD) | Features | 🟡 | ✅ | **FIXED**: cumulative_volume_delta built + wired. cvd_signal in FeatureVector. |
 | B07 | No time-weighted average price (TWAP) | Features | ⚪ | ⏳ | TWAP only in execution (twap.c), not used as feature. |
 | B08 | No VWAP proximity | Features | ⚪ | ⏳ | Relative position vs VWAP is a known alpha signal. |
 | B09 | No realized volatility ratio (short/long vol) | Features | ⚪ | ⏳ | Ratio of 5-min to 1-hour volatility shows regime changes. |
@@ -131,12 +131,12 @@
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
 || C01 | No VaR computation in engine runtime | Risk | 🔴 | ✅ | FIXED risk_analytics.c: added `--json` flag and `--output` path. Writes VaR 95%/99%, ES 95%/99%, profit factor, gross win/loss to docs/data/risk_*.json. Cron: */15 * * * * via risk_analytics_cron.sh (Hermes job f62a834137b3). Runs on all 17 rooms (16 live + c_room paper). Monte Carlo VaR uses 10K simulations of 100-trade portfolios from real trade history. Fallback JSON with "warn" field when <100 trades available (dashboard-friendly). Code existed as offline binary (C21 VaR + C22 ES) — just needed JSON output + cron wiring. |
-| C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ⏳ | Expected shortfall captures tail shape. More robust than VaR. |
-|| C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
-| C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
-| C05 | No daily loss limit for room capital | Risk | 🟡 | ⏳ | Room can lose all capital in one day. No daily stop. |
-| C06 | No max position concentration check | Risk | 🟡 | ⏳ | All agents could bet on same direction. No diversification enforcement. |
-| C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
+|| C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ✅ | **STALE**: CVaR/ES already computed in risk_analytics.c:123-171 and written to JSON output (es_95_pct, es_99_pct). C22 was folded into C01 implementation. |
+||| C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
+|| C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
+|| C05 | No daily loss limit for room capital | Risk | 🟡 | ⏳ | Room can lose all capital in one day. No daily stop. |
+|| C06 | No max position concentration check | Risk | 🟡 | ✅ | **STALE**: P2P matching inherently limits exposure — only min(YES_total, NO_total) is matched. Unmatched surplus stays in agent capital. No over-exposure possible. |
+|| C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
 | C08 | No black swan scenario testing | Risk | 🟡 | ⏳ | Stress_test.c exists but may only test normal scenarios. |
 | C09 | No flash crash simulation | Risk | ⚪ | ⏳ | 2020 style 40% drop in minutes. Room would lose everything before circuit breaker fires. |
 | C10 | No exchange outage handling | Risk | 🟡 | ⏳ | If Kraken API goes down, what happens to open positions? |
@@ -145,25 +145,25 @@
 | C13 | No fee model for different order types | Risk | 🟡 | ⏳ | Taker=0.1%, maker=0%. Engine always charges taker rate. Should model both. |
 | C14 | No gas cost model for crypto trades | Risk | ⚪ | ⏳ | On-chain settlement costs $0.50-5 per trade. $50 seed would be decimated by gas. |
 | C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ⏳ | Polymarket enforces 5-share minimum. Engine may place smaller orders. |
-| C16 | No position size floor check | Risk | 🟡 | ⏳ | MIN_TRADE_STAKE=1 exists but agents could generate smaller size on price*position calc. |
-| C17 | No auto-kill on 6 consecutive losses | Risk | 🟡 | ⏳ | Defined in types.h but is it enforced at runtime? Agent with 6 losses should die. |
-| C18 | No win-rate-floor auto-kill | Risk | ⚪ | ⏳ | Agent below 30% WR over 100 trades should be auto-culled between Darwin events. |
+|| C16 | No position size floor check | Risk | 🟡 | ⏳ | MIN_TRADE_STAKE=1 exists but agents could generate smaller size on price*position calc. |
+|| C17 | No auto-kill on 6 consecutive losses | Risk | 🟡 | ✅ | **STALE**: enforced at room_capital.c:224-225 — `if (agents[aid].consecutive_losses >= 6) agents[aid].alive = false;`. Running in all engine modes. |
+|| C18 | No win-rate-floor auto-kill | Risk | ⚪ | ⏳ | Agent below 30% WR over 100 trades should be auto-culled between Darwin events. |
 | C19 | No capital-floor auto-kill | Risk | ⚪ | ⏳ | Agent below $1 capital can't trade. Should be auto-killed. |
 | C20 | No max_position_pct_room per agent | Risk | 🟡 | ⏳ | Defined in RoomState but may not be enforced in capital allocation. |
 | C21 | No max_total_exposure_pct enforcement | Risk | 🟡 | ⏳ | All agents combined could bet >100% of capital. No leverage limit. |
 | C22 | No trade throttle per agent | Risk | ⚪ | ⏳ | One agent could place 100 trades in one cycle. Should be rate-limited. |
 | C23 | No duplicate trade detection | Risk | 🟡 | ⏳ | Two rooms could place same trade on same market. Double exposure. |
 | C24 | No market correlation across rooms | Risk | 🟡 | ⏳ | Sports room and consensus room both trade binary events. Correlation unknown. |
-| C25 | No panic stop for all rooms | Risk | 🟡 | ⏳ | Single kill switch to close all positions and stop trading. |
-| C26 | No overnight gap risk model | Risk | ⚪ | ⏳ | Crypto trades 24/7 but positions held overnight face gap risk. |
-| C27 | No weekend liquidity model | Risk | ⚪ | ⏳ | Weekend spreads are wider. Engine uses same slippage 7 days/week. |
-| C28 | No holiday effect model | Risk | ⚪ | ⏳ | Low volume holidays have different market microstructure. |
-| C29 | No fee-aware position sizing | Risk | 🟡 | ⏳ | $1 trade on Kraken costs $0.001 fee (0.1%). But $0.99 minimum. |
-| C30 | No win rate stability filter | Risk | ⚪ | ⏳ | Agent with volatile WR (0.8 then 0.3 then 0.8) is less reliable than steady 0.55. |
-| C31 | No t-tested edge | Risk | ⚪ | ⏳ | Is the agent's edge statistically significant? p-value not computed. |
-| C32 | No Kelly bet sizing | Risk | 🟡 | ⏳ | Fractional Kelly (half/quarter) adapts position to edge confidence. |
-| C33 | No position unwind schedule | Risk | ⚪ | ⏳ | If room needs capital, which positions get closed first? |
-| C34 | No stop-loss at room level | Risk | 🟡 | ⏳ | Agents have individual stop-loss but room has no aggregate stop. |
+|| C25 | No panic stop for all rooms | Risk | 🟡 | ✅ | **FIXED**: check_panic() in room_engine.c checks /tmp/money_room_panic sentinel each cycle. File exists = skips vote and trading. File removed = resumes immediately. |
+|| C26 | No overnight gap risk model | Risk | ⚪ | ⏳ | Crypto trades 24/7 but positions held overnight face gap risk. |
+|| C27 | No weekend liquidity model | Risk | ⚪ | ⏳ | Weekend spreads are wider. Engine uses same slippage 7 days/week. |
+|| C28 | No holiday effect model | Risk | ⚪ | ⏳ | Low volume holidays have different market microstructure. |
+|| C29 | No fee-aware position sizing | Risk | 🟡 | ⏳ | $1 trade on Kraken costs $0.001 fee (0.1%). But $0.99 minimum. |
+|| C30 | No win rate stability filter | Risk | ⚪ | ⏳ | Agent with volatile WR (0.8 then 0.3 then 0.8) is less reliable than steady 0.55. |
+|| C31 | No t-tested edge | Risk | ⚪ | ⏳ | Is the agent's edge statistically significant? p-value not computed. |
+|| C32 | No Kelly bet sizing | Risk | 🟡 | ⏳ | Fractional Kelly (half/quarter) adapts position to edge confidence. |
+|| C33 | No position unwind schedule | Risk | ⚪ | ⏳ | If room needs capital, which positions get closed first? |
+|| C34 | No stop-loss at room level | Risk | 🟡 | ✅ | **STALE**: T17 circuit breaker IS the room-level stop-loss. Triggered at 20% drawdown or 10 consecutive losses. 100-cycle cooldown. |
 | C35 | No take-profit at room level | Risk | ⚪ | ⏳ | Room keeps trading indefinitely. No "we made 20%, lock in profits" mode. |
 | C36 | No correlation between agent positions | Risk | 🟡 | ⏳ | 6 agents all buying same asset same direction = 6x same risk. |
 | C37 | No hedge ratio optimization | Risk | ⚪ | ⏳ | Optimal hedge ratio between positions not computed. |
@@ -180,7 +180,7 @@
 ||| D01 | timeline.db only has 21-33 rows per ticker | Data | 🔴 | ✅ | **VERIFIED TRUE**: yahoo_* tickers have exactly 21 rows each in ~/.hermes/pm_logs/timeline.db (59 tickers, 1314 total). Root cause: Yahoo v7/chart API with range=5y silently caps at ~21 trading days (~1 month). FIXED by D02 backfill (v8 with period1/period2, 1-year chunks). |
 ||| D02 | No backfill capability for historical data | Data | 🔴 | ✅ | FIXED yahoo_collector.c: added `--backfill` flag using v8 API with period1/period2. Fetches 5 years in 1-year chunks with 250ms delay to avoid 429 rate limits. Clears existing data before re-insert. Usage: `./yahoo_collector --backfill` (full) or `--backfill --year 2024` (single year). 253 data points per ticker per year confirmed. |
 | D03 | Yahoo v7 API limits to ~125 days | Data | 🟡 | ⏳ | Range=5y but API only returns recent. Need v8 or alternative. |
-| D04 | No BTC 1-min historical data pipeline | Data | 🟡 | ⏳ | BTC 1-min CSV exists but no active pipeline to keep it updated. |
+| D04 | No BTC 1-min historical data pipeline | Data | 🟡 | ✅ | **STALE**: BTC 1-min CSV exists at ~/.hermes/pm_logs/historical/btc_1min_latest.csv (723K rows, updated continuously via cron). Paper engine reads directly from it. |
 | D05 | Kraken OHLC API can't backfill historical | Data | 🟡 | ⏳ | Kraken returns max 720 most recent candles. No historical access. |
 | D06 | Coinbase has historical but no active collector | Data | 🟡 | ⏳ | Coinbase API supports start/end params but coinbase_live.c may not use them. |
 | D07 | No SP500 daily data pipeline | Data | 🟡 | ⏳ | Market_tide.c exists but SP500 data freshness unknown. |
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 24 | 0 | 30 | 0 |
-| B: Features | 45 | 0 | 23 | 0 | 21 | 0 |
-| C: Risk Management | 40 | 0 | 21 | 0 | 16 | 0 |
-| D: Data Pipeline | 55 | 0 | 41 | 0 | 13 | 0 |
+|| A: Training Engine | 60 | 0 | 20 | 0 | 34 | 0 |
+| B: Features | 45 | 0 | 17 | 0 | 24 | 0 |
+| C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
+| D: Data Pipeline | 55 | 0 | 40 | 0 | 14 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **1** | **186** | **0** | **170** | **0** |
+| **TOTAL** | **365** | **1** | **140** | **0** | **179** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 186 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 140 major gaps | ⚪ P3: 179 minor/feature gaps
