@@ -449,10 +449,71 @@ static void hot_reload_genomes(AgentState *agents, int n) {
 }
 
 // ── Init agents with random genomes ──
+// Tries to warm-start from saved elite genomes first.
+#define N_WARMSTART 200  // seed 2% of 10K agents from elites
+static const char *warmstart_type_names[] = {
+    "CRYPTO", "EQUITY", "FOREX", "COMMODITY", "BOND",
+    "VOLATILITY", "PREDICTION", "SPORTS", "WEATHER", "ELECTION"
+};
+static int load_warmstart_genomes(AgentState *agents, int n, int max_warm) {
+    int seeded = 0;
+    for (int mt = 0; mt < N_MARKET_TYPES && seeded < max_warm; mt++) {
+        for (int r = 0; r < 10 && seeded < max_warm; r++) {
+            char path[512];
+            snprintf(path, sizeof(path), "%s/ENGINE_%s_%d.bin",
+                     "/home/wubu2/money-room/data/multi_market",
+                     warmstart_type_names[mt], r);
+            FILE *fp = fopen(path, "rb");
+            if (!fp) break;  // No more elites for this type
+            Genome g;
+            if (fread(&g, sizeof(Genome), 1, fp) != 1) {
+                fclose(fp); break;
+            }
+            int file_mt;
+            if (fread(&file_mt, sizeof(int), 1, fp) != 1) {
+                fclose(fp); break;
+            }
+            fclose(fp);
+            // Seed agent i with this genome
+            agents[seeded].alive = true;
+            agents[seeded].capital = 50.0f;
+            agents[seeded].starting_capital = 50.0f;
+            agents[seeded].trades = 0;
+            agents[seeded].wins = 0;
+            agents[seeded].losses = 0;
+            agents[seeded].total_pnl = 0.0f;
+            agents[seeded].max_drawdown = 0.0f;
+            agents[seeded].peak_capital = 50.0f;
+            agents[seeded].consecutive_losses = 0;
+            agents[seeded].win_rate_ema = 0.5f;
+            agents[seeded].last_trade_window = -1;
+            agents[seeded].conv_hi_wins = 0;
+            agents[seeded].conv_hi_total = 0;
+            agents[seeded].conv_lo_wins = 0;
+            agents[seeded].conv_lo_total = 0;
+            agents[seeded].weight_mag = 0;
+            memcpy(&agents[seeded].genome, &g, sizeof(Genome));
+            memset(agents[seeded].hidden, 0, sizeof(agents[seeded].hidden));
+            agents[seeded].last_conviction = 0.0f;
+            memset(agents[seeded].last_features, 0, sizeof(agents[seeded].last_features));
+            g_agent_market[seeded] = mt;
+            seeded++;
+        }
+    }
+    if (seeded > 0)
+        printf("[WARM] Loaded %d elite genomes — warm-start from previous run\n", seeded);
+    return seeded;
+}
+
 static void init_agents(AgentState *agents, int n) {
     srand(42); // Deterministic seed for reproducibility
     float start_cap = 50.0f; // Each agent gets $50
-    for (int i = 0; i < n; i++) {
+
+    // ── A47: Warm-start from saved elite genomes (up to N_WARMSTART agents) ──
+    int warm = load_warmstart_genomes(agents, n, N_WARMSTART);
+
+    // Fill remaining agents with random init
+    for (int i = warm; i < n; i++) {
         agents[i].alive = true;
         agents[i].capital = start_cap;
         agents[i].starting_capital = start_cap;
