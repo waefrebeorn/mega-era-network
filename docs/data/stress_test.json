@@ -1,8 +1,8 @@
 {
   "status": "ok",
-  "timestamp": 1780303088,
-  "cycle": "69571",
-  "room_capital": "$-425.66",
+  "timestamp": 1780304446,
+  "cycle": "331120",
+  "room_capital": "$-1999.33",
   "scenarios": [
     {"name": "2008 crash (-50% over 20 days)", "agent_dd": "39.7%", "cb_trips": true},
     {"name": "2020 flash crash (-30% over 1 day)", "agent_dd": "30.0%", "cb_trips": true},

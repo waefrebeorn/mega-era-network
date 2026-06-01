@@ -22,6 +22,14 @@
 // ── v2: Declared in room_vote.c ──
 void init_genome_weights(Genome *g);
 
+// ── F05: Graceful shutdown flag ──
+static volatile sig_atomic_t g_shutdown_flag = 0;
+
+static void handle_signal(int sig) {
+    (void)sig;
+    g_shutdown_flag = 1;
+}
+
 // ── Pace control ──
 // In paper mode, 5ms between cycles for fast bulk historical runs
 // In live mode, 1s between cycles to match real-time data
@@ -799,6 +807,12 @@ int main(void) {
     }
 
     printf("[ROOM] Engine starting. Target: <100ms/cycle\n");
+
+    // ── F05: Register graceful shutdown handlers ──
+    signal(SIGTERM, handle_signal);
+    signal(SIGINT, handle_signal);
+    printf("[ROOM] Graceful shutdown handler installed (SIGTERM/SIGINT)\n");
+
     // ── Safety: Force-clear circuit breaker on startup ──
     state->circuit_breaker_cycles = 0;
     state->consec_room_losses = 0;
@@ -829,6 +843,12 @@ int main(void) {
     float prev_close = state->prev_close;  // Track for inter-candle comparison (persisted from last process)
 
     while (running) {
+        // ── F05: Check graceful shutdown flag ──
+        if (g_shutdown_flag) {
+            printf("[ROOM] Shutdown signal received — completing cycle then exiting\n");
+            running = 0;
+        }
+
         int64_t cycle_start = ns_now();
 
         // ── L1: Load market feed ──
@@ -1572,6 +1592,13 @@ skip_trading:
 
     printf("\n[ROOM] Shutdown. %d cycles run, %d trades\n",
            state->cycle, state->trade_count);
+
+    // ── F05: Flush mmap'd state to disk before unmapping ──
+    if (msync(state, sizeof(RoomState), MS_SYNC) != 0) {
+        perror("msync");
+    } else {
+        printf("[ROOM] State synced to disk\n");
+    }
 
     if (g_nested) {
         nested_free(g_nested);

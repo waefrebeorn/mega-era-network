@@ -217,6 +217,17 @@
 - **P1: 117→113**
 - **B12: BTC-SP500 macro equity correlation feature** — FIXED: Added F33 to FeatureVector (types.h). Rolling Pearson correlation between room price history and SP500 levels. Persistent sp500_hist ring buffer in RoomState (types.h:371-373). calc_sp500_corr() in room_features.c:438-461 uses full Pearson formula with min 5 samples. Normalized [-1,1]→[0,1] at room_features.c:727. Data already flowing via MarketTick.sp500. Bumped N_FEATURES 32→33, STATE_MAGIC ROM5→ROM6. Also fixed stale feat_names[] in room_bridge.c (was only 18 entries, segfault risk on N_FEATURES=33 iteration). Fixed stale N_FEATURES=80 regression check in test_regression.c. P1: 111→110.
 - **B23: VIX regime filter** — FIXED: Added F34 (vix_regime) to FeatureVector. Continuous mapping: VIX<15→0.0 (low vol), 15-25→0.5 (normal), 25-40→0.5-1.0 (high), >40→1.0 (extreme). Defaults to 15.0 when VIX unavailable. Persistent vix_hist ring buffer in RoomState (types.h:377-379). Data already flowing via MarketTick.vix from feed JSON. Bumped N_FEATURES 33→34, STATE_MAGIC ROM6→ROM7. P1: 110→109.
+
+## Batch 2026-06-01 — F05: Graceful shutdown handler + msync
+- **F05: No graceful shutdown** — FIXED: Added SIGTERM/SIGINT handler to room_engine.c
+  - `g_shutdown_flag` volatile sig_atomic_t flag set by `handle_signal()` at top of file
+  - Signal handlers registered at room_engine.c:812-813 (after load_or_init_state, before main loop)
+  - Main loop checks `g_shutdown_flag` each iteration (room_engine.c:848-852), completes current cycle on signal
+  - `msync()` flush added before `munmap()` to ensure mmap'd state committed to disk (room_engine.c:1596-1602)
+  - No more mid-cycle kill allowing trade corruption on process termination
+  - P1: 99→98
+- **D05: Kraken backfill exists** — vaulted stale. kraken_backfill.c (305 lines C) implements paginated backfill via 'since' parameter. Binary built. P1: 98→97. (stale vault from earlier session)
+
 - **B04: tail_risk_score range** — vaulted stale. compute_tail_risk() in room_features.c:386-435 uses kurtosis + extreme-move detection. Fixed by B02 (persistent mmap'd history). Feature produces correct values when data has fat tails — benign data = low scores. P1: 109→108.
 - **A19: Mini-batch SGD** — FIXED: Changed per-trade SGD to mini-batch (batch size 8). grad_accum[N_REGS][N_FEATURES] + bias_accum[N_REGS] + batch_count added to AgentState (types.h). Gradients accumulate per (regime, feature), applied when count reaches SGD_BATCH_SIZE. Partial batches persist in mmap'd state. STATE_MAGIC ROM8. P1: 108→107.
 - **F06: Process responsiveness watchdog** — vaulted stale. room_watchdog.c already checks snapshot.json mtime < 5min. Snapshot stale = restart all engines. Per-room heartbeats on success. P1: 106→105.

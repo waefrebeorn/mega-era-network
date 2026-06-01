@@ -35,3 +35,6 @@ Pick next undone P1 from battleship.
 ## Completed (batch 3)
 1. ~~F07: Resource monitoring~~ — DONE: resource_monitor.c /proc monitor (CPU/memory/disk/process)
 2. ~~C36: Directional exposure tracking~~ — DONE: YES/NO concentration capped at 15%/direction (ROM9)
+
+## Completed (batch 4)
+1. ~~F05: Graceful shutdown~~ — DONE: SIGTERM/SIGINT handler in room_engine.c. Fluent msync on shutdown. P1: 99→98.

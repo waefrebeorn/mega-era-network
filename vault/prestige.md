@@ -8,17 +8,15 @@
 - **Unusual Whales clone:** 12/15 categories PORTED, 3 PARTIAL
 
 ## What's NOT Working (DA Triple Audit Findings)
-- **16 rooms, identical binary** — all same md5, no differentiation
-- **7 rooms on fake data** — FIXED: A04 replaced random 0.50 with real Manifold probabilities
-- **Only 1-2 cycles per room** — no meaningful trading history (A02 infinite-loop blocker fixed)
-- **365 total gaps** mapped across 9 domains (1 🔴 P0 remaining, 102 🟡 P1)
+- **16 rooms, identical binary** — by design (single-binary architecture reads per-room config)
+- **1 🔴 P0 remaining, 98 🟡 P1** — 228 ⚪ P3 features on roadmap
 
 ## Key Stats (from audit)
 - 210 C files in engine/
 - 16 room directories (configured)
 - 1 binary across all rooms (same md5)
-- 0 Darwin epochs ever executed
-- 7 rooms running fake data
-- 21-33 data rows per yahoo_collector ticker
+- Darwin evolution firing across cron cycles (trade_count persists, 100-trade trigger active)
+- All 16 rooms on real data (Manifold/timeline.db)
+- 253+ data rows per yahoo_collector ticker (backfill complete)
 - 14 JSON feeds on website
-- Originally 35 🔴 P0 critical gaps in battleship-ultimate.md (now 1 — E04 external)
+- 1 🔴 P0 remaining (E04 — Polymarket CLOB blocked on $50 USDC deposit)
