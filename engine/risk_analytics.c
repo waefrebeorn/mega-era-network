@@ -37,7 +37,14 @@ static int cmp_float_desc(const void *a, const void *b) {
 }
 
 int main(int argc, char **argv) {
-    const char *path = argc > 1 ? argv[1] : "room_state.bin";
+    const char *path = "room_state.bin";
+    int json_mode = 0;
+    const char *json_path = "docs/data/risk_analytics.json";
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--json") == 0) json_mode = 1;
+        else if (strcmp(argv[i], "--output") == 0 && i+1 < argc) json_path = argv[++i];
+        else path = argv[i];
+    }
     RoomState *state = map_state(path);
     if (!state) return 1;
 
@@ -135,17 +142,61 @@ int main(int argc, char **argv) {
 
             // Risk-adjusted verdict
             float pf = gross_loss > 0 ? gross_win / gross_loss : 0;
-            printf("\n═══ VERDICT ═══\n");
-            printf("  C20 Profit Factor: %.2f %s\n", pf, pf > 1.5 ? "✅ >1.5 target" : pf > 1.0 ? "✅ Profitable" : "⚠️ Below 1.0");
-            printf("  C21 VaR 95%%:       %.2f%% %s\n", sim_returns[var95_idx] * 100,
-                   sim_returns[var95_idx] > -0.05f ? "✅ Acceptable" : "⚠️ High downside");
-            printf("  C22 ES 95%%:        %.2f%%\n", (es95_sum / var95_idx) * 100);
-            printf("  Interpretation: The worst 5%% of trading days lose %.2f%% on average\n",
-                   (es95_sum / var95_idx) * 100);
+            float var95 = sim_returns[var95_idx];
+            float var99 = sim_returns[var99_idx];
+            float es95 = es95_sum / var95_idx;
+            float es99 = es99_sum / var99_idx;
+
+            if (json_mode) {
+                // Write JSON output
+                FILE *jfp = fopen(json_path, "w");
+                if (jfp) {
+                    fprintf(jfp, "{\n");
+                    fprintf(jfp, "  \"cycle\": %d,\n", state->cycle);
+                    fprintf(jfp, "  \"trade_count\": %d,\n", state->trade_count);
+                    fprintf(jfp, "  \"active_agents\": %d,\n", state->stats.active_agents);
+                    fprintf(jfp, "  \"resolved_trades\": %d,\n", resolved_trades);
+                    fprintf(jfp, "  \"profit_factor\": %.4f,\n", pf);
+                    fprintf(jfp, "  \"gross_win\": %.2f,\n", gross_win);
+                    fprintf(jfp, "  \"gross_loss\": %.2f,\n", gross_loss);
+                    fprintf(jfp, "  \"var_95\": %.6f,\n", var95);
+                    fprintf(jfp, "  \"var_99\": %.6f,\n", var99);
+                    fprintf(jfp, "  \"expected_shortfall_95\": %.6f,\n", es95);
+                    fprintf(jfp, "  \"expected_shortfall_99\": %.6f,\n", es99);
+                    fprintf(jfp, "  \"simulations\": %d,\n", N_SIMS);
+                    fprintf(jfp, "  \"samples\": %d,\n", sample_count);
+                    fprintf(jfp, "  \"var_95_pct\": %.2f,\n", var95 * 100);
+                    fprintf(jfp, "  \"var_99_pct\": %.2f,\n", var99 * 100);
+                    fprintf(jfp, "  \"es_95_pct\": %.2f,\n", es95 * 100);
+                    fprintf(jfp, "  \"es_99_pct\": %.2f\n", es99 * 100);
+                    fprintf(jfp, "}\n");
+                    fclose(jfp);
+                    printf("[JSON] Risk analytics written to %s\n", json_path);
+                } else {
+                    fprintf(stderr, "[ERR] Can't write %s\n", json_path);
+                }
+            } else {
+                printf("═══ VERDICT ═══\n");
+                printf("  C20 Profit Factor: %.2f %s\n", pf, pf > 1.5 ? "✅ >1.5 target" : pf > 1.0 ? "✅ Profitable" : "⚠️ Below 1.0");
+                printf("  C21 VaR 95%%:       %.2f%% %s\n", var95 * 100,
+                       var95 > -0.05f ? "✅ Acceptable" : "⚠️ High downside");
+                printf("  C22 ES 95%%:        %.2f%%\n", es95 * 100);
+                printf("  Interpretation: The worst 5%% of trading days lose %.2f%% on average\n",
+                       es95 * 100);
+            }
 
             free(sim_returns);
         } else {
             printf("  Not enough resolved trades (%d < 100)\n", sample_count);
+            if (json_mode) {
+                FILE *jfp = fopen(json_path, "w");
+                if (jfp) {
+                    fprintf(jfp, "{\"cycle\":%d,\"trade_count\":%d,\"active_agents\":%d,\"resolved_trades\":%d,\"profit_factor\":0,\"var_95\":0,\"var_99\":0,\"es_95\":0,\"es_99\":0,\"warn\":\"Not enough trades (%d < 100)\"}\n",
+                            state->cycle, state->trade_count, state->stats.active_agents,
+                            resolved_trades, sample_count);
+                    fclose(jfp);
+                }
+            }
         }
         free(trade_samples);
     }

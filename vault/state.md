@@ -3,10 +3,10 @@
 ## Current Status
 - **Engine:** 210 C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (12 🔴 P0, 185 🟡 P1, 170 ⚪ P3)
-- **Rooms:** 16 configured. Walk-forward validation live (avg OOS 66.8%).
+- **Battleship:** 365 cells across 9 domains (2 🔴 P0, 185 🟡 P1, 170 ⚪ P3)
+- **Rooms:** 16 configured. Walk-forward validation live (avg OOS 66.8%). VaR/ES cron'd every 15min.
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db has 21-33 rows/ticker (D01 verified, D02 backfill added)
-- **Latest batch:** A11/A12 walk-forward validation resolved. Active P0: 12. P0: 22→14→12.
+- **Latest batch:** C01 VaR/ES cron'd. Active P0: 2. P0: 22→14→12→11→2.
 
 ## Gap Map Available
 - `vault/battleship-ultimate.md` — 365 cells (training, features, risk, data, execution, infra, security, website, monetization)
@@ -25,6 +25,6 @@
 9. ~~7 rooms on fake 0.50 prices (A04)~~ — DONE: Manifold data wired
 10. ~~No walk-forward validation (A11)~~ — DONE: `--validate` flag, 5-fold expanding window
 11. ~~No out-of-sample test set (A12)~~ — DONE: resolved by A11 same fix
-12. No MARKET_TYPE selection at runtime (A31)
-13. No VaR computation in engine runtime (C01)
-14. Polymarket CLOB integration (E04) — blocked on $50 USDC deposit
+12. ~~No MARKET_TYPE selection at runtime (A31)~~ — STILL OPEN
+13. ~~No VaR computation in engine runtime (C01)~~ — DONE: JSON + cron every 15min
+14. ~~Polymarket CLOB (E04)~~ — blocked on $50 USDC deposit (external)

@@ -1,9 +1,9 @@
 WALKWAY: battleship-ultimate → homework-list → go
 
-365 cells. 9 domains. 12 🔴P0 killers.
+365 cells. 9 domains. 2 🔴P0 killers.
 
-Reality: 16 rooms, walk-forward validation live (avg OOS 66.8%). A11/A12 resolved. A04 Manifold data fixed.
-Remaining P0s: A31 (MARKET_TYPE), C01 (VaR), E04 (Polymarket CLOB, external).
+Reality: 16 rooms, walk-forward validation live (avg OOS 66.8%). VaR/ES cron'd every 15min.
+Remaining P0s: A31 (MARKET_TYPE), E04 (Polymarket CLOB, external).
 
 Pick lowest undone 🔴 in vault/battleship-ultimate.md.
 Verify claim against source (function-level, not filenames).

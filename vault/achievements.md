@@ -84,3 +84,14 @@
   - Overfit detected on: CRUDE_OIL (OOS=64.0%, Δ=-10.8pp), DGS10 (49.3%, Δ=-22.2pp), WEATHER (65.5%, Δ=-16.8pp)
   - P0 count: 14→12
 - File: `multi_market_trainer.c:962-1120` — walk_forward_validate() + evaluate_genome()
+
+## Batch 2026-06-01 — C01 VaR computation live (JSON cron)
+- **C01: No VaR computation in engine runtime** — FIXED risk_analytics.c: added `--json` flag and `--output` path
+  - Monte Carlo VaR: 10,000 simulations of 100-trade portfolios from real trade history
+  - Outputs: VaR 95%/99%, Expected Shortfall 95%/99%, Profit Factor, gross win/loss
+  - Cron: `*/15 * * * *` via risk_analytics_cron.sh — runs silently, writes to docs/data/risk_*.json
+  - All 17 rooms (16 live + c_room paper) get their own risk_$ROOM.json file
+  - Fallback JSON with `"warn"` field when insufficient trades (<100)
+  - The VaR code already existed as C21/C22 in risk_analytics.c — just needed JSON output + cron wiring
+  - P0 count: 12→11
+- File: `engine/risk_analytics.c`, `~/.hermes/scripts/risk_analytics_cron.sh` — VaR JSON output + cron

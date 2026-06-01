@@ -130,7 +130,7 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| C01 | No VaR computation in engine runtime | Risk | 🔴 | ⏳ | Monte Carlo VaR exists in risk_analytics.c (C21) but runs offline. Engine self-monitors via drawdown (room_engine.c:830-844) and consec_losses (849-852). Computing VaR per-cycle on 1M trade records is too expensive. Rolling-window VaR on last N trades is feasible but feature-level. Circuit breakers are the intended runtime risk control. |
+|| C01 | No VaR computation in engine runtime | Risk | 🔴 | ✅ | FIXED risk_analytics.c: added `--json` flag and `--output` path. Writes VaR 95%/99%, ES 95%/99%, profit factor, gross win/loss to docs/data/risk_*.json. Cron: */15 * * * * via risk_analytics_cron.sh (Hermes job f62a834137b3). Runs on all 17 rooms (16 live + c_room paper). Monte Carlo VaR uses 10K simulations of 100-trade portfolios from real trade history. Fallback JSON with "warn" field when <100 trades available (dashboard-friendly). Code existed as offline binary (C21 VaR + C22 ES) — just needed JSON output + cron wiring. |
 | C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ⏳ | Expected shortfall captures tail shape. More robust than VaR. |
 || C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
 | C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 5 | 23 | 0 | 30 | 0 |
-| B: Features | 45 | 1 | 23 | 0 | 21 | 0 |
-| C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
-| D: Data Pipeline | 55 | 1 | 41 | 0 | 13 | 0 |
+|| A: Training Engine | 60 | 1 | 23 | 0 | 30 | 0 |
+| B: Features | 45 | 0 | 23 | 0 | 21 | 0 |
+| C: Risk Management | 40 | 0 | 21 | 0 | 16 | 0 |
+| D: Data Pipeline | 55 | 0 | 41 | 0 | 13 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
-| G: Security | 35 | 1 | 18 | 0 | 16 | 0 |
+| G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **12** | **185** | **0** | **170** | **0** |
+| **TOTAL** | **365** | **2** | **185** | **0** | **170** | **0** |
 
-🔴 P0: 12 critical gaps | 🟡 P1: 185 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 2 critical gaps (A31 MARKET_TYPE runtime, E04 Polymarket CLOB external) | 🟡 P1: 185 major gaps | ⚪ P3: 170 minor/feature gaps
