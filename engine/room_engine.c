@@ -152,7 +152,8 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                float prev_close,
                                AgentState *agents,
                                int max_trades,
-                               FeatureImportance *importance);
+                               FeatureImportance *importance,
+                               float lr_decay);
 RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord *rec, const int *agent_market);
 RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomStats *stats);
 RoomError room_darwin_save_elite(const AgentState *agents, int n, const int *agent_market);
@@ -1102,6 +1103,14 @@ void room_market_stats(RoomState *state);
             }
         }
 
+        // ── A18: Cosine learning rate decay ──
+        // Decays from 1.0 to LR_MIN over ~100K cycles
+        #define LR_CYCLE_DECAY 100000
+        #define LR_MIN 0.1f
+        #define LR_PI 3.14159265f
+        float lr_decay = LR_MIN + (1.0f - LR_MIN) * 0.5f *
+                         (1.0f + cosf(LR_PI * (float)(state->cycle % LR_CYCLE_DECAY) / (float)LR_CYCLE_DECAY));
+
         // ── L4a old: Resolve previous window's P2P agent trades ──
         {
             int prev_tcount = state->trade_count;
@@ -1110,7 +1119,8 @@ void room_market_stats(RoomState *state);
                 room_capital_resolve(state->trades, &prev_tcount, &tick,
                                      prev_close,
                                      state->agents, MAX_TRADE_HIST,
-                                     &state->feat_importance);
+                                     &state->feat_importance,
+                                     lr_decay);
             }
             // ── T20: P2P exit slippage — deduct from resolved winners ──
             if (prev_close > 0) {

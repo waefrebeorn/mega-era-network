@@ -155,7 +155,8 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                float prev_close,
                                AgentState *agents,
                                int max_trades,
-                               FeatureImportance *importance) {
+                               FeatureImportance *importance,
+                               float lr_decay) {
     int n = *tcount < max_trades ? *tcount : max_trades;
     if (n == 0) return ERR_OK;
 
@@ -245,7 +246,7 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
             if (sgd_regime >= N_REGS) sgd_regime = N_REGS - 1;
             if (agents[aid].last_conviction > 0.0f) {
                 float error = (trades[i].won ? 1.0f : 0.0f) - agents[aid].last_conviction;
-                float lr = agents[aid].genome.learning_rate;
+                float lr = agents[aid].genome.learning_rate * lr_decay;  // A18: Cosine LR decay
                 // Scale learning rate by importance of this trade
                 float importance = trades[i].position_size / (agents[aid].capital + 1.0f);
                 float step = lr * error * fmaxf(importance, 0.01f);
