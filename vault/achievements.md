@@ -267,3 +267,12 @@
 |  - CRC computed on initial state create (room_engine.c:826) before first cycle
 |  - STATE_MAGIC bumped to ROMA (0x524F4D41) — forces fresh init on old state files
 |  - P1: 95→94
+|- **F08: No disk space monitoring** — vaulted stale. F07 resource_monitor.c (engine/resource_monitor.c:105-116) already implements disk monitoring via read_disk() using statvfs("/", &buf). Writes disk_total_gb, disk_used_gb, disk_avail_gb, disk_used_pct to JSON. Alerts at >85% WARN, >95% CRITICAL. Active every 5min via Hermes job. P1: 94→93.
+|- **D40: No fallback data source for critical feeds** — FIXED: coingecko_fallback.c + cron
+|  - `coingecko_fallback.c` (engine/) — standalone C binary using libcurl+jansson
+|  - Checks BTC 1-min CSV last timestamp vs current time
+|  - If >1h stale: queries CoinGecko API for BTC price, appends synthetic OHLCV row to CSV
+|  - Fresh-path: returns 0 silently (no cron noise)
+|  - Cron: `*/30 * * * *` via coingecko_fallback.sh (Hermes no_agent script)
+|  - Tested: appended CoinGecko BTC=72595.00 at ts=1780312440
+|  - P1: 93→92

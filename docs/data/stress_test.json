@@ -10,5 +10,5 @@
     {"name": "2026 black swan (-50% gap down)", "agent_dd": "50.0%", "cb_trips": true}
   ],
   "circuit_breakers_would_trip": 3,
-  "raw": 
+  "raw":
 }

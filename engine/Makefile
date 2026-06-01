@@ -17,7 +17,7 @@ MKT_TARGET = room_engine_market
 # Tools: shell-to-C conversions
 TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all
 TOOL_SRCS = $(addsuffix .c, $(TOOLS))
-TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor
+TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback
 
 market: CFLAGS += -DMARKET_MODE
 market: clean $(MKT_TARGET)
@@ -43,7 +43,7 @@ paper_feature_bridge.o: paper_feature_bridge.c paper_feature_bridge.h types.h
 	$(CC) $(CFLAGS) -c paper_feature_bridge.c -o paper_feature_bridge.o
 
 clean:
-	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor
+	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor coingecko_fallback
 
 # ── Shell-to-C conversions ──
 tools: cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal resource_monitor
@@ -207,6 +207,10 @@ survival_json: survival_stats
 # ── F07: System resource monitor (CPU/memory/disk/processes) ──
 resource_monitor: resource_monitor.c
 	$(CC) -O2 -o $@ $< -ljansson -lm
+
+# ── D40: CoinGecko fallback when BTC CSV is stale ──
+coingecko_fallback: coingecko_fallback.c
+	$(CC) -O2 -o $@ $< -lcurl -ljansson
 
 memcheck: health_check withdrawal_scheduler paper_live_bridge paper_mode_sync data_server
 	@echo "=== health_check ===" && timeout 15 valgrind --leak-check=full --show-leak-kinds=definite --error-exitcode=1 ./health_check 2>&1 | grep -E "definitely lost|ERROR SUMMARY|All heap blocks"
