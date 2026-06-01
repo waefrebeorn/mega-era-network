@@ -41,7 +41,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        29
+#define N_FEATURES        32
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
@@ -125,6 +125,10 @@ typedef struct {
     // ── B11: Time-of-day features ──
     float hour_of_day_norm;     // F28: hour of day [0,1) (0=midnight)
     float day_of_week_norm;     // F29: day of week [0,1) (0=Mon, 0.857=Sun)
+    // ── B21: Options-derived features ──
+    float iv_skew;              // F30: IV skew (0-1+, >0.5 = high put demand = bearish)
+    float pcr_volume;           // F31: put/call ratio by volume (0-1+)
+    float iv_term_slope;        // F32: IV term structure slope (0-1+)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -164,6 +168,10 @@ typedef struct {
     // ── B11: Time-of-day features ──
     float hour_of_day_norm;     // F28: hour of day [0,1) (0=midnight)
     float day_of_week_norm;     // F29: day of week [0,1) (0=Mon, 0.857=Sun)
+    // ── B21: Options-derived features (from options_feat collector) ──
+    float iv_skew;              // F30: IV skew (0-1+, >0.5 = high put demand = bearish)
+    float pcr_volume;           // F31: put/call ratio by volume (0-1+)
+    float iv_term_slope;        // F32: IV term structure slope (0-1+)
 } MarketTick;
 
 // ── Agent vote result ──

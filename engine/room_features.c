@@ -317,6 +317,30 @@ static int load_hashrate_features(MarketTick *tick) {
     return 0;
 }
 
+// ── B21: Load options-derived features (IV skew, PCR, term structure) ──
+#define OPTIONS_FEAT_PATH "/home/wubu2/.hermes/options_cache/latest_features.json"
+static int load_options_features(MarketTick *tick) {
+    FILE *f = fopen(OPTIONS_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t nread = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[nread] = '\0';
+    const char *p = strstr(buf, "\"iv_skew\"");
+    if (p) tick->iv_skew = strtof(p + 10, NULL);
+    p = strstr(buf, "\"pcr_vol\"");
+    if (p) tick->pcr_volume = strtof(p + 10, NULL);
+    p = strstr(buf, "\"iv_term_slope\"");
+    if (p) tick->iv_term_slope = strtof(p + 16, NULL);
+    free(buf);
+    return 0;
+}
+
 // ── P13: Goertzel DFT — extract dominant frequency ──
 // Single-frequency DFT using Goertzel algorithm.
 // Finds dominant cycle in price history.
@@ -568,6 +592,7 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     load_stablecoin_features((MarketTick *)tick);
     load_whale_features((MarketTick *)tick);
     load_hashrate_features((MarketTick *)tick);
+    load_options_features((MarketTick *)tick);
 
     // F22: Liquidation L/S ratio (0-1, >0.5 = more longs being liquidated = bearish)
     fv->liq_ls_ratio_norm = tick->liq_ls_ratio_norm;
@@ -596,6 +621,17 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     struct tm *tm_now = localtime(&now);
     fv->hour_of_day_norm = tm_now->tm_hour / 24.0f + tm_now->tm_min / 1440.0f;
     fv->day_of_week_norm = tm_now->tm_wday / 7.0f;
+
+    // ── B21: Options-derived features ──
+    // F30: IV skew (higher = put demand = bearish sentiment)
+    fv->iv_skew = tick->iv_skew;
+    if (fv->iv_skew < 0.01f) fv->iv_skew = 0.5f;
+    // F31: Put/call ratio by volume (higher = bearish hedging)
+    fv->pcr_volume = tick->pcr_volume;
+    if (fv->pcr_volume < 0.01f) fv->pcr_volume = 0.5f;
+    // F32: IV term structure slope (higher = steep contango)
+    fv->iv_term_slope = tick->iv_term_slope;
+    if (fv->iv_term_slope < 0.01f) fv->iv_term_slope = 0.5f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
