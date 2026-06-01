@@ -94,9 +94,9 @@
 | B14 | No funding rate feature | Features | 🟡 | ✅ | **FIXED**: funding_signal (F19) loaded from funding_features.json. Collector runs every 30min via collector_runner. |
 | B15 | No open interest change | Features | 🟡 | ✅ | **FIXED**: oi_net_signal (F20) from open_interest_features.json. BTC OI + SPY PCR combined. |
 | B16 | No long/short ratio feature | Features | 🟡 | ✅ | **FIXED**: ls_ratio_norm (F21) from ls_ratio_features.json. OKX taker buy/sell volume proxy. |
-| B17 | No liquidation cascade feature | Features | 🟡 | ⏳ | Cumulative liquidations signal capitulation events. Feature exists as standalone. |
-| B18 | No stablecoin inflow/outflow | Features | 🟡 | ⏳ | Stablecoin flows to exchanges show buying power entering market. |
-| B19 | No whale transaction tracking | Features | 🟡 | ⏳ | Large transactions flagged. Feature exists as standalone binary. |
+| B17 | No liquidation cascade feature | Features | 🟡 | ✅ | **FIXED**: liq_ls_ratio_norm (F22) from liquidation_features.json. Long/short liquidation pressure. |
+| B18 | No stablecoin inflow/outflow | Features | 🟡 | ✅ | **FIXED**: stable_inflow_norm (F23) from stablecoin_features.json. Stablecoin volume ratio. |
+| B19 | No whale transaction tracking | Features | 🟡 | ✅ | **FIXED**: whale_activity_norm (F24) from whale_features.json. Large-tx activity + mempool pressure. |
 | B20 | No inter-exchange basis | Features | ⚪ | ⏳ | Price difference between exchanges shows arbitrage pressure. |
 | B21 | No options-derived features (IV skew, put/call ratio) | Features | 🟡 | ⏳ | Existing options_flow.c computes these but they're not in engine feature vector. |
 | B22 | No volatility term structure | Features | ⚪ | ⏳ | Short vs long vol term structure (contango/backwardation) signal. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 18 | 0 | 36 | 0 |
-| B: Features | 45 | 0 | 13 | 0 | 28 | 0 |
+| B: Features | 45 | 0 | 10 | 0 | 31 | 0 |
 | C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
 | D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **133** | **0** | **222** | **0** |
+|| **TOTAL** | **365** | **1** | **130** | **0** | **225** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 133 major gaps | ⚪ P3: 222 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 130 major gaps | ⚪ P3: 225 minor/feature gaps
