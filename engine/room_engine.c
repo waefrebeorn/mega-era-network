@@ -702,8 +702,10 @@ int main(void) {
             dup_cycles++;
             // A02: LIVE_MODE static feed exhaust — after 3 consecutive duplicates, exit
             // (3 skips × 1s sleep = 3s, fits within cycle_all_rooms 5s timeout)
+            // PAPER_MODE: keep looping — historical data replay doesn't advance the feed
+#ifndef PAPER_MODE
             if (dup_cycles >= 3) {
-                printf("[ROOM] Feed exhausted (%d duplicate timestamps). Shutting down.\\n", dup_cycles);
+                printf("[ROOM] Feed exhausted (%d duplicate timestamps). Shutting down.\n", dup_cycles);
                 // C03: Force-resolve any open room trade before exit
                 // (room trades never resolve when feed is static — only 1 unique timestamp per run)
                 if (state->room_trade.resolved_at == 0 && state->room_trade.stake > 0 && prev_close > 0) {
@@ -734,6 +736,7 @@ int main(void) {
                 }
                 break;
             }
+#endif
             struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };
             nanosleep(&ts, NULL);
             continue;
