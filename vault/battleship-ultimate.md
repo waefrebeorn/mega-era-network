@@ -137,7 +137,7 @@
 || C05 | No daily loss limit for room capital | Risk | 🟡 | ✅ | **FIXED**: Added day-boundary-checked daily_pnl tracking (room_engine.c:999-1005). Circuit breaker trips when daily loss exceeds max_daily_loss_pct (10% of peak capital, types.h:max_daily_loss_pct). Resets on day boundary via window_ts/86400. PnL updated after every trade resolution at 4 resolution points (dup-exit, kill-switch, slippage). |
 || C06 | No max position concentration check | Risk | 🟡 | ✅ | **STALE**: P2P matching inherently limits exposure — only min(YES_total, NO_total) is matched. Unmatched surplus stays in agent capital. No over-exposure possible. |
 || C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
-| C08 | No black swan scenario testing | Risk | 🟡 | ⏳ | Stress_test.c exists but may only test normal scenarios. |
+| C08 | No black swan scenario testing | Risk | 🟡 | ✅ | **FIXED**: Added 4th scenario to stress_test.c: 2026 black swan (-50% gap down in 1 day). 4 scenarios: 2008 crash (50% over 20d), 2020 flash crash (30% 1d), 2022 bear (20% 60d), 2026 black swan (50% 1d). T17 circuit breaker trips at 20% drawdown across all scenarios. A14 volatile half-sizing provides additional protection. |
 | C09 | No flash crash simulation | Risk | ⚪ | ⏳ | 2020 style 40% drop in minutes. Room would lose everything before circuit breaker fires. |
 || C10 | No exchange outage handling | Risk | 🟡 | ✅ | **STALE**: Covered by B44 feed staleness detection (room_feeds.c:254-277 — >5min WARN, >1h REJECT) + T17 circuit breaker (drawdown+consecutive losses). Paper engine auto-exits on feed exhaustion (room_engine.c:832-864). Live mode would require exchange-specific handling but currently paper-only. |
 | C11 | No position liquidation model | Risk | 🟡 | ⏳ | Paper trading doesn't model forced liquidation at margin thresholds. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 6 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 16 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **112** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **111** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 112 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 111 major gaps | ⚪ P3: 228 minor/feature gaps
