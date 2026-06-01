@@ -1,8 +1,8 @@
 {
   "status": "ok",
-  "timestamp": 1780304446,
-  "cycle": "331120",
-  "room_capital": "$-1999.33",
+  "timestamp": 1780312174,
+  "cycle": "698672",
+  "room_capital": "$-4047.65",
   "scenarios": [
     {"name": "2008 crash (-50% over 20 days)", "agent_dd": "39.7%", "cb_trips": true},
     {"name": "2020 flash crash (-30% over 1 day)", "agent_dd": "30.0%", "cb_trips": true},
@@ -10,5 +10,5 @@
     {"name": "2026 black swan (-50% gap down)", "agent_dd": "50.0%", "cb_trips": true}
   ],
   "circuit_breakers_would_trip": 3,
-  "raw":
+  "raw": 
 }

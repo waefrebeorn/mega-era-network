@@ -257,4 +257,13 @@
 
 - **B04: tail_risk_score range** — vaulted stale. compute_tail_risk() in room_features.c:386-435 uses kurtosis + extreme-move detection. Fixed by B02 (persistent mmap'd history). Feature produces correct values when data has fat tails — benign data = low scores. P1: 109→108.
 - **A19: Mini-batch SGD** — FIXED: Changed per-trade SGD to mini-batch (batch size 8). grad_accum[N_REGS][N_FEATURES] + bias_accum[N_REGS] + batch_count added to AgentState (types.h). Gradients accumulate per (regime, feature), applied when count reaches SGD_BATCH_SIZE. Partial batches persist in mmap'd state. STATE_MAGIC ROM8. P1: 108→107.
-- **F06: Process responsiveness watchdog** — vaulted stale. room_watchdog.c already checks snapshot.json mtime < 5min. Snapshot stale = restart all engines. Per-room heartbeats on success. P1: 106→105.
+|- **F06: Process responsiveness watchdog** — vaulted stale. room_watchdog.c already checks snapshot.json mtime < 5min. Snapshot stale = restart all engines. Per-room heartbeats on success. P1: 106→105.
+|- **F10: No recovery from corrupt state files** — FIXED: room_engine.c + types.h
+|  - Added `uint32_t state_crc` field to RoomState (types.h:309) right after magic
+|  - Nibble-at-a-time CRC-32 (IEEE polynomial) — no external deps, table-driven, 16-entry table
+|  - CRC computed over struct bytes 8..sizeof(RoomState) — skips magic + state_crc fields
+|  - Verified on every mmap load (room_engine.c:695): if magic matches but CRC doesn't, writes state_corrupt_alert.json + reinitializes
+|  - CRC updated before msync (room_engine.c:1658) so every disk sync has valid checksum
+|  - CRC computed on initial state create (room_engine.c:826) before first cycle
+|  - STATE_MAGIC bumped to ROMA (0x524F4D41) — forces fresh init on old state files
+|  - P1: 95→94

@@ -30,6 +30,55 @@ static void handle_signal(int sig) {
     g_shutdown_flag = 1;
 }
 
+/* ── F10: CRC-32 (IEEE) — nibble-at-a-time, no external deps ── */
+static uint32_t crc32_ieee(const unsigned char *buf, size_t len) {
+    uint32_t crc = 0xFFFFFFFF;
+    static const uint32_t table[16] = {
+        0x00000000, 0x1DB71064, 0x3B6E20C8, 0x26D930AC,
+        0x76DC4190, 0x6B6B51F4, 0x4DB26158, 0x5005713C,
+        0xEDB88320, 0xF00F9344, 0xD6D6A3E8, 0xCB61B38C,
+        0x9B64C2B0, 0x86D3D244, 0xA00AE2E8, 0xBDFBF20C
+    };
+    for (size_t i = 0; i < len; i++) {
+        crc ^= buf[i];
+        crc = (crc >> 4) ^ table[crc & 0x0F];
+        crc = (crc >> 4) ^ table[crc & 0x0F];
+    }
+    return ~crc;
+}
+
+/* Compute CRC over RoomState excluding magic+state_crc (first 8 bytes) */
+static void state_compute_crc(RoomState *s) {
+    const unsigned char *base = (const unsigned char *)s + 8;
+    size_t len = sizeof(RoomState) - 8;
+    s->state_crc = crc32_ieee(base, len);
+}
+
+/* Verify CRC; returns 0 on match, -1 on mismatch */
+static int state_verify_crc(const RoomState *s) {
+    /* Compute CRC on a temp copy to avoid const issues */
+    unsigned char *base = (unsigned char *)s + 8;
+    size_t len = sizeof(RoomState) - 8;
+    uint32_t expected = crc32_ieee(base, len);
+    if (s->state_crc == expected) return 0;
+    fprintf(stderr, "[F10] CRITICAL: state CRC mismatch (stored=0x%08X, computed=0x%08X) — state corrupted\n",
+            s->state_crc, expected);
+    return -1;
+}
+
+/* Write state corruption alert file */
+static void state_write_corrupt_alert(const RoomState *s) {
+    FILE *af = fopen("/home/wubu2/money-room/data/state_corrupt_alert.json", "w");
+    if (!af) { perror("fopen state_corrupt_alert"); return; }
+    fprintf(af, "{\n  \"alert\": \"state_corruption\",\n");
+    fprintf(af, "  \"magic\": \"0x%08X\",\n", s->magic);
+    fprintf(af, "  \"state_crc\": \"0x%08X\",\n", s->state_crc);
+    fprintf(af, "  \"cycle\": %d,\n", s->cycle);
+    fprintf(af, "  \"trade_count\": %d,\n", s->trade_count);
+    fprintf(af, "  \"action\": \"state_reinitialized\"\n}\n");
+    fclose(af);
+}
+
 // ── Pace control ──
 // In paper mode, 5ms between cycles for fast bulk historical runs
 // In live mode, 1s between cycles to match real-time data
@@ -640,8 +689,15 @@ static RoomError load_or_init_state(void) {
         return ERR_MMAP_FAIL;
     }
 
-    // Check if already initialized
-    if (state->magic != STATE_MAGIC) {
+    // Check if already initialized with valid CRC
+    // F10: If magic matches but CRC doesn't, state is corrupted
+    bool crc_good = (state->magic == STATE_MAGIC && state_verify_crc(state) == 0);
+    if (!crc_good) {
+        // Corruption detected: magic matches but CRC doesn't
+        if (state->magic == STATE_MAGIC) {
+            fprintf(stderr, "[F10] CRITICAL: state corruption detected via CRC mismatch — reinitializing\n");
+            state_write_corrupt_alert(state);
+        }
         memset(state, 0, sz);
         state->magic = STATE_MAGIC;
         init_agents(state->agents, MAX_AGENTS);
@@ -764,6 +820,9 @@ static RoomError load_or_init_state(void) {
             state->consec_room_losses = 0;
         }
     }
+
+    // F10: Compute initial CRC for fresh or restored state
+    state_compute_crc(state);
 
     return ERR_OK;
 }
@@ -1595,6 +1654,9 @@ skip_trading:
 
     printf("\n[ROOM] Shutdown. %d cycles run, %d trades\n",
            state->cycle, state->trade_count);
+
+    // ── F10: Update state CRC before syncing to disk ──
+    state_compute_crc(state);
 
     // ── F05: Flush mmap'd state to disk before unmapping ──
     if (msync(state, sizeof(RoomState), MS_SYNC) != 0) {

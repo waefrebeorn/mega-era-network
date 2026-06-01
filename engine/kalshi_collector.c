@@ -1,22 +1,20 @@
 /**
  * kalshi_collector.c — Kalshi Prediction Market Data Collector
  *
- * Pulls all available Kalshi market data (public API, no auth needed).
+ * Pulls available Kalshi market data (public API, no auth needed).
  * Writes to timeline.db with source='kalshi_<ticker>'.
  *
- * Markets are organized:
- *   Events → Series → Markets (each market = yes/no binary)
- *   Each market has: ticker, title, current_price, volume,
- *   open_interest, close_time, status
- *
- * Also collects Kalshi historical data for backtesting.
+ * Default mode (scan): fetches open/active markets, limited to 40 pages
+ * (4000 markets) to fit within cron timeout. Covers most recently
+ * active markets with current prices.
  *
  * NOT FINANCIAL ADVICE. All data is public market data.
  *
- * Build: make kalshi  (see Makefile)
+ * Build: gcc -O3 -o kalshi_collector kalshi_collector.c -lcurl -ljansson -lsqlite3 -lm
  * Usage: ./kalshi_collector [mode]
- *   mode=scan    — scan all markets (default)
- *   mode=history — fetch historical data for settled markets
+ *   mode=scan    — scan open markets (default, max 40 pages / 4000 markets)
+ *   mode=all     — scan ALL markets (open+settled, no page limit)
+ *   mode=history — fetch settled markets
  */
 
 #define _POSIX_C_SOURCE 199309L
@@ -32,6 +30,8 @@
 #define DB_PATH "/home/wubu2/.hermes/pm_logs/timeline.db"
 #define MAX_URL 4096
 #define MAX_JSON 2097152  /* 2MB response buffer */
+#define MAX_PAGES_SCAN 40    /* ~120s with 3s/page — covers recent active markets */
+#define MAX_PAGES_ALL  5000  /* safety limit for 'all' mode: 500K markets */
 
 /* ── HTTP response buffer ── */
 typedef struct {
@@ -113,7 +113,6 @@ static long long parse_kalshi_ts(const char *iso) {
 }
 
 static char *sanitize_ticker(const char *ticker) {
-    /* Create a safe source name from ticker */
     static char buf[128];
     int j = 0;
     for (int i = 0; ticker[i] && j < 120; i++) {
@@ -121,30 +120,38 @@ static char *sanitize_ticker(const char *ticker) {
         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
             (c >= '0' && c <= '9') || c == '_') buf[j++] = c;
         else if (c == '-' || c == '.') buf[j++] = '_';
-        /* skip other chars */
     }
     buf[j] = '\0';
     return buf;
 }
 
-/* ── Scan all markets ── */
-static void scan_markets(void) {
-    printf("  Scanning Kalshi markets...\n");
+/* ── Scan markets with optional status filter and page limit ── */
+static void scan_markets(const char *status_filter, int max_pages) {
+    printf("  Scanning Kalshi markets (status=%s, max_pages=%d)...\n",
+           status_filter ? status_filter : "all", max_pages);
 
     char url[MAX_URL];
     int page = 0, total = 0;
     const char *cursor = NULL;
 
+    /* Static buffer for status query param */
+    static char status_qs[32];
+    status_qs[0] = '\0';
+    if (status_filter) {
+        snprintf(status_qs, sizeof(status_qs), "&status=%s", status_filter);
+    }
+
     do {
         if (cursor) {
-            snprintf(url, sizeof(url), "%s/markets?limit=100&cursor=%s",
-                     KALSHI_API, cursor);
+            snprintf(url, sizeof(url), "%s/markets?limit=100&cursor=%s%s",
+                     KALSHI_API, cursor, status_qs);
         } else {
-            snprintf(url, sizeof(url), "%s/markets?limit=100", KALSHI_API);
+            snprintf(url, sizeof(url), "%s/markets?limit=100%s",
+                     KALSHI_API, status_qs);
         }
 
-        /* Rate limit: 200ms delay between pages */
-        struct timespec d = {0, 200000000L};
+        /* Rate limit: 100ms delay between pages */
+        struct timespec d = {0, 100000000L};
         nanosleep(&d, NULL);
 
         HttpResponse resp = http_get(url);
@@ -177,7 +184,6 @@ static void scan_markets(void) {
 
             if (!ticker) continue;
 
-            /* Insert as timeline data */
             long long ts = parse_kalshi_ts(close_time);
             if (ts == 0) ts = time(NULL);
 
@@ -204,7 +210,7 @@ static void scan_markets(void) {
             total++;
         }
 
-        /* Get cursor for next page — MUST strdup, memory freed by json_decref */
+        /* Get cursor for next page */
         json_t *cursor_obj = json_object_get(root, "cursor");
         static char cursor_buf[256];
         if (cursor_obj && json_is_string(cursor_obj)) {
@@ -218,11 +224,11 @@ static void scan_markets(void) {
         json_decref(root);
         page++;
 
-        if (page % 5 == 0) printf("    Page %d: %d markets so far...\n", page, total);
+        if (page % 10 == 0) printf("    Page %d: %d markets so far...\n", page, total);
 
-    } while (cursor && page < 1000); /* Safety limit (1000 pages × 100 = 100K markets max) */
+    } while (cursor && page < max_pages);
 
-    printf("  ✅ Total: %d Kalshi markets collected\n", total);
+    printf("  ✅ Total: %d Kalshi markets collected (%d pages)\n", total, page);
 }
 
 /* ── Main ── */
@@ -230,15 +236,26 @@ int main(int argc, char *argv[]) {
     printf("\n");
     printf("  ╔══════════════════════════════════════════════════════╗\n");
     printf("  ║   KALSHI COLLECTOR — Public Market Data             ║\n");
-    printf("  ║   No auth needed · All markets · timeline.db        ║\n");
+    printf("  ║   No auth needed · timeline.db                      ║\n");
     printf("  ╚══════════════════════════════════════════════════════╝\n");
     printf("\n");
-    printf("  NOT FINANCIAL ADVICE. Public market data collection.\n");
-    printf("\n");
+
+    const char *mode = (argc > 1) ? argv[1] : "scan";
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
     db_init();
-    scan_markets();
+
+    if (strcmp(mode, "all") == 0) {
+        printf("[kalshi] All mode: scanning ALL markets...\n");
+        scan_markets(NULL, MAX_PAGES_ALL);
+    } else if (strcmp(mode, "history") == 0) {
+        printf("[kalshi] History mode: settled markets...\n");
+        scan_markets("settled", MAX_PAGES_ALL);
+    } else {
+        /* Default: scan open/active markets (fits in cron timeout) */
+        scan_markets("open", MAX_PAGES_SCAN);
+    }
+
     db_close();
     curl_global_cleanup();
 

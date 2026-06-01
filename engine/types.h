@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D39  // "ROM9" — bumped for C36 directional exposure tracking (new yes_exposure/no_exposure/max_direction_pct fields)
+#define STATE_MAGIC       0x524F4D41  // "ROMA" — bumped for F10 state CRC-32 checksum (new state_crc field)
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -306,6 +306,7 @@ typedef struct {
 // ── Main room shared state (mmap'd) ──
 typedef struct {
     uint32_t magic;             // STATE_MAGIC for validation
+    uint32_t state_crc;         // F10: CRC-32 checksum over rest of struct (bytes 8..sizeof(RoomState))
     int64_t  last_updated;      // Unix ns
     int      cycle;             // Current cycle number
 
