@@ -59,7 +59,7 @@
 | A46 | Room_engine has PAPER_MODE vs LIVE_MODE but no HYBRID | Training | 🟡 | ⏳ | Can't run some rooms live and others paper. All-or-nothing. |
 | A47 | No warm-start from prior genomes | Training | 🟡 | ✅ | **FIXED**: load_warmstart_genomes() in room_engine.c loads ENGINE_<TYPE>_N.bin elites on restart. Seeds 200 agents (2%) from saved genomes. Elite genomes saved by room_darwin_save_elite() each cycle. |
 || A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ✅ | RESOLVED by A02 fix: trade_count now persists across restarts (room_engine.c:657). Once rooms accumulate 100+ trades across cron cycles, Darwin fires and epoch increments. |
-| A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ⏳ | Multiple binary versions. Which one does cycle_all_rooms actually run? |
+|| A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ✅ | **STALE**: v2 (54KB, macro only) — old build, replaced by current engine. v3 (149KB) — older multi-market engine, replaced by room_engine_market (88KB). Active: room_engine (paper, 83KB) for c_room, room_engine_market (MARKET_MODE) for live rooms. v2/v3 are mega-era-network vestiges. Neither referenced in crontab or scripts. |
 | A50 | No genome diversity metric tracked over time | Training | ⚪ | ⏳ | Can't tell if population is converging to monoculture. |
 | A51 | No mutation rate decay schedule | Training | ⚪ | ⏳ | Initial high mutation rate persists forever. Should decay as population matures. |
 | A52 | No elite preservation | Training | ⚪ | ⏳ | Best agents can be culled if they happen to lose. No guaranteed survival. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 16 | 0 | 37 | 0 |
+|| A: Training Engine | 60 | 0 | 15 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 12 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **122** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **121** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 122 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 121 major gaps | ⚪ P3: 228 minor/feature gaps
