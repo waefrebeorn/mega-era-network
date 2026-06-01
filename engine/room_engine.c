@@ -702,7 +702,35 @@ int main(void) {
             // A02: LIVE_MODE static feed exhaust — after 3 consecutive duplicates, exit
             // (3 skips × 1s sleep = 3s, fits within cycle_all_rooms 5s timeout)
             if (dup_cycles >= 3) {
-                printf("[ROOM] Feed exhausted (%d duplicate timestamps). Shutting down.\n", dup_cycles);
+                printf("[ROOM] Feed exhausted (%d duplicate timestamps). Shutting down.\\n", dup_cycles);
+                // C03: Force-resolve any open room trade before exit
+                // (room trades never resolve when feed is static — only 1 unique timestamp per run)
+                if (state->room_trade.resolved_at == 0 && state->room_trade.stake > 0 && prev_close > 0) {
+                    bool up = state->room_trade.majority_up;
+                    float exit_px = state->current_market.close;
+                    bool room_won = (exit_px >= prev_close) == up;
+                    if (room_won) {
+                        float profit = state->room_trade.stake * (1.0f - TAKER_FEE);
+                        float gross_ret = state->room_trade.stake + profit;
+                        state->room_capital += gross_ret;
+                        state->room_wins++;
+                        state->room_trade.won = true;
+                        state->room_trade.pnl = profit;
+                        state->consec_room_losses = 0;
+                    } else {
+                        state->room_losses++;
+                        state->room_trade.won = false;
+                        state->room_trade.pnl = -(state->room_trade.stake * (1.0f + TAKER_FEE));
+                        state->room_capital += state->room_trade.pnl;
+                        state->consec_room_losses++;
+                    }
+                    state->room_trade.exit_price = exit_px;
+                    state->room_trade.resolved_at = state->current_market.window_ts;
+                    printf("[ROOM] Force-resolved open trade: %s PnL=$%.4f consec_losses=%d\\n",
+                           room_won ? "WIN" : "LOSS", state->room_trade.pnl, state->consec_room_losses);
+                    if (state->room_capital > state->room_capital_peak)
+                        state->room_capital_peak = state->room_capital;
+                }
                 break;
             }
             struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };

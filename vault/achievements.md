@@ -16,6 +16,14 @@
 - **28 🔴 P0 remaining** (was 35 at session start)
 - All room binaries rebuilt and deployed to 16 rooms + c_room
 
+## Batch 2026-06-01 — C03 circuit breaker fix (force-resolve room trades)
+- **C03: Circuit breaker never triggered** — two root causes:
+  1. trade_count reset (A02 fix) prevented room trades from executing (needs 1000)
+  2. Even when room trades executed, they never resolved — static feed has only 1 unique timestamp per cron run
+- **FIXED** room_engine.c:705-736: force-resolve open room trade when exiting on duplicate-timestamp exhaustion
+- Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%
+- **27 🔴 P0 remaining** (was 35 at session start)
+
 ## Batch 2026-06-01 — DA Triple Research + CB-STOCK Closure
 - **365-cell battleship** (vault/battleship-ultimate.md) — 9-domain gap analysis: 35 🔴 P0, 172 🟡 P1, 158 ⚪ P3
 - **65-task homework** (vault/homework-list.md) — 3 tiers: 20 free signups, 25 desk tasks, 20 setup tasks

@@ -11,7 +11,7 @@
 - **16 rooms, identical binary** — all same md5, no differentiation
 - **7 rooms on fake data** — placeholder 0.50 prices in prediction market rooms
 - **Only 1-2 cycles per room** — no meaningful trading history (A02 infinite-loop blocker fixed)
-- **365 total gaps** mapped across 9 domains (28 🔴 P0 remaining)
+- **365 total gaps** mapped across 9 domains (27 🔴 P0 remaining)
 
 ## Key Stats (from audit)
 - 210 C files in engine/

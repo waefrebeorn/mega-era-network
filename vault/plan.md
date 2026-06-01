@@ -14,6 +14,7 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 8. ~~A48: Darwin epoch=0 in snapshot~~ — DONE: resolved by A02 trade_count persistence
 9. ~~B01: N_FEATURES=18 ~10 populated~~ — DONE: FALSE CLAIM, all 18 computed
 10. ~~B03: phi features uninitialized~~ — DONE: FALSE CLAIM, compute_phi_features called
+11. ~~C03: Circuit breaker never triggered~~ — DONE: force-resolve room trades on dup-exit (room_engine.c:705-736)
 
 ## Next Cell
-A04: 7 rooms on fake 0.50 data (random, not real prediction market prices)
+C01: No VaR computation in engine runtime

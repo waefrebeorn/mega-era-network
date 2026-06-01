@@ -132,7 +132,7 @@
 |---|-----|--------|-----|--------|--------|
 | C01 | No VaR computation in engine runtime | Risk | 🔴 | ⏳ | VaR only computed offline in risk_report.c. Engine doesn't self-monitor. |
 | C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ⏳ | Expected shortfall captures tail shape. More robust than VaR. |
-| C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ⏳ | circuit_breaker_count=0 in all snapshots. Either too lenient or not working. |
+|| C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
 | C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
 | C05 | No daily loss limit for room capital | Risk | 🟡 | ⏳ | Room can lose all capital in one day. No daily stop. |
 | C06 | No max position concentration check | Risk | 🟡 | ⏳ | All agents could bet on same direction. No diversification enforcement. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 | A: Training Engine | 60 | 8 | 22 | 0 | 30 | 0 |
 | B: Features | 45 | 2 | 23 | 0 | 20 | 0 |
-| C: Risk Management | 40 | 4 | 21 | 0 | 15 | 0 |
+| C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
 | D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
 | E: Execution | 35 | 4 | 10 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **28** | **172** | **0** | **165** | **0** |
+| **TOTAL** | **365** | **27** | **172** | **0** | **166** | **0** |
 
-🔴 P0: 28 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 165 minor/feature gaps
+🔴 P0: 27 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 166 minor/feature gaps
