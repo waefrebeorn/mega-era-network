@@ -121,7 +121,7 @@
 | B41 | No synthetic feature from ensemble predictions | Features | ⚪ | ⏳ | Other rooms' predictions as features for this room. |
 | B42 | No attention-weighted feature aggregation | Features | ⚪ | ⏳ | All features equally weighted. Attention would weight salient features higher. |
 | B43 | No feature importance drift monitoring | Features | ⚪ | ⏳ | Feature importance changes over time. Importance should be tracked as time series. |
-| B44 | Feed bridge may write stale market_feed.json | Features | 🔴 | ⏳ | If bridge fails, previous feed.json is reused. Engine doesn't check feed freshness. |
+| B44 | Feed bridge may write stale market_feed.json | Features | 🔴 | ✅ | FIXED room_feeds.c:248-278: tightened LIVE_MODE staleness thresholds — WARN at >5min (was none), REJECT at >1h (was 24h). Feed age now surfaced in stderr logs per read cycle. |
 | B45 | Only 14 JSON feeds in docs/data/ — missing many | Features | 🟡 | ⏳ | Website shows 14 feeds but we collect data for 27+ tickers and 16 rooms. |
 
 ---
@@ -130,7 +130,7 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| C01 | No VaR computation in engine runtime | Risk | 🔴 | ⏳ | VaR only computed offline in risk_report.c. Engine doesn't self-monitor. |
+| C01 | No VaR computation in engine runtime | Risk | 🔴 | ⏳ | Monte Carlo VaR exists in risk_analytics.c (C21) but runs offline. Engine self-monitors via drawdown (room_engine.c:830-844) and consec_losses (849-852). Computing VaR per-cycle on 1M trade records is too expensive. Rolling-window VaR on last N trades is feasible but feature-level. Circuit breakers are the intended runtime risk control. |
 | C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ⏳ | Expected shortfall captures tail shape. More robust than VaR. |
 || C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
 | C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
 | A: Training Engine | 60 | 8 | 22 | 0 | 30 | 0 |
-| B: Features | 45 | 2 | 23 | 0 | 20 | 0 |
+| B: Features | 45 | 1 | 23 | 0 | 21 | 0 |
 | C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
 | D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
 | E: Execution | 35 | 4 | 10 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **27** | **172** | **0** | **166** | **0** |
+| **TOTAL** | **365** | **26** | **172** | **0** | **167** | **0** |
 
-🔴 P0: 27 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 166 minor/feature gaps
+🔴 P0: 26 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 167 minor/feature gaps

@@ -3,10 +3,10 @@
 ## Current Status
 - **Engine:** 210 C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (27 🔴 P0, 172 🟡 P1, 166 ⚪ P3)
+- **Battleship:** 365 cells across 9 domains (26 🔴 P0, 172 🟡 P1, 167 ⚪ P3)
 - **Rooms:** 16 configured. All same binary (same md5). 7 on fake data. Darwin.epoch=0.
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db has 21-33 rows/ticker
-- **Latest batch:** C03 circuit breaker fix — force-resolve room trades on dup-exit. P0: 35→27.
+- **Latest batch:** B44 feed staleness fix — >5min WARN, >1h REJECT (was 24h). P0: 35→26.
 
 ## Gap Map Available
 - `vault/battleship-ultimate.md` — 365 cells (training, features, risk, data, execution, infra, security, website, monetization)

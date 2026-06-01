@@ -15,6 +15,7 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 9. ~~B01: N_FEATURES=18 ~10 populated~~ — DONE: FALSE CLAIM, all 18 computed
 10. ~~B03: phi features uninitialized~~ — DONE: FALSE CLAIM, compute_phi_features called
 11. ~~C03: Circuit breaker never triggered~~ — DONE: force-resolve room trades on dup-exit (room_engine.c:705-736)
+12. ~~B44: Feed staleness check~~ — DONE: tightened LIVE_MODE thresholds — WARN >5min, REJECT >1h (room_feeds.c:248-278)
 
 ## Next Cell
-C01: No VaR computation in engine runtime
+D01: timeline.db only has 21-33 rows per ticker

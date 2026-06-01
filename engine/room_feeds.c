@@ -261,8 +261,15 @@ RoomError room_feeds_load(MarketTick *tick) {
             tick->window_ts = 0;
             return ERR_NO_DATA;
         }
-        if (age_sec > 86400) {
-            fprintf(stderr, "[FEED] WARN: timestamp %ld is %lds stale (>24h) — rejecting\n",
+        // B44: Tight staleness thresholds for LIVE_MODE JSON feed
+        // WARN at 5 min (engine may still use slightly stale data)
+        if (age_sec > 300 && age_sec <= 3600) {
+            fprintf(stderr, "[FEED] WARN: timestamp %ld is %lds stale (>5min) — accepting\n",
+                    (long)tick->window_ts, (long)age_sec);
+        }
+        // REJECT at 1 hour (feed bridge likely stopped updating)
+        if (age_sec > 3600) {
+            fprintf(stderr, "[FEED] WARN: timestamp %ld is %lds stale (>1h) — rejecting\n",
                     (long)tick->window_ts, (long)age_sec);
             free(buf);
             tick->window_ts = 0;

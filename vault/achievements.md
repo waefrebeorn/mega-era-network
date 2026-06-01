@@ -24,6 +24,12 @@
 - Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%
 - **27 🔴 P0 remaining** (was 35 at session start)
 
+## Batch 2026-06-01 — B44 feed staleness thresholds tightened
+- **B44: Feed bridge may write stale market_feed.json** — FIXED room_feeds.c:248-278
+  - Tightened LIVE_MODE staleness: WARN at >5min (was silent), REJECT at >1h (was 24h)
+  - Feed age now surfaced in stderr on every read cycle
+- **26 🔴 P0 remaining**
+
 ## Batch 2026-06-01 — DA Triple Research + CB-STOCK Closure
 - **365-cell battleship** (vault/battleship-ultimate.md) — 9-domain gap analysis: 35 🔴 P0, 172 🟡 P1, 158 ⚪ P3
 - **65-task homework** (vault/homework-list.md) — 3 tiers: 20 free signups, 25 desk tasks, 20 setup tasks

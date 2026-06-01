@@ -1,6 +1,6 @@
 WALKWAY: battleship-ultimate → homework-list → go
 
-365 cells. 9 domains. 27 🔴P0 killers.
+365 cells. 9 domains. 26 🔴P0 killers.
 
 Reality: 16 rooms, 1 binary, 7 fake feeds. A02 fixed (dup-loop exit + trade_count persist). Darwin can now fire across cron runs.
 
