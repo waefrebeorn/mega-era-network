@@ -344,13 +344,14 @@ static void hot_reload_genomes(AgentState *agents, int n) {
             if (r < n_replace) {
                 // Bottom 50%: full genome replacement + noise
                 memcpy(&agents[aid].genome, &trained_genome, sizeof(Genome));
+                // T104: Reduced noise from ±0.1 to ±0.01 — preserves trained SGD weights
                 for (int w = 0; w < N_FEATURES; w++) {
-                    float noise = ((float)(rand() % 2001 - 1000)) / 10000.0f;
+                    float noise = ((float)(rand() % 201 - 100)) / 10000.0f;
                     agents[aid].genome.feat_weight[w] += noise;
                     if (agents[aid].genome.feat_weight[w] > 1.0f) agents[aid].genome.feat_weight[w] = 1.0f;
                     if (agents[aid].genome.feat_weight[w] < -1.0f) agents[aid].genome.feat_weight[w] = -1.0f;
                 }
-                agents[aid].genome.bias += ((float)(rand() % 2001 - 1000)) / 10000.0f;
+                agents[aid].genome.bias += ((float)(rand() % 201 - 100)) / 10000.0f;
                 if (agents[aid].genome.bias > 1.0f) agents[aid].genome.bias = 1.0f;
                 if (agents[aid].genome.bias < -1.0f) agents[aid].genome.bias = -1.0f;
                 agents[aid].capital = 50.0f;
