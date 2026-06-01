@@ -346,3 +346,13 @@
 - **DA05: timeline table empty** — wrote timeline_sync.c (copies 18.35M rows from pm_logs DB to engine DB). Cron: */5 * * * *. Timeline table now populated.
 - **DA06: Dual timeline DB divergence documented** — TIMELINE_DB.md describes main vs engine DB, table layouts, and ideal fix path (unify ~30 collector DB_PATH defines).
 - Commit: 714d0da — 7 files, 212 insertions.
+
+## Batch 2026-06-01 — WW: Website plumbing (7 fixes)
+- **WW01: data_fetcher.js shared plumbing** — unified JS that tries localhost:9090 (data_server) first, falls back to GitHub Pages relative path. Handles field name mapping from paper_stats.json to UI expectations. 6 pages integrated: live.html, index.html, status.html, dashboard.html, paper.html, 404.html.
+- **WW02: LemonSqueezy checkout** — Starter ($5) and Pro ($20) tiers now link to waefrebeorn.lemonsqueezy.com. No more "Coming Soon" placeholder.
+- **WW03: Skeleton pages filled** — contact.html (4 contact cards + footer), coming-soon.html (6 feature cards), status.html (data_fetcher-powered component status).
+- **WW04: Mobile responsiveness** — Added 380px (iPhone SE) breakpoint: nav scrolls horizontally, fonts shrink, containers compact, wallet addresses `word-break: break-all`.
+- **WW05: index.html data plumbing** — loadTicker + loadStats rewritten to use DF.fetchStats instead of broken `data/stats.json` fetch.
+- **WW06: paper.html rework** — dead code removed, Promise-based fetch via data_fetcher for paper_stats.json + evolution_progress.json.
+- Root cause: `stats.json` never existed on data_server. Pages fetched a nonexistent endpoint. Fixed by mapping to paper_stats.json fields via DF.fetchStats().
+- Commit: d397954 — 10 files, 583 insertions, 180 deletions.
