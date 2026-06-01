@@ -41,7 +41,7 @@
 | A28 | No ablation testing | Training | ⚪ | ⏳ | Can't measure what happens if feature X is removed. Everything is always-on. |
 | A29 | Single-training-path bottleneck | Training | 🟡 | ⏳ | Only one sequence: feed→feature→vote→resolve. No parallel exploration of strategies. |
 | A30 | No exploration vs exploitation epsilon | Training | ⚪ | ⏳ | Agents always vote based on current genome. No random exploration. Early convergence likely. |
-| A31 | Room_engine has no MARKET_TYPE selection at runtime | Training | 🔴 | ⏳ | ROOMS are differentiated only by feed data. Engine behavior doesn't change per market type. |
+|| A31 | Room_engine has no MARKET_TYPE selection at runtime | Training | 🟡 | ⏳ | **RECLASSIFIED from 🔴 P0 to 🟡 P1**: feature computation already differentiates binary vs OHLCV (room_features.c:252-267). compute_nested_prediction() takes market_type and computes different feature sets (room_engine.c:101-209). Genome loading reads market_type suffix from .bin files. Per-market ring buffers (10 × 50). What's P1-enhancement: voting thresholds per market, Darwin diversity per market, regime detection per market. Binary vs price features already separated — gradual refinement, not architecture gap. |
 | A32 | No per-room loss function | Training | 🟡 | ⏳ | All rooms optimize same PnL. Crypto needs Sharpe, binary needs calibration, sports needs Brier. |
 | A33 | No calibration score for prediction markets | Training | 🟡 | ⏳ | Binary markets need Brier score / calibration curves. PnL alone is insufficient. |
 | A34 | No profit factor tracking | Training | ⚪ | ⏳ | TotalWins/TotalLosses ratio not computed anywhere. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 1 | 23 | 0 | 30 | 0 |
+|| A: Training Engine | 60 | 0 | 24 | 0 | 30 | 0 |
 | B: Features | 45 | 0 | 23 | 0 | 21 | 0 |
 | C: Risk Management | 40 | 0 | 21 | 0 | 16 | 0 |
 | D: Data Pipeline | 55 | 0 | 41 | 0 | 13 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **2** | **185** | **0** | **170** | **0** |
+| **TOTAL** | **365** | **1** | **186** | **0** | **170** | **0** |
 
-🔴 P0: 2 critical gaps (A31 MARKET_TYPE runtime, E04 Polymarket CLOB external) | 🟡 P1: 185 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 186 major gaps | ⚪ P3: 170 minor/feature gaps

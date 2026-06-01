@@ -1,9 +1,11 @@
 WALKWAY: battleship-ultimate → homework-list → go
 
-365 cells. 9 domains. 2 🔴P0 killers.
+365 cells. 9 domains. 1 🔴P0 killer.
 
-Reality: 16 rooms, walk-forward validation live (avg OOS 66.8%). VaR/ES cron'd every 15min.
-Remaining P0s: A31 (MARKET_TYPE), E04 (Polymarket CLOB, external).
+Reality: 16 rooms, walk-forward + VaR/ES live. A31 reclassified (engine already differentiates per MARKET_TYPE in features/prediction/genome load).
+Remaining: E04 (Polymarket CLOB — $50 USDC deposit external block).
+
+P0 loop exhausted. All code-level P0s closed.
 
 Pick lowest undone 🔴 in vault/battleship-ultimate.md.
 Verify claim against source (function-level, not filenames).

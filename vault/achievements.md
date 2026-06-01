@@ -95,3 +95,16 @@
   - The VaR code already existed as C21/C22 in risk_analytics.c — just needed JSON output + cron wiring
   - P0 count: 12→11
 - File: `engine/risk_analytics.c`, `~/.hermes/scripts/risk_analytics_cron.sh` — VaR JSON output + cron
+
+## Batch 2026-06-01 — A31 reclassified 🟡 (MARKET_TYPE verification)
+- **A31: Engine has no MARKET_TYPE selection at runtime** — RECLASSIFIED from 🔴 to 🟡
+  - room_features.c:252-267 already differentiates binary vs OHLCV feature computation
+  - room_engine.c:101-209 compute_nested_prediction() takes MarketType, computes per-type features
+  - room_engine.c:295-320 genome loading reads market_type suffix from .bin files and assigns agents by type
+  - Per-market ring buffers: NESTED_BUF_SIZE×N_MARKET_TYPES (10×50)
+  - Binary markets get probability-based features (delta%, clamping), OHLCV markets get price-based
+  - What remains P1: voting thresholds per market, Darwin diversity tracking per market
+  - P0 count: 2→1
+- Files: room_features.c:252-267, room_engine.c:100-209, room_engine.c:295-320 — MARKET_TYPE awareness verified
+
+## P0 Loop Exhaustion
