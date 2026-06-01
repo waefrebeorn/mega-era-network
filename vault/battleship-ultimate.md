@@ -57,7 +57,7 @@
 | A44 | No gradient history for SGD diagnosis | Training | ⚪ | ⏳ | Can't tell if SGD is converging, diverging, or stuck in local minima. |
 | A45 | No feature correlation matrix | Training | ⚪ | ⏳ | Two highly-correlated features get double-weight. No PCA/decorrelation. |
 | A46 | Room_engine has PAPER_MODE vs LIVE_MODE but no HYBRID | Training | 🟡 | ⏳ | Can't run some rooms live and others paper. All-or-nothing. |
-| A47 | No warm-start from prior genomes | Training | 🟡 | ⏳ | Every restart reinitializes all agents from scratch. No genome persistence. |
+| A47 | No warm-start from prior genomes | Training | 🟡 | ✅ | **FIXED**: load_warmstart_genomes() in room_engine.c loads ENGINE_<TYPE>_N.bin elites on restart. Seeds 200 agents (2%) from saved genomes. Elite genomes saved by room_darwin_save_elite() each cycle. |
 || A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ✅ | RESOLVED by A02 fix: trade_count now persists across restarts (room_engine.c:657). Once rooms accumulate 100+ trades across cron cycles, Darwin fires and epoch increments. |
 | A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ⏳ | Multiple binary versions. Which one does cycle_all_rooms actually run? |
 | A50 | No genome diversity metric tracked over time | Training | ⚪ | ⏳ | Can't tell if population is converging to monoculture. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 18 | 0 | 36 | 0 |
+|| A: Training Engine | 60 | 0 | 17 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 9 | 0 | 32 | 0 |
 | C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
 | D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **129** | **0** | **226** | **0** |
+|| **TOTAL** | **365** | **1** | **128** | **0** | **227** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 129 major gaps | ⚪ P3: 226 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 128 major gaps | ⚪ P3: 227 minor/feature gaps

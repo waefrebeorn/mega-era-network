@@ -130,6 +130,12 @@
 - **D51: T-bill risk-free rate** — ab_test.c:69-70, room_engine.c:1373-1374. rf_per_period = 0.045 / periods_per_year.
 - Fixed battleship stale ⏳ → ✅ for all 4. P1 count: 140→136.
 
+## Batch 2026-06-01 — A47: Warm-start from prior elite genomes
+- **A47: Warm-start** — load_warmstart_genomes() in room_engine.c loads ENGINE_<TYPE>_N.bin on restart.
+- Seeds 200 agents (2% of 10K) with saved elite genomes — preserves learned feat_weights across restarts.
+- Rest of agents get random init as before. Elite saved by room_darwin_save_elite() each cycle.
+- P1 count: 129→128. N_FEATURES=29.
+
 ## Batch 2026-06-01 — B11: Time-of-day features (hour + day of week)
 - **B11: Time features** — F28: hour_of_day_norm, F29: day_of_week_norm.
 - Captures intraday seasonality + day-of-week effects (Monday/Friday/weekend).
