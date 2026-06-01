@@ -75,7 +75,7 @@ static int test_agent_state_serialization(void) {
 static int test_constants_stable(void) {
     ASSERT_EQ((int)sizeof(float), 4, "float is 4 bytes");
     ASSERT_EQ((int)sizeof(double), 8, "double is 8 bytes");
-    ASSERT_EQ(N_FEATURES, 33, "N_FEATURES = 33 (BTC-SP500 corr F33 added)");
+    ASSERT_EQ(N_FEATURES, 34, "N_FEATURES = 34 (VIX regime F34 added)");
 
     /* Foundation fees */
     ASSERT_NEAR(TAKER_FEE, 0.001f, 0.0001f, "Taker fee 0.1%");

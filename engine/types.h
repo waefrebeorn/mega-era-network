@@ -41,11 +41,11 @@ extern const char *MARKET_TYPE_NAMES[];
 #define ROOM_AGENTS  10000
 #endif
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        33
+#define N_FEATURES        34
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D36  // "ROM6" — bumped for B12 SP500 history in RoomState
+#define STATE_MAGIC       0x524F4D37  // "ROM7" — bumped for B23 VIX history in RoomState
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -131,6 +131,8 @@ typedef struct {
     float iv_term_slope;        // F32: IV term structure slope (0-1+)
     // ── B12: Macro equity correlation ──
     float btc_sp500_corr;       // F33: Rolling BTC-SP500 correlation (-1..1)
+    // ── B23: VIX regime filter ──
+    float vix_regime;           // F34: VIX regime (0=low<15, 0.5=normal 15-25, 1=high>25)
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -372,6 +374,10 @@ typedef struct {
     float    sp500_hist[FEED_HISTORY];
     int      sp500_hist_len;
     int      sp500_hist_idx;
+    // ── B23: VIX history for regime filter ──
+    float    vix_hist[FEED_HISTORY];
+    int      vix_hist_len;
+    int      vix_hist_idx;
 } RoomState;
 
 // ── Error codes ──

@@ -491,6 +491,11 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     s->sp500_hist_idx = (s->sp500_hist_idx + 1) % FEED_HISTORY;
     if (s->sp500_hist_len < FEED_HISTORY) s->sp500_hist_len++;
 
+    // ── B23: Track VIX history for regime filter ──
+    s->vix_hist[s->vix_hist_idx] = tick->vix;
+    s->vix_hist_idx = (s->vix_hist_idx + 1) % FEED_HISTORY;
+    if (s->vix_hist_len < FEED_HISTORY) s->vix_hist_len++;
+
     // Need at least 1 data point for initial features
     if (s->price_hist_len[mt] < 1) return ERR_NO_DATA;
 
@@ -696,6 +701,15 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
         spx[i] = s->sp500_hist[idx];
     }
     fv->btc_sp500_corr = calc_sp500_corr(px, s->price_hist_len[mt], spx, s->sp500_hist_len);
+
+    // ── B23: VIX regime feature (F34) ──
+    // VIX < 15 = low vol (0.0), 15-25 = normal (0.5), > 25 = high (1.0)
+    // Continuous mapping: clamp((vix - 10) / 30, 0, 1)
+    float vix_val = tick->vix;
+    if (vix_val < 0.1f) vix_val = 15.0f;  // default to normal if missing
+    fv->vix_regime = (vix_val - 10.0f) / 30.0f;
+    if (fv->vix_regime < 0.0f) fv->vix_regime = 0.0f;
+    if (fv->vix_regime > 1.0f) fv->vix_regime = 1.0f;
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)

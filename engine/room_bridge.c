@@ -123,7 +123,7 @@ RoomError room_bridge_write(RoomState *state) {
         "hash_rate_norm", "difficulty_norm", "miner_floor_norm",
         "hour_of_day_norm", "day_of_week_norm",
         "iv_skew", "pcr_volume", "iv_term_slope",
-        "btc_sp500_corr"
+        "btc_sp500_corr", "vix_regime"
     };
     int first = 1;
     for (int i = 0; i < N_FEATURES; i++) {
