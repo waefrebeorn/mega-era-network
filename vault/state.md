@@ -3,10 +3,10 @@
 ## Current Status
 - **Engine:** 210 C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 110 🟡 P1, 228 ⚪ P3)
-- **Rooms:** 16 configured. market_type set per room. SIGMA_NORMALIZER fixed (0.001→0.15). 98% agent voting. 33 features (OB, CVD, 7 derived, time, options, BTC-SP500 corr). Warm-start from elite genomes on restart. Daily loss limit (C05, 10% max).
+- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 109 🟡 P1, 228 ⚪ P3)
+- **Rooms:** 16 configured. market_type set per room. SIGMA_NORMALIZER fixed (0.001→0.15). 98% agent voting. 34 features (OB, CVD, 7 derived, time, options, BTC-SP500 corr, VIX regime). Warm-start from elite genomes on restart. Daily loss limit (C05, 10% max).
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db backfill underway (33K+ rows), orderbook_depth/cumulative_volume_delta live
-- **Latest batch:** B12 (BTC-SP500 equity correlation feature). room_bridge feat_names fixed (18→33). Stale N_FEATURES=80 regression check fixed. P1: 111→110.
+- **Latest batch:** B23 (VIX regime filter F34). VIX data already flowing via MarketTick.vix. Continuous mapping: <15=low, 15-25=normal, >25=high. P1: 110→109.
 
 ## Gap Map Available
 - `vault/battleship-ultimate.md` — 365 cells (training, features, risk, data, execution, infra, security, website, monetization)

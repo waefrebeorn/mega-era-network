@@ -100,7 +100,7 @@
 | B20 | No inter-exchange basis | Features | ⚪ | ⏳ | Price difference between exchanges shows arbitrage pressure. |
 | B21 | No options-derived features (IV skew, put/call ratio) | Features | 🟡 | ✅ | **FIXED**: iv_skew (F30), pcr_volume (F31), iv_term_slope (F32) from latest_features.json. SPY options chain. |
 | B22 | No volatility term structure | Features | ⚪ | ⏳ | Short vs long vol term structure (contango/backwardation) signal. |
-| B23 | No VIX regime filter | Features | 🟡 | ⏳ | Market behavior in VIX<15 vs VIX>25 is fundamentally different. |
+| B23 | No VIX regime filter | Features | 🟡 | ✅ | **FIXED**: Added vix_regime (F34) to FeatureVector. Continuous mapping: VIX<15→0.0 (low), 15-25→0.5 (normal), >25→1.0 (high). Defaults to 15.0 when VIX unavailable. Persistent vix_hist ring buffer in RoomState. Data already flowing via MarketTick.vix from feed JSON. |
 | B24 | No economic surprise index | Features | ⚪ | ⏳ | Actual vs expected macro data releases. |
 | B25 | No news sentiment delta (change over time) | Features | ⚪ | ⏳ | Current sentiment only. Sentiment change (d(sentiment)/dt) is stronger signal. |
 | B26 | No social media volume spike | Features | ⚪ | ⏳ | Sudden increase in social mentions precedes volatility. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
-| B: Features | 45 | 0 | 7 | 0 | 33 | 0 |
+| B: Features | 45 | 0 | 6 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **110** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **109** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 110 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 109 major gaps | ⚪ P3: 228 minor/feature gaps

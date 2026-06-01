@@ -27,6 +27,5 @@ Pick next undone P0 from battleship. Currently working on B12 (BTC-SP500 correla
 ## Completed (batch 2)
 1. ~~B12: BTC-SP500 equity correlation feature~~ — DONE: F33, rolling Pearson, persistent SP500 history
 2. ~~room_bridge feat_names stale (18→33)~~ — DONE: was OOB on 33 features
-3. ~~test_regression N_FEATURES=80~~ — DONE: was stale, now 33
-4. ~~B44: Feed staleness check~~ — DONE (from prior session)
-5. ~~D01/D02: Backfill~~ — DONE (from prior session)
+3. ~~test_regression N_FEATURES=80~~ — DONE: was stale, now 34
+4. ~~B23: VIX regime filter~~ — DONE: F34, continuous VIX<15→0, 15-25→0.5, >25→1
