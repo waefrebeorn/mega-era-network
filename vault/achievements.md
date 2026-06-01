@@ -78,6 +78,11 @@
 - File: `engine/room_engine.c`, `engine/types.h`
 - P1 count: 103→102
 
+## Batch 2026-06-01 — D05 vaulted stale (Kraken backfill exists)
+- **D05: Kraken backfill** — Vaulted STALE. kraken_backfill.c (305 lines C) already implements paginated backfill via 'since' parameter with resume support. Binary exists.
+- File: `engine/kraken_backfill.c`
+- P1 count: 102→101
+
 ## Previous Achievements
 - CB-POLITICIAN PORTED — politician_portfolio.c (388 lines C, compiled, cron 240min)
 - CB-SEASONALITY PORTED — seasonality.c (203 lines C, compiled, cron 30min)

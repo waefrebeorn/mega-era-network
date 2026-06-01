@@ -181,7 +181,7 @@
 ||| D02 | No backfill capability for historical data | Data | 🔴 | ✅ | FIXED yahoo_collector.c: added `--backfill` flag using v8 API with period1/period2. Fetches 5 years in 1-year chunks with 250ms delay to avoid 429 rate limits. Clears existing data before re-insert. Usage: `./yahoo_collector --backfill` (full) or `--backfill --year 2024` (single year). 253 data points per ticker per year confirmed. |
 || D03 | Yahoo v7 API limits to ~125 days | Data | 🟡 | ✅ | **STALE**: D01/D02 v8 backfill (period1/period2) gets full 5-year history per ticker (253 rows/year). v7 still used for incremental daily updates — fine for ongoing collection since historical data already backfilled. |
 | D04 | No BTC 1-min historical data pipeline | Data | 🟡 | ✅ | **STALE**: BTC 1-min CSV exists at ~/.hermes/pm_logs/historical/btc_1min_latest.csv (723K rows, updated continuously via cron). Paper engine reads directly from it. |
-| D05 | Kraken OHLC API can't backfill historical | Data | 🟡 | ⏳ | Kraken returns max 720 most recent candles. No historical access. |
+|| D05 | Kraken backfill exists (kraken_backfill.c) — claim stale | Data | 🟡 | ✅ | **STALE**: kraken_backfill.c (305 lines C) already implements paginated backfill via 'since' parameter (720 candles/request). Supports resume from latest, timestamp, or full backfill from 2017. Writes to historical.db. Binary built. |
 | D06 | Coinbase has historical but no active collector | Data | 🟡 | ⏳ | Coinbase API supports start/end params but coinbase_live.c may not use them. |
 | D07 | No SP500 daily data pipeline | Data | 🟡 | ⏳ | Market_tide.c exists but SP500 data freshness unknown. |
 | D08 | No forex historical data | Data | 🟡 | ⏳ | forex_collector.c exists but only gets current rates. No history. |
@@ -442,12 +442,12 @@
 || A: Training Engine | 60 | 0 | 11 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
-|| D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
+|| D: Data Pipeline | 55 | 0 | 37 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 ||| F: Infrastructure | 35 | 0 | 14 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|||| **TOTAL** | **365** | **1** | **102** | **0** | **228** | **0** |
+|||| **TOTAL** | **365** | **1** | **101** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 102 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 101 major gaps | ⚪ P3: 228 minor/feature gaps
