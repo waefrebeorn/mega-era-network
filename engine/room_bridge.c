@@ -39,7 +39,10 @@ RoomError room_bridge_write(RoomState *state) {
     init_bridge_paths();
     if (!state) return ERR_MMAP_FAIL;
 
-    FILE *f = fopen(JSON_SNAP, "w");
+    // Atomic write via temp file + rename
+    char tmp_path[704];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", JSON_SNAP);
+    FILE *f = fopen(tmp_path, "w");
     if (!f) return ERR_FILE_READ;
 
     fputs("{\n", f);
@@ -106,8 +109,21 @@ RoomError room_bridge_write(RoomState *state) {
     fprintf(f, "  \"capital_peak\": %.4f,\n", state->stats.capital_peak);
     fprintf(f, "  \"room_pnl_pct\": %.4f,\n", state->stats.room_pnl_pct);
     fprintf(f, "  \"weight_diversity\": %.6f,\n", state->stats.weight_diversity);
-    fprintf(f, "  \"genome_diversity\": %.6f\n", state->stats.genome_diversity);
+    fprintf(f, "  \"genome_diversity\": %.6f,\n", state->stats.genome_diversity);
+    fprintf(f, "  \"return_count\": %d,\n", state->stats.return_count);
+    fprintf(f, "  \"return_idx\": %d,\n", state->stats.return_idx);
+    fprintf(f, "  \"room_trades\": %d\n", state->room_trades);
     fputs("},\n", f);
+    // ── Cycle returns ring buffer ──
+    fprintf(f, "\"cycle_returns\": [\n");
+    int first_ret = 1;
+    int max_ret = state->stats.return_count < 128 ? state->stats.return_count : 128;
+    for (int i = 0; i < max_ret; i++) {
+        if (!first_ret) fputs(",\n", f);
+        first_ret = 0;
+        fprintf(f, "  %.6f", state->stats.cycle_returns[i]);
+    }
+    fputs("\n],\n", f);
 
     // ── P16: Feature Importance ──
     fprintf(f, "\"feature_importance\": [\n");
@@ -181,6 +197,7 @@ RoomError room_bridge_write(RoomState *state) {
 
     fputs("}\n", f);
     fclose(f);
+    rename(tmp_path, JSON_SNAP);
 
     return ERR_OK;
 }

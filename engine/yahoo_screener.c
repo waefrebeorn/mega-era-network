@@ -84,13 +84,13 @@ static const char *get_str(json_t *obj, const char *key) {
 static void fetch_screener(sqlite3 *db, const char *scr_id, const char *label, long long now) {
     char url[512];
     snprintf(url, sizeof(url), "%s?scrIds=%s&count=25", API_BASE, scr_id);
-    
+
     char *raw = http_get(url);
     if (!raw) {
         printf("[SCREENER] %s: request failed\n", label);
         return;
     }
-    
+
     json_error_t err;
     json_t *root = json_loads(raw, 0, &err);
     free(raw);
@@ -98,7 +98,7 @@ static void fetch_screener(sqlite3 *db, const char *scr_id, const char *label, l
         printf("[SCREENER] %s: JSON error: %s\n", label, err.text);
         return;
     }
-    
+
     json_t *result = json_object_get(root, "finance");
     if (!result) result = root;
     json_t *results_arr = json_object_get(result, "result");
@@ -107,17 +107,17 @@ static void fetch_screener(sqlite3 *db, const char *scr_id, const char *label, l
         json_decref(root);
         return;
     }
-    
+
     json_t *quotes = json_object_get(json_array_get(results_arr, 0), "quotes");
     if (!quotes || !json_is_array(quotes)) {
         printf("[SCREENER] %s: no quotes\n", label);
         json_decref(root);
         return;
     }
-    
+
     size_t n = json_array_size(quotes);
     int inserted = 0;
-    
+
     sqlite3_exec(db, "BEGIN;", NULL, NULL, NULL);
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(db,
@@ -125,32 +125,32 @@ static void fetch_screener(sqlite3 *db, const char *scr_id, const char *label, l
         "(screener_type, symbol, price, change_pct, volume, ts) "
         "VALUES (?,?,?,?,?,?)",
         -1, &stmt, NULL);
-    
+
     for (size_t i = 0; i < n; i++) {
         json_t *q = json_array_get(quotes, i);
         if (!q) continue;
-        
+
         const char *sym = get_str(q, "symbol");
         if (strlen(sym) == 0) continue;
-        
+
         double price = get_dbl(q, "regularMarketPrice");
         double chg = get_dbl(q, "regularMarketChangePercent");
         long long vol = get_int(q, "regularMarketVolume");
-        
+
         sqlite3_bind_text(stmt, 1, label, -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 2, sym, -1, SQLITE_STATIC);
         sqlite3_bind_double(stmt, 3, price);
         sqlite3_bind_double(stmt, 4, chg);
         sqlite3_bind_int64(stmt, 5, vol);
         sqlite3_bind_int64(stmt, 6, now);
-        
+
         if (sqlite3_step(stmt) == SQLITE_DONE) inserted++;
         sqlite3_reset(stmt);
     }
-    
+
     sqlite3_finalize(stmt);
     sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
-    
+
     /* Print top 5 */
     printf("[SCREENER] %s (%s): %d symbols\n", label, scr_id, inserted);
     for (size_t i = 0; i < (n > 5 ? 5 : n); i++) {
@@ -160,7 +160,7 @@ static void fetch_screener(sqlite3 *db, const char *scr_id, const char *label, l
         double chg = get_dbl(q, "regularMarketChangePercent");
         printf("  %s: $%.2f (%+.2f%%)\n", sym, price, chg);
     }
-    
+
     json_decref(root);
 }
 
@@ -173,16 +173,16 @@ static void write_hb(void) {
 int main(int argc, char **argv) {
     const char *filter = NULL;
     if (argc > 1) filter = argv[1];
-    
+
     printf("[SCREENER] Yahoo Finance stock screener\n");
     write_hb();
-    
+
     sqlite3 *db;
     if (sqlite3_open(DB_PATH, &db) != SQLITE_OK) {
         fprintf(stderr, "[SCREENER] DB: %s\n", sqlite3_errmsg(db));
         return 1;
     }
-    
+
     sqlite3_exec(db,
         "CREATE TABLE IF NOT EXISTS stock_screener ("
         "  screener_type TEXT NOT NULL,"
@@ -192,21 +192,21 @@ int main(int argc, char **argv) {
         ");", NULL, NULL, NULL);
     sqlite3_exec(db,
         "CREATE INDEX IF NOT EXISTS idx_scr_ts ON stock_screener(ts);", NULL, NULL, NULL);
-    
+
     long long now = (long long)time(NULL);
-    
+
     struct { const char *id; const char *label; } screeners[] = {
         {"most_actives", "active"},
         {"day_gainers", "gainers"},
         {"day_losers", "losers"},
         {NULL, NULL}
     };
-    
+
     for (int i = 0; screeners[i].id; i++) {
         if (filter && strcmp(filter, screeners[i].label) != 0) continue;
         fetch_screener(db, screeners[i].id, screeners[i].label, now);
     }
-    
+
     sqlite3_close(db);
     printf("[SCREENER] Done\n");
     return 0;

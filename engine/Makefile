@@ -43,7 +43,7 @@ paper_feature_bridge.o: paper_feature_bridge.c paper_feature_bridge.h types.h
 	$(CC) $(CFLAGS) -c paper_feature_bridge.c -o paper_feature_bridge.o
 
 clean:
-	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor coingecko_fallback
+	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor coingecko_fallback timeline_sync
 
 # ── Shell-to-C conversions ──
 tools: cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal resource_monitor
@@ -132,6 +132,10 @@ key_rotation: key_rotation.c
 	$(CC) -O2 -o $@ $< -lm
 key_health: key_rotation
 	./key_rotation
+
+# ── DA05: Timeline sync (copies from main DB to engine DB every 5 min) ──
+timeline_sync: timeline_sync.c
+	$(CC) -O2 -o $@ $< -lsqlite3 -lm
 
 # ── F09: Database backup utility ──
 db_backup: db_backup.c
