@@ -304,4 +304,12 @@
 |  - Makefile: blockchain_feat added to TOOL_BINS
 |  - PARTIAL: only 3 slots (F25-F27) wired, full 24-metric expansion needs N_FEATURES bump
 |  - T088: PARTIAL→PORTED (core fix: blockchain.com data now reaches engine)
-|  - P1: 93→92
+  - P1: 93→92
+|- REAL GAP count: 15→14
+|
+|## Batch 2026-06-01 — T100: Room state snapshot → live dashboard
+|- **T100: No tool reads mmap state for live display** — FIXED
+|  - Symlink docs/data/room_state.json → pm_logs/c_room/room_snapshot.json
+|  - Cron: * * * * * copies snapshot every 60s for GitHub Pages compatibility
+|  - Data: cycle 715K+, 34 features, vote summary, Darwin epoch, top 10 agents
+|  - Website dashboard can now access live engine state at /data/room_state.json
