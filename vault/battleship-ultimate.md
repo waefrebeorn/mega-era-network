@@ -18,7 +18,7 @@
 || A05 | BTC-clone data fed to economic/macro rooms | Training | 🔴 | ✅ | **FALSE CLAIM**: verified room_feed_gen.c:133-136 uses sp500 for macro domain. economic close=7473.47 == sp500=7473.47; macro close=7580.06 == sp500=7580.06. These are sp500 index values, not BTC (BTC was 73598). Feeds correctly differentiated. |
 || A06 | Room feed generator may not work | Training | 🔴 | ✅ | **FALSE CLAIM**: verified by running feed_gen for consensus room (exit=0, close=0.499958). Generated JSON has window_ts, domain-appropriate close, OHLC. Valid per-room feed at market_feed.json. The feed_gen works correctly. |
 || A07 | No per-market-type genome initialization | Training | 🔴 | ✅ | init_agent now takes MarketType param. Crypto→momentum, Equity→macro, Forex→trend-follow, Binary→consensus-skeptic, Bond→slow/horizon, Vol→mean-revert, Commod→vol-aware. |
-| A08 | No market-specific feature calibration | Training | 🔴 | ⏳ | PARTIALLY ADDRESSED: binary vs price features already differentiated (room_features.c:254-306). RSI/phi/DFT/tail/volume are scale-independent. EMA/bollinger/MACD produce unscaled price-level outputs (binary→~0.5, BTC→~73k). Per-market agents can adapt via genomes (A07), but normalizing EMA/Bollinger/MACD per domain would improve convergence. |
+|| A08 | No market-specific feature calibration | Training | 🟡 | ⏳ | RECLASSIFIED from 🔴 P0 to 🟡 P1: binary vs price features already differentiated (room_features.c:254-306). RSI/phi/DFT/tail/volume are scale-independent. EMA/Bollinger/MACD normalization would improve convergence but is not blocking. Depends on A31 (MARKET_TYPE at runtime) for clean per-domain scaling. |
 | A09 | No per-asset volatility normalization | Training | 🟡 | ⏳ | BTC at $75K and binary at $0.50 use same feature computation. Price-based features broken. |
 || A10 | Multi-market trainer not wired into cron | Training | 🔴 | ✅ | **FALSE CLAIM**: verified `crontab -l` — daily 7am multi_market_trainer, */15min auto_retrain_c. 17 genome .bin in data/multi_market/. Last modified May 31 22:08. Trainer running on schedule. |
 | A11 | No walked-forward validation | Training | 🔴 | ⏳ | Training uses full dataset. No train/test split, no walk-forward. Overfit risk is 100%. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-| A: Training Engine | 60 | 8 | 22 | 0 | 30 | 0 |
+| A: Training Engine | 60 | 7 | 23 | 0 | 30 | 0 |
 | B: Features | 45 | 1 | 23 | 0 | 21 | 0 |
 | C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
 | D: Data Pipeline | 55 | 2 | 40 | 0 | 13 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **23** | **172** | **0** | **170** | **0** |
+| **TOTAL** | **365** | **22** | **172** | **0** | **170** | **0** |
 
-🔴 P0: 23 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 22 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 170 minor/feature gaps
