@@ -97,7 +97,7 @@
     // Fetch paper stats and normalize to unified stats object
     fetchStats: function(cb) {
       fetchJSON('paper_stats.json', function(err, ps) {
-        if (!ps) {
+        if (!ps || !ps.active_agents) {
           cb(err || new Error('no data'), null);
           return;
         }
