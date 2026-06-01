@@ -64,10 +64,42 @@ static int load_trained_genome(Genome *out) {
     return 0;
 }
 
+// ── T101: Load multiple diverse genomes from ENGINE_*.bin files ──
+// Returns number of genomes loaded (0 = none, use random).
+static int load_diverse_genomes(Genome *out, int max_genomes) {
+    int count = 0;
+    // Scan all ENGINE_<type>_<N>.bin files in multi_market directory
+    const char *pattern = "/home/wubu2/money-room/data/multi_market/ENGINE_*.bin";
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "ls %s 2>/dev/null", pattern);
+    FILE *ls = popen(cmd, "r");
+    if (!ls) return 0;
+    char path[512];
+    while (fgets(path, sizeof(path), ls) && count < max_genomes) {
+        // Strip newline
+        size_t len = strlen(path);
+        if (len > 0 && path[len-1] == '\n') path[len-1] = '\0';
+        FILE *f = fopen(path, "rb");
+        if (!f) continue;
+        if (fread(&out[count], sizeof(Genome), 1, f) == 1) {
+            count++;
+        }
+        fclose(f);
+    }
+    pclose(ls);
+    if (count > 0)
+        printf("[PAPER] Loaded %d diverse genomes from ENGINE_*.bin\n", count);
+    return count;
+}
+
 // ── Initialize agents ──
 static void init_agents(void) {
     Genome trained;
     int has_trained = load_trained_genome(&trained);
+    // ── T101: Load diverse ENGINE genomes for multi-genome initialization ──
+    Genome diverse[100];
+    int n_diverse = load_diverse_genomes(diverse, 100);
+    int has_diverse = (n_diverse > 0) ? 0 : -1;
 
     for (int i = 0; i < N_AGENTS; i++) {
         g_agents[i].alive = true;
@@ -79,7 +111,15 @@ static void init_agents(void) {
         g_agents[i].total_pnl = 0.0f;
         g_agents[i].win_rate = 0.5f;
 
-        if (has_trained == 0) {
+        // T101: Prefer diverse genome from ENGINE_*.bin, fall back to single trained, then random
+        if (has_diverse == 0) {
+            // Rotate through diverse genomes with moderate noise
+            g_agents[i].genome = diverse[i % n_diverse];
+            g_agents[i].genome.bias += ((float)rand() / RAND_MAX - 0.5f) * 0.1f;
+            g_agents[i].genome.position_size *= (0.7f + (float)rand() / RAND_MAX * 0.6f);
+            for (int w = 0; w < N_FEATURES; w++)
+                g_agents[i].genome.feat_weight[w] += ((float)rand() / RAND_MAX - 0.5f) * 0.15f;
+        } else if (has_trained == 0) {
             // Start from trained genome + aggressive noise for directional diversity
             g_agents[i].genome = trained;
             g_agents[i].genome.bias += ((float)rand() / RAND_MAX - 0.5f) * 0.2f;
