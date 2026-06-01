@@ -145,7 +145,7 @@
 | C13 | No fee model for different order types | Risk | 🟡 | ⏳ | Taker=0.1%, maker=0%. Engine always charges taker rate. Should model both. |
 | C14 | No gas cost model for crypto trades | Risk | ⚪ | ⏳ | On-chain settlement costs $0.50-5 per trade. $50 seed would be decimated by gas. |
 | C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ⏳ | Polymarket enforces 5-share minimum. Engine may place smaller orders. |
-|| C16 | No position size floor check | Risk | 🟡 | ⏳ | MIN_TRADE_STAKE=1 exists but agents could generate smaller size on price*position calc. |
+|| C16 | No position size floor check | Risk | 🟡 | ✅ | **STALE**: MIN_TRADE_STAKE=$1 enforced at room_capital.c:82-83. `if (stake < MIN_TRADE_STAKE) continue` catches any sub-threshold stake regardless of how it was computed. Also `if (stake <= 0) continue` guard. |
 || C17 | No auto-kill on 6 consecutive losses | Risk | 🟡 | ✅ | **STALE**: enforced at room_capital.c:224-225 — `if (agents[aid].consecutive_losses >= 6) agents[aid].alive = false;`. Running in all engine modes. |
 || C18 | No win-rate-floor auto-kill | Risk | ⚪ | ⏳ | Agent below 30% WR over 100 trades should be auto-culled between Darwin events. |
 | C19 | No capital-floor auto-kill | Risk | ⚪ | ⏳ | Agent below $1 capital can't trade. Should be auto-killed. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 10 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 9 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 16 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **116** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **115** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 116 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 115 major gaps | ⚪ P3: 228 minor/feature gaps
