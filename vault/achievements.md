@@ -182,3 +182,4 @@
 - types.h: added `max_daily_loss_pct`, `last_daily_reset_day` fields, STATE_MAGIC bumped
 - P1 count: 127→126
 - **D03: Yahoo v7 API limit** — vaulted stale. D01/D02 v8 backfill (period1/period2) fetches full 5-year history. v7 used for incremental updates only — sufficient since historical data already backfilled. P1: 126→125.
+- **C04: Max drawdown threshold** — vaulted documented. room_engine.c:684 confirms 20% max_drawdown_pct, benchmark.c:179 checks against 20%. No code change — threshold already documented in source comments. P1: 125→124.

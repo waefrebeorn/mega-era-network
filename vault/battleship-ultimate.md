@@ -133,7 +133,7 @@
 || C01 | No VaR computation in engine runtime | Risk | 🔴 | ✅ | FIXED risk_analytics.c: added `--json` flag and `--output` path. Writes VaR 95%/99%, ES 95%/99%, profit factor, gross win/loss to docs/data/risk_*.json. Cron: */15 * * * * via risk_analytics_cron.sh (Hermes job f62a834137b3). Runs on all 17 rooms (16 live + c_room paper). Monte Carlo VaR uses 10K simulations of 100-trade portfolios from real trade history. Fallback JSON with "warn" field when <100 trades available (dashboard-friendly). Code existed as offline binary (C21 VaR + C22 ES) — just needed JSON output + cron wiring. |
 || C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ✅ | **STALE**: CVaR/ES already computed in risk_analytics.c:123-171 and written to JSON output (es_95_pct, es_99_pct). C22 was folded into C01 implementation. |
 ||| C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
-|| C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
+|| C04 | Max drawdown threshold unknown | Risk | 🟡 | ✅ | **DOCUMENTED**: room_engine.c:684 — `state->max_drawdown_pct = 0.20f` (20%). benchmark.c:179 checks `max_drawdown < 0.20f`. Threshold is 20% of peak capital from circuit breaker peak tracking. |
 || C05 | No daily loss limit for room capital | Risk | 🟡 | ✅ | **FIXED**: Added day-boundary-checked daily_pnl tracking (room_engine.c:999-1005). Circuit breaker trips when daily loss exceeds max_daily_loss_pct (10% of peak capital, types.h:max_daily_loss_pct). Resets on day boundary via window_ts/86400. PnL updated after every trade resolution at 4 resolution points (dup-exit, kill-switch, slippage). |
 || C06 | No max position concentration check | Risk | 🟡 | ✅ | **STALE**: P2P matching inherently limits exposure — only min(YES_total, NO_total) is matched. Unmatched surplus stays in agent capital. No over-exposure possible. |
 || C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 17 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 14 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 13 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **125** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **124** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 125 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 124 major gaps | ⚪ P3: 228 minor/feature gaps
