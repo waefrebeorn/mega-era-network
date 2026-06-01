@@ -11,7 +11,7 @@
 - **16 rooms, identical binary** — all same md5, no differentiation
 - **7 rooms on fake data** — FIXED: A04 replaced random 0.50 with real Manifold probabilities
 - **Only 1-2 cycles per room** — no meaningful trading history (A02 infinite-loop blocker fixed)
-- **365 total gaps** mapped across 9 domains (14 🔴 P0 remaining)
+- **365 total gaps** mapped across 9 domains (12 🔴 P0 remaining)
 
 ## Key Stats (from audit)
 - 210 C files in engine/
@@ -21,4 +21,4 @@
 - 7 rooms running fake data
 - 21-33 data rows per yahoo_collector ticker
 - 14 JSON feeds on website
-- Originally 35 🔴 P0 critical gaps in battleship-ultimate.md (now 14)
+- Originally 35 🔴 P0 critical gaps in battleship-ultimate.md (now 12)

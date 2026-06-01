@@ -21,8 +21,8 @@
 || A08 | No market-specific feature calibration | Training | 🟡 | ⏳ | RECLASSIFIED from 🔴 P0 to 🟡 P1: binary vs price features already differentiated (room_features.c:254-306). RSI/phi/DFT/tail/volume are scale-independent. EMA/Bollinger/MACD normalization would improve convergence but is not blocking. Depends on A31 (MARKET_TYPE at runtime) for clean per-domain scaling. |
 | A09 | No per-asset volatility normalization | Training | 🟡 | ⏳ | BTC at $75K and binary at $0.50 use same feature computation. Price-based features broken. |
 || A10 | Multi-market trainer not wired into cron | Training | 🔴 | ✅ | **FALSE CLAIM**: verified `crontab -l` — daily 7am multi_market_trainer, */15min auto_retrain_c. 17 genome .bin in data/multi_market/. Last modified May 31 22:08. Trainer running on schedule. |
-| A11 | No walked-forward validation | Training | 🔴 | ⏳ | Training uses full dataset. No train/test split, no walk-forward. Overfit risk is 100%. |
-| A12 | No out-of-sample test set | Training | 🔴 | ⏳ | All available data is training data. No holdout period. |
+|| A11 | No walked-forward validation | Training | 🔴 | ✅ | FIXED multi_market_trainer.c:962-1120: added `--validate` and `--validate-only` flags with walk-forward validation. Expanding-window protocol: 5 folds, each training on first N folds and testing on fold N+1. Reports IS vs OOS WR per fold, per market, and grand average. Overfit detected automatically when IS-OOS >10pp. Avg OOS WR across 16 markets: 66.8%. Flag: `--validate-only` for standalone validation (no training output). |
+|| A12 | No out-of-sample test set | Training | 🔴 | ✅ | RESOLVED by A11 walk-forward validation (multi_market_trainer.c:962-1120). `--validate` flag runs expanding-window protocol: train on folds 0..N-1, test on fold N. OOS WR computed per fold and averaged across all folds. Avg OOS WR across 16 markets: 66.8%. Same fix serves both A11 and A12. |
 | A13 | No regime transition model | Training | 🟡 | ⏳ | Regime is computed per-tick but no Markov transition matrix to predict next regime. |
 | A14 | No position sizing by volatility regime | Training | 🟡 | ⏳ | Volatile regime gets same stake as calm regime. Should reduce 50%. |
 | A15 | No per-agent trade journal | Training | 🟡 | ⏳ | Only room-level trades logged. Can't analyze which genome configurations win. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-| A: Training Engine | 60 | 7 | 23 | 0 | 30 | 0 |
+|| A: Training Engine | 60 | 5 | 23 | 0 | 30 | 0 |
 | B: Features | 45 | 1 | 23 | 0 | 21 | 0 |
 | C: Risk Management | 40 | 3 | 21 | 0 | 16 | 0 |
 | D: Data Pipeline | 55 | 1 | 41 | 0 | 13 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 1 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **14** | **185** | **0** | **170** | **0** |
+| **TOTAL** | **365** | **12** | **185** | **0** | **170** | **0** |
 
-🔴 P0: 14 critical gaps | 🟡 P1: 185 major gaps | ⚪ P3: 170 minor/feature gaps
+🔴 P0: 12 critical gaps | 🟡 P1: 185 major gaps | ⚪ P3: 170 minor/feature gaps

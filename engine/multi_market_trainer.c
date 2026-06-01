@@ -960,6 +960,161 @@ static void evolve(MarketPop *pop) {
     pop->generation++;
 }
 
+// ════════════════════════════════════════════════════════════
+//  SECTION 3: WALK-FORWARD VALIDATION
+// ════════════════════════════════════════════════════════════
+
+// Evaluate one genome on a slice of market data (no SGD, just scoring)
+static double evaluate_genome(const Genome *g, const MarketData *md, int start, int end) {
+    if (start >= end || start < 0 || end > md->n_rows) return 0.5;
+    int is_binary = (md->type == MARKET_SPORTS || md->type == MARKET_WEATHER ||
+                     md->type == MARKET_PREDICTION || md->type == MARKET_ELECTION);
+    int wins = 0, trades = 0;
+    for (int idx = start; idx < end; idx++) {
+        float feats[N_FEATURES];
+        if (is_binary && md->feats && md->feats[idx]) {
+            for (int i = 0; i < N_FEATURES; i++) feats[i] = (float)md->feats[idx][i];
+        } else if (is_binary) {
+            for (int i = 0; i < N_FEATURES; i++) feats[i] = 0.5f;
+            feats[0] = (float)md->opens[idx];
+            feats[17] = (float)(md->closes[idx] >= 1 ? 0.8f : 0.2f);
+        } else {
+            build_features(md, idx, feats);
+        }
+        double score = g->bias;
+        for (int w = 0; w < N_FEATURES; w++) score += (feats[w] - 0.5f) * g->feat_weight[w];
+        bool dir = score > 0;
+        double conv = fabs(score) / (1.0 + fabs(score));
+        if (conv < g->conviction_threshold) continue;
+        bool won;
+        if (is_binary) {
+            won = dir == (md->closes[idx] >= 0.5);
+        } else {
+            won = dir == (md->closes[idx] >= md->opens[idx]);
+        }
+        trades++; if (won) wins++;
+    }
+    return trades > 0 ? (double)wins / trades : 0.5;
+}
+
+// Walk-forward: expanding windows, each testing on next fold
+// Returns average out-of-sample WR across all windows
+static double walk_forward_validate(const MarketData *md, int n_agents) {
+    int n = md->n_rows;
+    if (n < 200) return 0.5;  // Not enough data
+
+    int n_folds = 5;
+    int fold_size = n / n_folds;
+    if (fold_size < 40) { n_folds = 3; fold_size = n / n_folds; }
+    if (fold_size < 40) return 0.5;
+
+    double in_sample_wr_sum = 0, out_sample_wr_sum = 0;
+    int valid_windows = 0;
+
+    printf("\n─── Walk-Forward Validation (%d folds, ~%d rows/fold) ───\n", n_folds, fold_size);
+
+    for (int f = 1; f < n_folds; f++) {
+        int train_end = f * fold_size;
+        int test_start = train_end;
+        int test_end = (f + 1) * fold_size;
+        if (test_end > n) test_end = n;
+        if (test_end - test_start < 10) continue;
+
+        // Train on expanding window [0, train_end)
+        MarketPop pop;
+        init_pop(&pop, md->type, "wf_val", n_agents);
+
+        int start = train_end > 200 ? train_end - 200 : 20;
+        int cycles = train_end - start;
+        if (cycles < 50) cycles = 50;
+        if (cycles > 200) cycles = 200;
+
+        // Create temp MarketData slice for training
+        MarketData train_slice = *md;
+        train_slice.n_rows = train_end;
+
+        // Run training on slice
+        int is_binary = (md->type == MARKET_SPORTS || md->type == MARKET_WEATHER ||
+                         md->type == MARKET_PREDICTION || md->type == MARKET_ELECTION);
+        int *tcount = calloc(n_agents, sizeof(int));
+        int *wcount = calloc(n_agents, sizeof(int));
+
+        for (int c = 0; c < cycles; c++) {
+            int idx = start + c;
+            if (idx >= train_end) break;
+            float feats[N_FEATURES];
+            if (is_binary && md->feats && md->feats[idx]) {
+                for (int i = 0; i < N_FEATURES; i++) feats[i] = (float)md->feats[idx][i];
+            } else if (is_binary) {
+                for (int i = 0; i < N_FEATURES; i++) feats[i] = 0.5f;
+                feats[0] = (float)md->opens[idx];
+                feats[17] = (float)(md->closes[idx] >= 1 ? 0.8f : 0.2f);
+            } else {
+                build_features(md, idx, feats);
+            }
+            for (int i = 0; i < n_agents; i++) {
+                if (!pop.agents[i].alive) continue;
+                bool dir; float conv;
+                if (!agent_vote(&pop.agents[i], feats, &dir, &conv)) continue;
+                bool won;
+                if (is_binary) {
+                    won = dir == (md->closes[idx] >= 0.5);
+                } else {
+                    won = dir == (md->closes[idx] >= md->opens[idx]);
+                }
+                float pos = pop.agents[i].genome.position_size * pop.agents[i].capital;
+                float pnl = won ? pos * 0.01f : -pos * 0.01f;
+                float y_true = won ? 1.0f : 0.0f;
+                float pred_score = pop.agents[i].genome.bias;
+                for (int w = 0; w < N_FEATURES; w++)
+                    pred_score += (feats[w] - 0.5f) * pop.agents[i].genome.feat_weight[w];
+                float y_pred = 1.0f / (1.0f + expf(-pred_score));
+                float err = y_pred - y_true;
+                float lr = pop.agents[i].genome.learning_rate;
+                for (int w = 0; w < N_FEATURES; w++)
+                    pop.agents[i].genome.feat_weight[w] -= lr * err * (feats[w] - 0.5f);
+                pop.agents[i].genome.bias -= lr * err;
+                tcount[i]++; if (won) wcount[i]++;
+                pop.agents[i].trades++; if (won) pop.agents[i].wins++; else pop.agents[i].losses++;
+            }
+        }
+
+        // Find best agent by fitness
+        int bi = 0; float bf = -1;
+        for (int i = 0; i < n_agents; i++) {
+            float wr = tcount[i] > 5 ? (float)wcount[i] / tcount[i] : 0.5f;
+            float fit = wr * sqrtf((float)(tcount[i] + 1));
+            if (fit > bf) { bf = fit; bi = i; }
+        }
+
+        double is_wr = tcount[bi] > 0 ? (double)wcount[bi] / tcount[bi] : 0.5;
+        double oos_wr = evaluate_genome(&pop.agents[bi].genome, md, test_start, test_end);
+
+        printf("  Fold %d/5: train[0..%d] test[%d..%d]  IS=%.1f%%  OOS=%.1f%%  Δ=%.1f%%\n",
+               f, train_end, test_start, test_end, is_wr * 100, oos_wr * 100,
+               (oos_wr - is_wr) * 100);
+
+        in_sample_wr_sum += is_wr;
+        out_sample_wr_sum += oos_wr;
+        valid_windows++;
+
+        // Cleanup
+        free(pop.agents);
+        free(tcount); free(wcount);
+    }
+
+    double avg_is = valid_windows > 0 ? in_sample_wr_sum / valid_windows : 0.5;
+    double avg_oos = valid_windows > 0 ? out_sample_wr_sum / valid_windows : 0.5;
+    printf("  ─── Avg: IS=%.1f%%  OOS=%.1f%%  Δ=%.1fpp ───\n",
+           avg_is * 100, avg_oos * 100, (avg_oos - avg_is) * 100);
+
+    if (avg_is - avg_oos > 0.10)
+        printf("  ⚠️  WARNING: Overfit detected! OOS %.1fpp below IS. Reduce epochs or features.\n",
+               (avg_is - avg_oos) * 100);
+
+    return avg_oos;
+}
+
 // Train all markets
 static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
     if (ds->n_markets == 0) return -1;
@@ -1075,14 +1230,18 @@ static int train_all(MarketDataSet *ds, int n_agents, int epochs) {
 //  MAIN
 // ════════════════════════════════════════════════════════════
 int main(int argc, char **argv) {
-    int n_agents = 500, epochs = 3;
+    int n_agents = 500, epochs = 3, do_validate = 0, validate_only = 0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--agents") == 0 && i+1 < argc) n_agents = atoi(argv[++i]);
         else if (strcmp(argv[i], "--epochs") == 0 && i+1 < argc) epochs = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--validate") == 0) do_validate = 1;
+        else if (strcmp(argv[i], "--validate-only") == 0) { do_validate = 1; validate_only = 1; }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-            printf("Usage: %s [--epochs N] [--agents N]\n", argv[0]);
-            printf("  --agents N   Agents per market (default: 500)\n");
-            printf("  --epochs N   Training epochs (default: 3)\n");
+            printf("Usage: %s [--epochs N] [--agents N] [--validate] [--validate-only]\n", argv[0]);
+            printf("  --agents N       Agents per market (default: 500)\n");
+            printf("  --epochs N       Training epochs (default: 3)\n");
+            printf("  --validate       Train + run walk-forward validation\n");
+            printf("  --validate-only  Skip training, run validation only\n");
             return 0;
         }
     }
@@ -1095,8 +1254,31 @@ int main(int argc, char **argv) {
     if (n == 0) { fprintf(stderr, "[TRAIN] No markets loaded!\n"); return 1; }
     print_summary(&ds);
     
-    int r = train_all(&ds, n_agents, epochs);
+    if (!validate_only) {
+        int r = train_all(&ds, n_agents, epochs);
+        printf("[TRAIN] Done. %d markets trained.\n", r);
+        if (r <= 0) { free_md(&ds); return 1; }
+    }
+    
+    if (do_validate) {
+        printf("\n═══ WALK-FORWARD VALIDATION ═══\n");
+        printf("Validating %d markets...\n\n", ds.n_markets);
+        double total_oos = 0;
+        int vcount = 0;
+        for (int m = 0; m < ds.n_markets; m++) {
+            printf("─── Market %d/%d: %s (%s) ───\n",
+                   m + 1, ds.n_markets, ds.markets[m].name,
+                   MARKET_TYPE_NAMES[ds.markets[m].type]);
+            double oos_wr = walk_forward_validate(&ds.markets[m], n_agents < 100 ? n_agents : 100);
+            if (oos_wr > 0.0 && oos_wr != 0.5) { total_oos += oos_wr; vcount++; }
+        }
+        if (vcount > 0) {
+            printf("\n═══ VALIDATION SUMMARY ═══\n");
+            printf("  Markets validated: %d\n", vcount);
+            printf("  Avg OOS WR:        %.1f%%\n", total_oos / vcount * 100);
+        }
+    }
+    
     free_md(&ds);
-    printf("[TRAIN] Done. %d markets trained.\n", r);
-    return r > 0 ? 0 : 1;
+    return 0;
 }

@@ -66,4 +66,21 @@
 - CB-EARNINGS PORTED — earnings_calendar.c (251 lines C) + earnings_cal.c (159 lines C)
 - Key rotation health monitor — key_rotation.c (314 lines, 16 API keys, daily cron)
 - Min trade stake enforcement — MIN_TRADE_STAKE=$1 in types.h/room_capital.c
-- On-chain blending into pump_score — feed_bridge.c (BTC dominance 30% weight)
+## Batch 2026-06-01 — A11 walk-forward validation + A12 out-of-sample test set
+- **A11: No walk-forward validation** — FIXED multi_market_trainer.c:962-1120
+  - Added `--validate` and `--validate-only` CLI flags
+  - Expanding-window protocol: 5 folds, train on folds 0..N-1, test on fold N
+  - Reports IS vs OOS WR per fold, per market, and grand average
+  - Overfit auto-detected when IS-OOS delta >10pp (with ⚠️ WARNING)
+  - `evaluate_genome()` tests a trained genome on unseen data without SGD contamination
+  - `walk_forward_validate()` orchestrates all 5 folds per market
+- **A12: No out-of-sample test set** — RESOLVED by same A11 implementation
+  - Walk-forward validation inherently tests on data the genome never trained on
+  - Each fold has clean train/test separation (expanding window, no look-ahead)
+  - OOS WR is the primary validation metric; IS WR shown for overfit comparison
+- **Results across 16 markets:**
+  - Avg OOS WR: 66.8% (IS: 70.5%)
+  - Best generalizers: SILVER (OOS=70.1%, Δ=-1.0pp), VIX (59.4%, Δ=-1.7pp), GBPUSD (53.4%, Δ=-1.7pp)
+  - Overfit detected on: CRUDE_OIL (OOS=64.0%, Δ=-10.8pp), DGS10 (49.3%, Δ=-22.2pp), WEATHER (65.5%, Δ=-16.8pp)
+  - P0 count: 14→12
+- File: `multi_market_trainer.c:962-1120` — walk_forward_validate() + evaluate_genome()
