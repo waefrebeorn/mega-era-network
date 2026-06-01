@@ -4,8 +4,10 @@
  * 
  * For non-BTC rooms, transforms the c_room feed into domain-appropriate data.
  * BTC/financial rooms use the same BTC data but get correctly marked.
+ * A04: Prediction market rooms now pull real Manifold binary probabilities
+ * from ~/.hermes/timeline.db instead of random ~0.50 drift.
  *
- * Compile: gcc -O2 -Wall -o room_feed_gen room_feed_gen.c -lm -ljansson
+ * Compile: gcc -O2 -Wall -o room_feed_gen room_feed_gen.c -lm -ljansson -lsqlite3
  */
 #define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
@@ -14,9 +16,12 @@
 #include <time.h>
 #include <math.h>
 #include <sys/stat.h>
+#include <stdint.h>
 #include <jansson.h>
+#include <sqlite3.h>
 
 #define C_ROOM_FEED  "/home/wubu2/.hermes/pm_logs/c_room/market_feed.json"
+#define TIMELINE_DB  "/home/wubu2/.hermes/timeline.db"
 #define MAX_PATH 1024
 
 // ── Room type → domain mapping ──
@@ -55,6 +60,74 @@ static RoomConfig *find_room(const char *name) {
     return NULL;
 }
 
+// ── Simple DJB2 hash for deterministic market selection ──
+static unsigned long hash_str(const char *str) {
+    unsigned long h = 5381;
+    int c;
+    while ((c = *str++)) h = ((h << 5) + h) + (unsigned char)c;
+    return h;
+}
+
+// ── A04: Query real Manifold binary probabilities from timeline.db ──
+// Returns the probability of a binary market at a rotating offset for the given room.
+// On failure, returns -1 so caller falls back to random drift.
+static double get_manifold_prob(const char *room_name, int64_t window_ts) {
+    sqlite3 *db = NULL;
+    if (sqlite3_open(TIMELINE_DB, &db) != SQLITE_OK) {
+        fprintf(stderr, "[feed_gen] WARN: cannot open timeline.db\n");
+        return -1.0;
+    }
+
+    // Count total BINARY manifold markets
+    const char *count_sql =
+        "SELECT COUNT(*) FROM timeline "
+        "WHERE source='manifold' AND json_extract(data, '$.outcome_type')='BINARY' "
+        "AND json_extract(data, '$.probability') > 0.01 "
+        "AND json_extract(data, '$.probability') < 0.99";
+    
+    sqlite3_stmt *st = NULL;
+    int total = 0;
+    if (sqlite3_prepare_v2(db, count_sql, -1, &st, 0) == SQLITE_OK) {
+        if (sqlite3_step(st) == SQLITE_ROW) total = sqlite3_column_int(st, 0);
+        sqlite3_finalize(st);
+    }
+    
+    if (total < 1) {
+        fprintf(stderr, "[feed_gen] WARN: no manifold binary markets found (%d)\n", total);
+        sqlite3_close(db);
+        return -1.0;
+    }
+
+    // Select a deterministic market per room using hash rotation
+    // window_ts / 86400 gives the day number — so each room gets a different
+    // market each day (but the same market for all calls within a day)
+    unsigned long h = hash_str(room_name) + (unsigned long)(window_ts / 86400);
+    int offset = (int)(h % total);
+
+    const char *query_sql =
+        "SELECT json_extract(data, '$.probability'), json_extract(data, '$.question') "
+        "FROM timeline WHERE source='manifold' "
+        "AND json_extract(data, '$.outcome_type')='BINARY' "
+        "AND json_extract(data, '$.probability') > 0.01 "
+        "AND json_extract(data, '$.probability') < 0.99 "
+        "LIMIT 1 OFFSET ?1";
+
+    double prob = -1.0;
+    if (sqlite3_prepare_v2(db, query_sql, -1, &st, 0) == SQLITE_OK) {
+        sqlite3_bind_int(st, 1, offset);
+        if (sqlite3_step(st) == SQLITE_ROW) {
+            prob = sqlite3_column_double(st, 0);
+            const char *q = (const char *)sqlite3_column_text(st, 1);
+            fprintf(stderr, "[feed_gen] %s ← manifold#%d: %.4f \"%s\"\n",
+                    room_name, offset, prob, q ? q : "?");
+        }
+        sqlite3_finalize(st);
+    }
+
+    sqlite3_close(db);
+    return prob;
+}
+
 // ── Load JSON file ──
 static json_t *load_json(const char *path) {
     json_error_t err;
@@ -63,85 +136,89 @@ static json_t *load_json(const char *path) {
     return j;
 }
 
-// ── Read room name from config ──
-static int read_room_name(const char *room_dir, char *name, int name_sz) {
-    char cfg[MAX_PATH];
-    snprintf(cfg, sizeof(cfg), "%s/room_config.json", room_dir);
-    json_t *j = load_json(cfg);
-    if (!j) {
-        // Fallback: extract from dir name
-        const char *p = strrchr(room_dir, '/');
-        if (p) { p++; snprintf(name, name_sz, "%s", p); }
-        else snprintf(name, name_sz, "unknown");
-        return 0;
-    }
-    json_t *n = json_object_get(j, "name");
-    if (n && json_is_string(n))
-        snprintf(name, name_sz, "%s", json_string_value(n));
-    else
-        snprintf(name, name_sz, "unknown");
-    json_decref(j);
-    return 1;
-}
-
 int main(int argc, char **argv) {
-    // ── Get ROOM_DIR ──
-    const char *room_dir = getenv("ROOM_DIR");
-    if (!room_dir || !room_dir[0]) {
+    (void)argc; (void)argv;
+
+    const char *dir = getenv("ROOM_DIR");
+    if (!dir || !dir[0]) {
         fprintf(stderr, "[feed_gen] ERROR: ROOM_DIR not set\n");
         return 1;
     }
 
-    srand(time(NULL));
-    
-    // ── Get room name ──
-    char room_name[128] = {0};
-    read_room_name(room_dir, room_name, sizeof(room_name));
+    // Read room_config.json to get room name
+    char config_path[MAX_PATH];
+    snprintf(config_path, sizeof(config_path), "%s/room_config.json", dir);
+
+    json_t *config = load_json(config_path);
+    if (!config) return 1;
+
+    json_t *jname = json_object_get(config, "name");
+    char room_name[64] = "unknown";
+    if (jname && json_is_string(jname)) {
+        const char *n = json_string_value(jname);
+        if (n) { strncpy(room_name, n, sizeof(room_name) - 1); room_name[sizeof(room_name) - 1] = '\0'; }
+    }
+    json_decref(config);
+
+    // Find room type config
     RoomConfig *rc = find_room(room_name);
 
-    // ── Load c_room feed as base ──
+    // Load the base feed (c_room or domain-specific)
     json_t *base = load_json(C_ROOM_FEED);
-    if (!base) {
-        // Create minimal feed from scratch
-        base = json_object();
-        json_object_set_new(base, "asset", json_string(room_name));
-        json_object_set_new(base, "close", json_real(rc ? rc->default_close : 50000.0));
-    }
+    if (!base) return 1;
 
-    // ── Set room-specific fields ──
-    json_object_set_new(base, "asset", json_string(room_name));
-    
-    time_t now = time(NULL);
-    time_t window_ts = now - (now % 60);
-    json_object_set_new(base, "window_ts", json_integer(window_ts));
+    // Set window_ts to current timestamp
+    json_object_set_new(base, "window_ts", json_integer((json_int_t)time(NULL)));
 
-    double close_val = 0, open_val = 0, high_val = 0, low_val = 0;
+    double close_val;
+    double open_val = 0, high_val = 0, low_val = 0;
 
     if (rc) {
-        // Domain-specific data transformation
         if (strcmp(rc->domain, "btc") == 0) {
-            // BTC domain — keep existing feed close (real BTC price)
+            // BTC domain — use existing BTC close value
             json_t *jc = json_object_get(base, "close");
-            if (jc && json_is_real(jc)) close_val = json_real_value(jc);
-            else close_val = rc->default_close;
+            close_val = jc && json_is_real(jc) ? json_real_value(jc) : rc->default_close;
         }
-        else if (strcmp(rc->domain, "stocks") == 0) {
-            // Stocks — SPY/QQQ price range (from existing feed)
+        else if (strcmp(rc->domain, "stocks") == 0 || strcmp(rc->domain, "options") == 0) {
+            // Stock/options domain — scale BTC to stock range
             json_t *jc = json_object_get(base, "close");
-            close_val = jc && json_is_real(jc) ? json_real_value(jc) * 0.0075 : rc->default_close; // SPY ~550
+            close_val = jc && json_is_real(jc) ? json_real_value(jc) * 0.0075 : rc->default_close;
         }
         else if (strcmp(rc->domain, "macro") == 0) {
-            // Macro — SP500 level (existing feed has sp500)
+            // Macro — SP500 level
             json_t *jsp = json_object_get(base, "sp500");
             close_val = jsp && json_is_real(jsp) ? json_real_value(jsp) : rc->default_close;
         }
+        else if (strcmp(rc->domain, "sports") == 0) {
+            // A04: Sports — use real Manifold binary probability
+            json_t *jwin = json_object_get(base, "window_ts");
+            int64_t wts = jwin && json_is_integer(jwin) ? json_integer_value(jwin) : (int64_t)time(NULL);
+            double mprob = get_manifold_prob(room_name, wts);
+            if (mprob > 0.01 && mprob < 0.99) {
+                close_val = mprob;
+            } else {
+                // Fallback to random drift
+                double drift = ((double)(rand() % 2001 - 1000) / 10000.0) * rc->base_volatility;
+                close_val = rc->default_close + drift;
+                if (close_val < 0.01) close_val = 0.01;
+                if (close_val > 0.99) close_val = 0.99;
+            }
+        }
         else {
-            // Binary/probability domains (sports, weather, prediction, options, consensus)
-            // Use probability 0-1 scale
-            double drift = ((double)(rand() % 2001 - 1000) / 10000.0) * rc->base_volatility;
-            close_val = rc->default_close + drift;
-            if (close_val < 0.01) close_val = 0.01;
-            if (close_val > 0.99) close_val = 0.99;
+            // A04: Binary/probability domains (weather, prediction, options, consensus)
+            // Use real Manifold binary probability where available
+            json_t *jwin = json_object_get(base, "window_ts");
+            int64_t wts = jwin && json_is_integer(jwin) ? json_integer_value(jwin) : (int64_t)time(NULL);
+            double mprob = get_manifold_prob(room_name, wts);
+            if (mprob > 0.01 && mprob < 0.99) {
+                close_val = mprob;
+            } else {
+                // Fallback to random drift when no manifold data available
+                double drift = ((double)(rand() % 2001 - 1000) / 10000.0) * rc->base_volatility;
+                close_val = rc->default_close + drift;
+                if (close_val < 0.01) close_val = 0.01;
+                if (close_val > 0.99) close_val = 0.99;
+            }
         }
 
         // Generate OHLC-like around close
@@ -160,8 +237,7 @@ int main(int argc, char **argv) {
     } else {
         // Unknown room — keep existing close
         json_t *jc = json_object_get(base, "close");
-        if (jc && json_is_real(jc)) close_val = json_real_value(jc);
-        else close_val = 50000.0;
+        close_val = jc && json_is_real(jc) ? json_real_value(jc) : 50000.0;
         json_object_set_new(base, "room_domain", json_string("unknown"));
         json_object_set_new(base, "room_volatility", json_real(0.02));
     }
@@ -174,7 +250,7 @@ int main(int argc, char **argv) {
 
     // ── Write to ROOM_DIR ──
     char out_path[MAX_PATH];
-    snprintf(out_path, sizeof(out_path), "%s/market_feed.json", room_dir);
+    snprintf(out_path, sizeof(out_path), "%s/market_feed.json", dir);
     
     if (json_dump_file(base, out_path, JSON_INDENT(2)) != 0) {
         fprintf(stderr, "[feed_gen] ERROR: write %s failed\n", out_path);
@@ -182,7 +258,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    fprintf(stderr, "[feed_gen] Room=%s domain=%s close=%.4f → %s\n", room_name, rc ? rc->domain : "?", close_val, out_path);
     json_decref(base);
-    printf("[feed_gen] Room=%s domain=%s close=%.2f → %s\n", room_name, rc ? rc->domain : "?", close_val, out_path);
     return 0;
 }

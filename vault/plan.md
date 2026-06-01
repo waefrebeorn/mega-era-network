@@ -7,7 +7,7 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 1. ~~A01: No SGD weight update loop~~ — DONE: added BCE gradient descent to multi_market_trainer.c
 2. ~~A02: Darwin never fires in any room~~ — DONE: fixed infinite-dup-sleep loop (room_engine.c:701-708) + trade_count cross-cron persistence (room_engine.c:657)
 3. ~~A03: All 16 rooms identical binary~~ — DONE: confirmed by-design architecture, not a gap
-4. ~~A04 (partial): snapshot display~~ — DONE: room_bridge.c:56-60 %.2f→%.4f precision
+4. ~~A04: Rooms show fake 0.50 prices~~ — DONE: room_feed_gen pulls real Manifold binary probabilities from timeline.db (556 markets)
 5. ~~A05: BTC-clone in eco/macro~~ — DONE: FALSE CLAIM, feeds use sp500 correctly
 6. ~~A06: Feed generator may not work~~ — DONE: FALSE CLAIM, feed_gen runs correctly with valid output
 7. ~~A10: Trainer not wired into cron~~ — DONE: FALSE CLAIM, verified crontab daily+15min
@@ -19,6 +19,7 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 13. ~~D01: timeline.db only has 21-33 rows/ticker~~ — DONE: VERIFIED TRUE, addressed by D02 backfill
 14. ~~D02: No backfill capability~~ — DONE: added --backfill flag (v8 API, 1-year chunks, rate-limited)
 15. ~~D39: No data staleness flag~~ — DONE: FALSE CLAIM — handled by B44 (room_feeds.c:254-277)
+16. ~~A04: Real data for prediction rooms~~ — DONE: room_feed_gen pulls 556 Manifold binary markets
 
 ## Next Cell
-Pick next undone P0 from battleship (23 🔴).
+Pick next undone P0 from battleship.

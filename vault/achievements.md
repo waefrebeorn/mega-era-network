@@ -24,7 +24,9 @@
 - Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%
 - **27 🔴 P0 remaining** (was 35 at session start)
 
-## Batch 2026-06-01 — D01/D02 backfill via v8 API + D39 false-claim closed
+## Batch 2026-06-01 — A04 real Manifold data for prediction rooms
+|- **A04: 7 rooms show fake 0.50 prices** — FIXED room_feed_gen.c: added `get_manifold_prob()` that queries 556 real Manifold binary markets from ~/.hermes/timeline.db. Each prediction room gets a deterministic market via hash rotation (different per room, same per day). Real probabilities: manifold→0.13, consensus→0.45, sports→0.53, weather→0.09, elections→0.63, polymarket→0.60.
+|- `room_feed_gen` now compiled with `-lsqlite3`, deployed to ~/.hermes/scripts/
 |- **D01: Only 21 rows/ticker** — VERIFIED TRUE: Yahoo v7/chart API with range=5y silently caps at ~21 trading days (~1 month). All 59 tickers had exactly 21 rows.
 |- **D02: Backfill capability** — FIXED yahoo_collector.c: added `--backfill` flag using v8 API with period1/period2. Fetches 5 years in 1-year chunks (253 data points/year/ticker) with 250ms delay to avoid 429 rate limits. Clears + reinserts per ticker.
 |- **D39: Data staleness flag** — FALSE CLAIM: already addressed by B44 (room_feeds.c:254-277). Engine has timestamp validation — future reject, >5min WARN, >1h REJECT.

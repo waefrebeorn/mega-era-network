@@ -6,7 +6,7 @@
 - **Battleship:** 365 cells across 9 domains (23 🔴 P0, 172 🟡 P1, 170 ⚪ P3)
 - **Rooms:** 16 configured. All same binary (same md5). 7 on fake data. Darwin.epoch=0.
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db has 21-33 rows/ticker (D01 verified, D02 backfill added)
-- **Latest batch:** D01/D02 backfill (yahoo_collector --backfill via v8 API), D39 false-claim closed, B44 feed staleness fix. P0: 26→23.
+- **Latest batch:** A04 real Manifold data (room_feed_gen), D01/D02 backfill, D39 false-claim closed. P0: 23→22.
 
 ## Gap Map Available
 - `vault/battleship-ultimate.md` — 365 cells (training, features, risk, data, execution, infra, security, website, monetization)
