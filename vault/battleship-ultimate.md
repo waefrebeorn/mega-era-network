@@ -89,7 +89,7 @@
 | B09 | No realized volatility ratio (short/long vol) | Features | ⚪ | ⏳ | Ratio of 5-min to 1-hour volatility shows regime changes. |
 | B10 | No skew / kurtosis features | Features | ⚪ | ⏳ | Higher moments of returns distribution missing. |
 | B11 | No seasonal/time-of-day features | Features | 🟡 | ✅ | **FIXED**: hour_of_day_norm (F28) + day_of_week_norm (F29). Computed from localtime, no collector needed. |
-| B12 | No macro regime feature for equity correlation | Features | 🟡 | ⏳ | BTC correlation to SP500 changes in crisis vs calm regimes. |
+| B12 | No macro regime feature for equity correlation | Features | 🟡 | ✅ | **FIXED**: Added rolling Pearson correlation (F33) between room price history and SP500 levels. sp500_hist ring buffer in RoomState (persistent across restarts). calc_sp500_corr() in room_features.c — minimum 5 samples, full Pearson formula. Normalized [-1,1]→[0,1]. Data already flowing via MarketTick.sp500 from feed JSON. |
 | B13 | No on-chain feature beyond BTC dominance | Features | 🟡 | ⏳ | MVRV Z-score, Puell Multiple, SOPR all available from coingecko but not used. |
 | B14 | No funding rate feature | Features | 🟡 | ✅ | **FIXED**: funding_signal (F19) loaded from funding_features.json. Collector runs every 30min via collector_runner. |
 | B15 | No open interest change | Features | 🟡 | ✅ | **FIXED**: oi_net_signal (F20) from open_interest_features.json. BTC OI + SPY PCR combined. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
-| B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
+| B: Features | 45 | 0 | 7 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 5 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **111** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **110** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 111 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 110 major gaps | ⚪ P3: 228 minor/feature gaps

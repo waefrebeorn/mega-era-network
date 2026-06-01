@@ -22,4 +22,11 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 16. ~~A04: Real data for prediction rooms~~ — DONE: room_feed_gen pulls 556 Manifold binary markets
 
 ## Next Cell
-Pick next undone P0 from battleship.
+Pick next undone P0 from battleship. Currently working on B12 (BTC-SP500 correlation feature) — complete.
+
+## Completed (batch 2)
+1. ~~B12: BTC-SP500 equity correlation feature~~ — DONE: F33, rolling Pearson, persistent SP500 history
+2. ~~room_bridge feat_names stale (18→33)~~ — DONE: was OOB on 33 features
+3. ~~test_regression N_FEATURES=80~~ — DONE: was stale, now 33
+4. ~~B44: Feed staleness check~~ — DONE (from prior session)
+5. ~~D01/D02: Backfill~~ — DONE (from prior session)

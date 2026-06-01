@@ -195,3 +195,4 @@
 - **C16: MIN_TRADE_STAKE floor** — vaulted stale. Already enforced at room_capital.c:82-83.
 - **C29: Fee-aware position sizing** — vaulted stale. Proportional fees (0.1%). $1 trade = $0.001 fee. MIN_TRADE_STAKE=$1 ≥ fee cost.
 - **P1: 117→113**
+- **B12: BTC-SP500 macro equity correlation feature** — FIXED: Added F33 to FeatureVector (types.h). Rolling Pearson correlation between room price history and SP500 levels. Persistent sp500_hist ring buffer in RoomState (types.h:371-373). calc_sp500_corr() in room_features.c:438-461 uses full Pearson formula with min 5 samples. Normalized [-1,1]→[0,1] at room_features.c:727. Data already flowing via MarketTick.sp500. Bumped N_FEATURES 32→33, STATE_MAGIC ROM5→ROM6. Also fixed stale feat_names[] in room_bridge.c (was only 18 entries, segfault risk on N_FEATURES=33 iteration). Fixed stale N_FEATURES=80 regression check in test_regression.c. P1: 111→110.
