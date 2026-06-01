@@ -1,5 +1,12 @@
 # ACHIEVEMENTS — Money Room Vault
 
+## Batch 2026-06-01 — A02 Fix (dup-timestamp loop + trade_count persistence)
+- **A02: Darwin never fires** — TWO root causes fixed:
+  1. Infinite 1s-sleep loop on static JSON feed (room_engine.c:701-708) — exit after 3 consecutive duplicate window_ts instead of sleeping forever
+  2. trade_count reset to 0 every restart, preventing Darwin's 100-trade trigger (room_engine.c:657) — removed unconditional trade_count=0 boot-time reset; corrupted-trade_count safety guard at line 641 retained
+- **34 🔴 P0 remaining** in battleship-ultimate.md (was 35)
+- Binaries rebuilt and deployed to all 16 rooms + c_room + c_room_paper
+
 ## Batch 2026-06-01 — DA Triple Research + CB-STOCK Closure
 - **365-cell battleship** (vault/battleship-ultimate.md) — 9-domain gap analysis: 35 🔴 P0, 172 🟡 P1, 158 ⚪ P3
 - **65-task homework** (vault/homework-list.md) — 3 tiers: 20 free signups, 25 desk tasks, 20 setup tasks

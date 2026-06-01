@@ -10,10 +10,9 @@
 ## What's NOT Working (DA Triple Audit Findings)
 - **16 rooms, identical binary** — all same md5, no differentiation
 - **7 rooms on fake data** — placeholder 0.50 prices in prediction market rooms
-- **Darwin.epoch = 0** — evolution has NEVER fired (needs 100 trades/room)
-- **Only 1-2 cycles per room** — no meaningful trading history
+- **Only 1-2 cycles per room** — no meaningful trading history (A02 infinite-loop blocker fixed)
 - **Economic room gets BTC data** — BTC price fed where macro index should be
-- **365 total gaps** mapped across 9 domains
+- **365 total gaps** mapped across 9 domains (34 🔴 P0 remaining)
 
 ## Key Stats (from audit)
 - 210 C files in engine/

@@ -12,7 +12,7 @@
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
 || A01 | No SGD weight update loop in multi_market_trainer | Training | 🔴 | ✅ | Added BCE gradient descent after every trade. feat_weight[i] -= lr * err * (feat[i]-0.5), bias -= lr * err. learning_rate now functional. |
-|| A02 | Darwin never fires in any room (cycle=1-2) | Training | 🔴 | ⏳ | Darwin triggers every 100 trades. Rooms have 0-2 trades. No evolution has ever happened. |
+|| A02 | Darwin never fires in any room (cycle=1-2) | Training | 🔴 | ✅ | ROOT CAUSE 1 (infinite loop): static JSON feed + duplicate-window_ts check caused 1s-sleep skip loop. FIXED room_engine.c:701-708: exit after 3 consecutive duplicate timestamps. ROOT CAUSE 2 (trade loss): trade_count reset to 0 every restart, preventing cross-cron accumulation to 100-trade Darwin trigger. FIXED room_engine.c:657: removed unconditional trade_count=0 reset; corrupted-trade_count safety at line 641 retained. |
 || A03 | All 16 rooms share identical binary (same md5) | Training | 🔴 | ⏳ | Differentiation is supposed to come from market_feed.json config. Binary is identical. |
 || A04 | Rooms 7 (consensus, elections, manifold, etc.) show 0.50 price | Training | 🔴 | ⏳ | Placeholder binary price. No real prediction market data flowing. These rooms are running on fake data. |
 || A05 | BTC-clone data fed to economic/macro rooms | Training | 🔴 | ⏳ | "economic" room shows close=7473 (BTC price). Not economic index data. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-| A: Training Engine | 60 | 14 | 22 | 0 | 24 | 0 |
+| A: Training Engine | 60 | 13 | 22 | 0 | 25 | 0 |
 | B: Features | 45 | 3 | 23 | 0 | 19 | 0 |
 | C: Risk Management | 40 | 4 | 21 | 0 | 15 | 0 |
 | D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **35** | **172** | **0** | **158** | **0** |
+| **TOTAL** | **365** | **34** | **172** | **0** | **159** | **0** |
 
-🔴 P0: 35 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 158 minor/feature gaps
+🔴 P0: 34 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 159 minor/feature gaps

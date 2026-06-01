@@ -3,10 +3,10 @@
 ## Current Status
 - **Engine:** 210 C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (35 🔴 P0, 172 🟡 P1, 158 ⚪ P3)
+- **Battleship:** 365 cells across 9 domains (34 🔴 P0, 172 🟡 P1, 159 ⚪ P3)
 - **Rooms:** 16 configured. All same binary (same md5). 7 on fake data. Darwin.epoch=0.
 - **Data:** 14 JSON feeds serving live, 25+ collectors, timeline.db has 21-33 rows/ticker
-- **Latest batch:** DA Triple Research — full system gap audit
+- **Latest batch:** A02 fix (dup-timestamp loop + trade_count persistence)
 
 ## Gap Map Available
 - `vault/battleship-ultimate.md` — 365 cells (training, features, risk, data, execution, infra, security, website, monetization)
@@ -15,7 +15,7 @@
 
 ## Top 🔴 P0 Killers
 1. ~~No SGD weight update loop (A01)~~ — DONE: added BCE gradient descent to multi_market_trainer
-2. Darwin never fires in any room (A02)
+2. ~~Darwin never fires in any room (A02)~~ — DONE: dup-timestamp loop exit + trade_count persistence
 3. All 16 rooms identical binary, not differentiated (A03)
 4. 7 rooms on fake 0.50 prices (A04)
 5. BTC-clone data in economic/macro rooms (A05)

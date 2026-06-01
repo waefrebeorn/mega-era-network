@@ -651,7 +651,7 @@ int main(void) {
     }
     
     // ── Boot-time hard reset of corruptable fields ──
-    state->trade_count = 0;
+    // NOTE: trade_count MUST persist across restarts for Darwin trigger (needs 100)
     state->cycle = 0;
     state->vote_count = 0;
     state->consec_room_losses = 0;
@@ -659,6 +659,7 @@ int main(void) {
     state->circuit_breaker_count = 0;
     
     int idle_cycles = 0;
+    int dup_cycles = 0;  // A02: Consecutive duplicate timestamps (LIVE_MODE static feed)
     float prev_close = state->prev_close;  // Track for inter-candle comparison (persisted from last process)
     
     while (running) {
@@ -697,10 +698,18 @@ int main(void) {
         
         // Skip if we already processed this window
         if (tick.window_ts == state->stats.last_window_ts) {
+            dup_cycles++;
+            // A02: LIVE_MODE static feed exhaust — after 3 consecutive duplicates, exit
+            // (3 skips × 1s sleep = 3s, fits within cycle_all_rooms 5s timeout)
+            if (dup_cycles >= 3) {
+                printf("[ROOM] Feed exhausted (%d duplicate timestamps). Shutting down.\n", dup_cycles);
+                break;
+            }
             struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };
             nanosleep(&ts, NULL);
             continue;
         }
+        dup_cycles = 0;  // Reset on new unique timestamp
         
     #ifdef MARKET_MODE
 RoomError room_market_apply(VoteRecord *votes, int count,

@@ -5,6 +5,7 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 
 ## Completed
 1. ~~A01: No SGD weight update loop~~ — DONE: added BCE gradient descent to multi_market_trainer.c
+2. ~~A02: Darwin never fires in any room~~ — DONE: fixed infinite-dup-sleep loop (room_engine.c:701-708) + trade_count cross-cron persistence (room_engine.c:657)
 
 ## Next Cell
-A02: Darwin never fires in any room (cycle=1-2)
+A03: All 16 rooms share identical binary (same md5)
