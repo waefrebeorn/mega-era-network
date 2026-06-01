@@ -832,7 +832,10 @@ int main(void) {
 
     // ── Boot-time hard reset of corruptable fields ──
     // NOTE: trade_count MUST persist across restarts for Darwin trigger (needs 100)
+    // NOTE: A57: cycle IS preserved from previous run for continuity
+    int64_t prev_cycle = state->cycle;  // Save before reset
     state->cycle = 0;
+    state->cycle = prev_cycle;  // Restore to continue count from previous run
     state->vote_count = 0;
     state->consec_room_losses = 0;
     state->circuit_breaker_cycles = 0;

@@ -228,6 +228,14 @@
   - P1: 99→98
 - **D05: Kraken backfill exists** — vaulted stale. kraken_backfill.c (305 lines C) implements paginated backfill via 'since' parameter. Binary built. P1: 98→97. (stale vault from earlier session)
 
+## Batch 2026-06-01 — A57: Cycle count persists across restarts
+- **A57: Cycle count reset to 0 every restart** — FIXED: room_engine.c:835-839
+  - `int64_t prev_cycle = state->cycle` saved before boot-time hard reset block
+  - `state->cycle = prev_cycle` restored after reset to continue count from previous run
+  - All other boot-time safety resets (vote_count, circuit breaker) remain zeroed
+  - trade_count already preserved by A02 — cycle was the last counter resetting
+  - P1: 98→97
+
 - **B04: tail_risk_score range** — vaulted stale. compute_tail_risk() in room_features.c:386-435 uses kurtosis + extreme-move detection. Fixed by B02 (persistent mmap'd history). Feature produces correct values when data has fat tails — benign data = low scores. P1: 109→108.
 - **A19: Mini-batch SGD** — FIXED: Changed per-trade SGD to mini-batch (batch size 8). grad_accum[N_REGS][N_FEATURES] + bias_accum[N_REGS] + batch_count added to AgentState (types.h). Gradients accumulate per (regime, feature), applied when count reaches SGD_BATCH_SIZE. Partial batches persist in mmap'd state. STATE_MAGIC ROM8. P1: 108→107.
 - **F06: Process responsiveness watchdog** — vaulted stale. room_watchdog.c already checks snapshot.json mtime < 5min. Snapshot stale = restart all engines. Per-room heartbeats on success. P1: 106→105.

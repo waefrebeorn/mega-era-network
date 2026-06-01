@@ -38,3 +38,6 @@ Pick next undone P1 from battleship.
 
 ## Completed (batch 4)
 1. ~~F05: Graceful shutdown~~ — DONE: SIGTERM/SIGINT handler in room_engine.c. Fluent msync on shutdown. P1: 99→98.
+
+## Completed (batch 5)
+1. ~~A57: Cycle count persistence~~ — DONE: prev_cycle saved before boot-time reset, restored after. P1: 98→97.

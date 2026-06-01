@@ -67,7 +67,7 @@
 | A54 | Room engine market configs stored but not validated | Training | 🟡 | ⏳ | room_config.json exists per room but no schema validation. Bad configs run silently. |
 | A55 | No A/B test harness for config changes | Training | ⚪ | ⏳ | Every engine change affects all rooms. Can't isolate effect of one parameter change. |
 | A56 | No training DB for per-cycle metrics | Training | 🟡 | ⏳ | room_snapshot.json overwrites each cycle. No historical series of metrics. |
-| A57 | Cycle count and trade count may not persist | Training | 🟡 | ⏳ | room_state.bin persists but room may reset cycle=0 on process restart. |
+| A57 | Cycle count and trade count may not persist | Training | 🟡 | ✅ | **FIXED**: room_engine.c:835-839 — preserved `prev_cycle = state->cycle` before boot-time hard reset, then restored `state->cycle = prev_cycle`. Cycle count now continues from previous run instead of resetting to 0 on every restart. |
 | A58 | No heartbeat timeout alert | Training | 🟡 | ⏳ | If cycle_all_rooms hangs, no alert fires until next cron tick. |
 | A59 | No multi-threaded room cycling | Training | ⚪ | ⏳ | cycle_all_rooms runs rooms sequentially. 16 rooms × 5s = 80s. Parallel would be 5s. |
 | A60 | Room watchdog only restarts, doesn't report | Training | ⚪ | ⏳ | watchdog.sh restarts dead processes but doesn't log or alert about restarts. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 10 | 0 | 37 | 0 |
+| A: Training Engine | 60 | 0 | 9 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 36 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **1** | **98** | **0** | **228** | **0** |
+| **TOTAL** | **365** | **1** | **97** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 98 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 97 major gaps | ⚪ P3: 228 minor/feature gaps

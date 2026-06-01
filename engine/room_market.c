@@ -26,6 +26,8 @@
 
 // ── Market maker pricing ──
 // Derives YES/NO probability from the live market feed
+// NOTE: Currently unused — kept for future market-maker pricing
+#if 0
 static float market_price(bool yes, const MarketTick *tick) {
     // If candle is bullish (close > open), higher probability of continuation
     float prob_up = 0.50f;
@@ -38,6 +40,7 @@ static float market_price(bool yes, const MarketTick *tick) {
     }
     return yes ? prob_up : (1.0f - prob_up);
 }
+#endif
 
 // ════════════════════════════════════════════════════════
 //  MARKET APPLY — Execute trades against market maker
