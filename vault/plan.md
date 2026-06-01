@@ -29,3 +29,5 @@ Pick next undone P0 from battleship. Currently working on B12 (BTC-SP500 correla
 2. ~~room_bridge feat_names stale (18→33)~~ — DONE: was OOB on 33 features
 3. ~~test_regression N_FEATURES=80~~ — DONE: was stale, now 34
 4. ~~B23: VIX regime filter~~ — DONE: F34, continuous VIX<15→0, 15-25→0.5, >25→1
+5. ~~B04: tail_risk_score~~ — DONE: vaulted stale (fixed by B02)
+6. ~~A19: Mini-batch SGD~~ — DONE: batch size 8, persistent accumulators
