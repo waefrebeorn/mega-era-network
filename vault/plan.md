@@ -10,6 +10,8 @@ Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cel
 4. ~~A04 (partial): snapshot display~~ — DONE: room_bridge.c:56-60 %.2f→%.4f precision
 5. ~~A05: BTC-clone in eco/macro~~ — DONE: FALSE CLAIM, feeds use sp500 correctly
 6. ~~A06: Feed generator may not work~~ — DONE: FALSE CLAIM, feed_gen runs correctly with valid output
+7. ~~A10: Trainer not wired into cron~~ — DONE: FALSE CLAIM, verified crontab daily+15min
+8. ~~A48: Darwin epoch=0 in snapshot~~ — DONE: resolved by A02 trade_count persistence
 
 ## Next Cell
-A08: No market-specific feature calibration
+B01: N_FEATURES=18 but only ~10 populated

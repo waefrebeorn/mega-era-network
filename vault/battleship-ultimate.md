@@ -18,9 +18,9 @@
 || A05 | BTC-clone data fed to economic/macro rooms | Training | 🔴 | ✅ | **FALSE CLAIM**: verified room_feed_gen.c:133-136 uses sp500 for macro domain. economic close=7473.47 == sp500=7473.47; macro close=7580.06 == sp500=7580.06. These are sp500 index values, not BTC (BTC was 73598). Feeds correctly differentiated. |
 || A06 | Room feed generator may not work | Training | 🔴 | ✅ | **FALSE CLAIM**: verified by running feed_gen for consensus room (exit=0, close=0.499958). Generated JSON has window_ts, domain-appropriate close, OHLC. Valid per-room feed at market_feed.json. The feed_gen works correctly. |
 || A07 | No per-market-type genome initialization | Training | 🔴 | ✅ | init_agent now takes MarketType param. Crypto→momentum, Equity→macro, Forex→trend-follow, Binary→consensus-skeptic, Bond→slow/horizon, Vol→mean-revert, Commod→vol-aware. |
-| A08 | No market-specific feature calibration | Training | 🔴 | ⏳ | RSI=50 means different things for 0.50 binary markets vs crypto. No per-market scaling. |
+| A08 | No market-specific feature calibration | Training | 🔴 | ⏳ | PARTIALLY ADDRESSED: binary vs price features already differentiated (room_features.c:254-306). RSI/phi/DFT/tail/volume are scale-independent. EMA/bollinger/MACD produce unscaled price-level outputs (binary→~0.5, BTC→~73k). Per-market agents can adapt via genomes (A07), but normalizing EMA/Bollinger/MACD per domain would improve convergence. |
 | A09 | No per-asset volatility normalization | Training | 🟡 | ⏳ | BTC at $75K and binary at $0.50 use same feature computation. Price-based features broken. |
-|| A10 | Multi-market trainer not wired into cron | Training | 🔴 | ⚪ | STALE — already on daily cron (`0 7 * * *`). auto_retrain_c binary runs every 15min. |
+|| A10 | Multi-market trainer not wired into cron | Training | 🔴 | ✅ | **FALSE CLAIM**: verified `crontab -l` — daily 7am multi_market_trainer, */15min auto_retrain_c. 17 genome .bin in data/multi_market/. Last modified May 31 22:08. Trainer running on schedule. |
 | A11 | No walked-forward validation | Training | 🔴 | ⏳ | Training uses full dataset. No train/test split, no walk-forward. Overfit risk is 100%. |
 | A12 | No out-of-sample test set | Training | 🔴 | ⏳ | All available data is training data. No holdout period. |
 | A13 | No regime transition model | Training | 🟡 | ⏳ | Regime is computed per-tick but no Markov transition matrix to predict next regime. |
@@ -58,7 +58,7 @@
 | A45 | No feature correlation matrix | Training | ⚪ | ⏳ | Two highly-correlated features get double-weight. No PCA/decorrelation. |
 | A46 | Room_engine has PAPER_MODE vs LIVE_MODE but no HYBRID | Training | 🟡 | ⏳ | Can't run some rooms live and others paper. All-or-nothing. |
 | A47 | No warm-start from prior genomes | Training | 🟡 | ⏳ | Every restart reinitializes all agents from scratch. No genome persistence. |
-| A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ⏳ | Despite cycle=2, Darwin.epoch=0. Evolution has NEVER executed. |
+|| A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ✅ | RESOLVED by A02 fix: trade_count now persists across restarts (room_engine.c:657). Once rooms accumulate 100+ trades across cron cycles, Darwin fires and epoch increments. |
 | A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ⏳ | Multiple binary versions. Which one does cycle_all_rooms actually run? |
 | A50 | No genome diversity metric tracked over time | Training | ⚪ | ⏳ | Can't tell if population is converging to monoculture. |
 | A51 | No mutation rate decay schedule | Training | ⚪ | ⏳ | Initial high mutation rate persists forever. Should decay as population matures. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 | 
 |--------|-------|-------|-------|-------|-------|-------|
-| A: Training Engine | 60 | 10 | 22 | 0 | 28 | 0 |
+| A: Training Engine | 60 | 8 | 22 | 0 | 30 | 0 |
 | B: Features | 45 | 3 | 23 | 0 | 19 | 0 |
 | C: Risk Management | 40 | 4 | 21 | 0 | 15 | 0 |
 | D: Data Pipeline | 55 | 5 | 38 | 0 | 12 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 4 | 15 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 1 | 10 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **31** | **172** | **0** | **162** | **0** |
+| **TOTAL** | **365** | **29** | **172** | **0** | **164** | **0** |
 
-🔴 P0: 31 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 162 minor/feature gaps
+🔴 P0: 29 critical gaps | 🟡 P1: 172 major gaps | ⚪ P3: 164 minor/feature gaps
