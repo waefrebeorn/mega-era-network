@@ -5,6 +5,7 @@
 
 #define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "types.h"
@@ -104,50 +105,35 @@ static float calc_regime(const float *prices, int len) {
     return 0;                                // Ranging
 }
 
-// ── P12: GAAD Golden-ratio timeframe features ──
-// Compute features at φ-multiplied intervals for multi-scale analysis.
-// Derived from GAAD-WuBu-ST paper: φ-based window decomposition.
-static void compute_phi_features(const float *px, int len, float *phi_return, float *phi_vol, float *phi_momentum) {
-    *phi_return = 0.0f;
-    *phi_vol = 0.0f;
-    *phi_momentum = 0.0f;
-    if (len < 3) return;
+// ── B05: Load order book features from orderbook_depth.c JSON ──
+#define OB_FEAT_PATH "/home/wubu2/.hermes/orderbook_cache/orderbook_features.json"
+static int load_orderbook_features(MarketTick *tick) {
+    FILE *f = fopen(OB_FEAT_PATH, "r");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    if (sz < 10) { fclose(f); return -1; }
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return -1; }
+    size_t read_n = fread(buf, 1, sz, f);
+    fclose(f);
+    buf[read_n] = '\0';
 
-    // φ-multiplied intervals: 1, φ, φ², φ³, ...
-    float intervals[] = {1.0f, PHI, PHI*PHI, PHI*PHI*PHI};
-    int n_phi = 4;
+    // Parse normalized features
+    const char *p;
+    p = strstr(buf, "\"ob_imbalance_norm\"");
+    if (p) tick->ob_imbalance = strtof(p + 22, NULL);
+    p = strstr(buf, "\"ob_depth_ratio_norm\"");
+    if (p) tick->ob_depth_ratio = strtof(p + 25, NULL);
+    p = strstr(buf, "\"ob_wall_conc_norm\"");
+    if (p) tick->ob_wall_conc = strtof(p + 23, NULL);
+    p = strstr(buf, "\"ob_spread_norm\"");
+    if (p) tick->ob_spread_norm = strtof(p + 20, NULL);
 
-    // Weighted multi-scale return
-    float ret_sum = 0.0f, vol_sum = 0.0f, mom_sum = 0.0f;
-    float total_w = 0.0f;
-
-    for (int i = 0; i < n_phi; i++) {
-        int period = (int)(intervals[i] + 0.5f);
-        if (period < 1) period = 1;
-        if (period >= len) continue;
-
-        float ret = (px[len-1] - px[len-1-period]) / (px[len-1-period] > 0 ? px[len-1-period] : 1.0f);
-        float w = 1.0f / intervals[i];  // Higher weight on shorter intervals
-
-        ret_sum += ret * w;
-        vol_sum += fabsf(ret) * w;
-
-        // Momentum at φ-scale: compare φ-interval return to previous φ-interval
-        if (len > period * 2) {
-            float prev_ret = (px[len-1-period] - px[len-1-period*2]) / (px[len-1-period*2] > 0 ? px[len-1-period*2] : 1.0f);
-            mom_sum += (ret - prev_ret) * w;
-        }
-
-        total_w += w;
-    }
-
-    if (total_w > 0) {
-        *phi_return = ret_sum / total_w;
-        *phi_vol = vol_sum / total_w;
-        *phi_momentum = mom_sum / total_w;
-    }
+    free(buf);
+    return 0;
 }
-
 // ── P13: Goertzel DFT — extract dominant frequency ──
 // Single-frequency DFT using Goertzel algorithm.
 // Finds dominant cycle in price history.
@@ -356,13 +342,24 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
         fv->herd_consensus = 0.5f;
     }
 
-    // F14-F16: GAAD φ-interval features (P12)
-    compute_phi_features(px, s->price_hist_len[mt], &fv->phi_return, &fv->phi_vol, &fv->phi_momentum);
+    // ── B05: Load order book features ──
+    load_orderbook_features((MarketTick *)tick);
+
+    // F14: Order book imbalance (0-1, >0.5 = bid-heavy)
+    fv->ob_imbalance = tick->ob_imbalance;
+    if (fv->ob_imbalance < 0.01f && fv->ob_imbalance > -0.01f) fv->ob_imbalance = 0.5f;  // default neutral
+
+    // F15: Order book depth ratio (0-1, >0.5 = bid-heavy within 0.5% band)
+    fv->ob_depth_ratio = tick->ob_depth_ratio;
+    if (fv->ob_depth_ratio < 0.01f && fv->ob_depth_ratio > -0.01f) fv->ob_depth_ratio = 0.5f;
+
+    // F16: Order book spread normalized (0-1, higher = wider spread)
+    fv->ob_spread_norm = tick->ob_spread_norm;
 
     // F17: DFT dominant frequency (P13)
     fv->dft_dominant = compute_dft_dominant(px, s->price_hist_len[mt]);
 
-    // F20: Tailslayer tail risk score (P15)
+    // F18: Tailslayer tail risk score (P15)
     fv->tail_risk_score = compute_tail_risk(px, s->price_hist_len[mt]);
 
     return ERR_OK;

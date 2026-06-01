@@ -102,14 +102,14 @@ typedef struct {
     float regime_indicator;     // 0=range, 1=trend, 2=volatile
     float fear_greed_norm;      // Normalized F&G (0–1)
     float herd_consensus;       // % agents voting same direction
-    // ── P12: GAAD φ-interval features ──
-    float phi_return;           // φ-weighted multi-scale return
-    float phi_vol;              // φ-weighted multi-scale volatility
-    float phi_momentum;         // φ-weighted multi-scale momentum
+    // ── B05: Order book features (replaces φ-interval features) ──
+    float ob_imbalance;         // F14: bid_vol / (bid+ask_vol) top-10 levels (0-1)
+    float ob_depth_ratio;       // F15: bid_depth / (bid+ask_depth) 0.5% band (0-1)
+    float ob_spread_norm;       // F16: spread bps / 100, clamped [0-1]
     // ── P13: DFT frequency feature ──
-    float dft_dominant;         // Dominant frequency strength (0-1)
+    float dft_dominant;         // F17: Dominant frequency strength (0-1)
     // ── P15: Tailslayer tail risk score ──
-    float tail_risk_score;      // 0-1: 0=normal, 1=extreme tail risk
+    float tail_risk_score;      // F18: 0-1: 0=normal, 1=extreme tail risk
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -127,6 +127,11 @@ typedef struct {
     float    btc_30d_mean;     // 30-day BTC mean price
     float    btc_30d_high;     // 30-day BTC high price
     float    btc_30d_low;      // 30-day BTC low price
+    // ── B05: Order book features ──
+    float    ob_imbalance;      // bid_vol / (bid+ask_vol) top-10 (0-1)
+    float    ob_depth_ratio;    // bid_depth / (bid+ask_depth) 0.5% band (0-1)
+    float    ob_wall_conc;      // largest level / top-10 total (0-1)
+    float    ob_spread_norm;    // spread bps / 100 (0-1)
 } MarketTick;
 
 // ── Agent vote result ──
