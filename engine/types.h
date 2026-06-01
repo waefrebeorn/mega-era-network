@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D32  // "ROM2" — bumped for N_FEATURES 18→21
+#define STATE_MAGIC       0x524F4D33  // "ROM3" — bumped for C05 daily loss limit
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -333,6 +333,8 @@ typedef struct {
     float    max_drawdown_pct;       // Max drawdown before tripping (e.g. 0.20 = 20%)
     int      daily_loss_streak;      // Consecutive losing room trades today
     float    daily_pnl;              // Net room PnL since last reset
+    float    max_daily_loss_pct;     // C05: Max daily loss before circuit breaker trip (0.10 = 10%)
+    int      last_daily_reset_day;   // C05: Day number (ts/86400) when daily_pnl was last reset
     int64_t  circuit_breaker_ts;     // When breaker last triggered (for cooldown)
     float    circuit_breaker_peak;   // Peak capital at last breaker reset
     int      circuit_cooldown_cycles; // Config: how many cycles to cool down

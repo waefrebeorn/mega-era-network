@@ -173,3 +173,12 @@
   - File: `room_feed_gen.c:22-40` — domain_to_market_type() mapping
 - **DA discovery: 88.9% WR and $125K capital were stale artifacts** — Engine restored state from disk, never updated metrics. Rolling WR was 0.0% for entire 616K cycles. Capital identical every cycle. Website displayed stale data. SIGMA_NORMALIZER fix addresses the root cause.
 - **DA discovery: No loss feedback loop** — Engine trades (14.9M) logged to trade_log.csv but trainer never reads them. No path from engine trade outcomes → trainer retraining. P0 gap identified: loss feedback loop. Marked in battleship.
+
+## Batch 2026-06-01 — C05: Daily loss limit (10% max)
+- **C05: No daily loss limit** — FIXED: Added day-boundary-checked daily_pnl tracking to all 4 trade resolution paths
+- Daily PnL resets on day boundary (tick.window_ts / 86400 check at room_engine.c:999-1005)
+- Circuit breaker trips when `-daily_pnl / capital_peak > max_daily_loss_pct` (default 10%)
+- 5 tracking points: dup-exit win/loss (lines 847, 854), kill-switch (line 1040), slippage win/loss (lines 1130, 1138)
+- types.h: added `max_daily_loss_pct`, `last_daily_reset_day` fields, STATE_MAGIC bumped
+- P1 count: 127→126
+- **D03: Yahoo v7 API limit** — vaulted stale. D01/D02 v8 backfill (period1/period2) fetches full 5-year history. v7 used for incremental updates only — sufficient since historical data already backfilled. P1: 126→125.

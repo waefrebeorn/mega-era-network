@@ -134,7 +134,7 @@
 || C02 | No CVaR/Expected Shortfall | Risk | 🟡 | ✅ | **STALE**: CVaR/ES already computed in risk_analytics.c:123-171 and written to JSON output (es_95_pct, es_99_pct). C22 was folded into C01 implementation. |
 ||| C03 | Circuit breaker configured but never triggered | Risk | 🔴 | ✅ | ROOT CAUSES: (1) trade_count reset to 0 each restart prevented room trades (requires 1000). (2) A02 fixed trade_count persistence, but room trades opened on cycle 1 never resolved — static feed means no 2nd unique timestamp. FIXED room_engine.c:705-736: force-resolve open room trade on dup-timestamp exit. Circuit breaker can now trigger when consec_room_losses >= 10 or drawdown > 20%. |
 || C04 | Max drawdown threshold unknown | Risk | 🟡 | ⏳ | What's the max_drawdown_pct configured? No documented threshold. |
-|| C05 | No daily loss limit for room capital | Risk | 🟡 | ⏳ | Room can lose all capital in one day. No daily stop. |
+|| C05 | No daily loss limit for room capital | Risk | 🟡 | ✅ | **FIXED**: Added day-boundary-checked daily_pnl tracking (room_engine.c:999-1005). Circuit breaker trips when daily loss exceeds max_daily_loss_pct (10% of peak capital, types.h:max_daily_loss_pct). Resets on day boundary via window_ts/86400. PnL updated after every trade resolution at 4 resolution points (dup-exit, kill-switch, slippage). |
 || C06 | No max position concentration check | Risk | 🟡 | ✅ | **STALE**: P2P matching inherently limits exposure — only min(YES_total, NO_total) is matched. Unmatched surplus stays in agent capital. No over-exposure possible. |
 || C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
 | C08 | No black swan scenario testing | Risk | 🟡 | ⏳ | Stress_test.c exists but may only test normal scenarios. |
@@ -179,7 +179,7 @@
 |---|-----|--------|-----|--------|--------|
 ||| D01 | timeline.db only has 21-33 rows per ticker | Data | 🔴 | ✅ | **VERIFIED TRUE**: yahoo_* tickers have exactly 21 rows each in ~/.hermes/pm_logs/timeline.db (59 tickers, 1314 total). Root cause: Yahoo v7/chart API with range=5y silently caps at ~21 trading days (~1 month). FIXED by D02 backfill (v8 with period1/period2, 1-year chunks). |
 ||| D02 | No backfill capability for historical data | Data | 🔴 | ✅ | FIXED yahoo_collector.c: added `--backfill` flag using v8 API with period1/period2. Fetches 5 years in 1-year chunks with 250ms delay to avoid 429 rate limits. Clears existing data before re-insert. Usage: `./yahoo_collector --backfill` (full) or `--backfill --year 2024` (single year). 253 data points per ticker per year confirmed. |
-| D03 | Yahoo v7 API limits to ~125 days | Data | 🟡 | ⏳ | Range=5y but API only returns recent. Need v8 or alternative. |
+|| D03 | Yahoo v7 API limits to ~125 days | Data | 🟡 | ✅ | **STALE**: D01/D02 v8 backfill (period1/period2) gets full 5-year history per ticker (253 rows/year). v7 still used for incremental daily updates — fine for ongoing collection since historical data already backfilled. |
 | D04 | No BTC 1-min historical data pipeline | Data | 🟡 | ✅ | **STALE**: BTC 1-min CSV exists at ~/.hermes/pm_logs/historical/btc_1min_latest.csv (723K rows, updated continuously via cron). Paper engine reads directly from it. |
 | D05 | Kraken OHLC API can't backfill historical | Data | 🟡 | ⏳ | Kraken returns max 720 most recent candles. No historical access. |
 | D06 | Coinbase has historical but no active collector | Data | 🟡 | ⏳ | Coinbase API supports start/end params but coinbase_live.c may not use them. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 17 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-| C: Risk Management | 40 | 0 | 15 | 0 | 21 | 0 |
-| D: Data Pipeline | 55 | 0 | 39 | 0 | 15 | 0 |
+|| C: Risk Management | 40 | 0 | 14 | 0 | 21 | 0 |
+|| D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **127** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **125** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 127 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 125 major gaps | ⚪ P3: 228 minor/feature gaps

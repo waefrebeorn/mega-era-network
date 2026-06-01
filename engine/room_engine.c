@@ -687,6 +687,8 @@ static RoomError load_or_init_state(void) {
         state->consec_room_losses = 0;
         state->circuit_breaker_peak = 50.0f;
         state->daily_pnl = 0.0f;
+        state->max_daily_loss_pct = 0.10f;  // C05: Trip after 10% daily loss
+        state->last_daily_reset_day = 0;
         state->daily_loss_streak = 0;
         // ── T18: Position limits defaults ──
         state->max_position_pct_room = 0.02f;      // Max 2% of room total per agent
@@ -844,12 +846,14 @@ int main(void) {
                         state->room_wins++;
                         state->room_trade.won = true;
                         state->room_trade.pnl = profit;
+                        state->daily_pnl += state->room_trade.pnl;
                         state->consec_room_losses = 0;
                     } else {
                         state->room_losses++;
                         state->room_trade.won = false;
                         state->room_trade.pnl = -(state->room_trade.stake * (1.0f + TAKER_FEE));
                         state->room_capital += state->room_trade.pnl;
+                        state->daily_pnl += state->room_trade.pnl;
                         state->consec_room_losses++;
                     }
                     state->room_trade.exit_price = exit_px;
@@ -992,6 +996,16 @@ void room_market_stats(RoomState *state);
             goto skip_trading;
         }
 
+        // ── C05: Day-boundary reset for daily_pnl ──
+        {
+            int current_day = (int)(tick.window_ts / 86400);
+            if (current_day != state->last_daily_reset_day) {
+                state->daily_pnl = 0.0f;
+                state->daily_loss_streak = 0;
+                state->last_daily_reset_day = current_day;
+            }
+        }
+
         // Check drawdown: if room capital dropped > max_drawdown_pct from peak
         if (state->room_capital > state->circuit_breaker_peak) {
             state->circuit_breaker_peak = state->room_capital;
@@ -1009,6 +1023,21 @@ void room_market_stats(RoomState *state);
                    state->room_capital, state->circuit_breaker_peak,
                    state->circuit_cooldown_cycles);
             goto skip_trading;
+        }
+
+        // ── C05: Daily loss limit ──
+        if (state->daily_pnl < 0 && state->circuit_breaker_cycles == 0) {
+            float daily_loss_pct = -state->daily_pnl / (state->room_capital_peak > 0 ? state->room_capital_peak : 1.0f);
+            if (daily_loss_pct > state->max_daily_loss_pct) {
+                state->circuit_breaker_cycles = state->circuit_cooldown_cycles;
+                state->circuit_breaker_count++;
+                printf("[CB] TRIGGERED! Daily loss $%.2f (%.1f%% of peak). "
+                       "Max daily loss=%.0f%%. Cooldown=%d cycles.\n",
+                       state->daily_pnl, daily_loss_pct * 100,
+                       state->max_daily_loss_pct * 100,
+                       state->circuit_cooldown_cycles);
+                goto skip_trading;
+            }
         }
 
         // Check consecutive losses — guard: must have at least 1 loss
@@ -1033,6 +1062,7 @@ void room_market_stats(RoomState *state);
                     state->room_trade.won = (move_pct > 0) == state->room_trade.majority_up;
                     state->room_trade.pnl = state->room_trade.won ? state->room_trade.stake * 0.01f : -state->room_trade.stake * 0.01f;
                     state->room_capital += state->room_trade.pnl;
+                    state->daily_pnl += state->room_trade.pnl;
                     state->room_trade.exit_price = exit_px;
                     state->room_trade.resolved_at = tick.window_ts;
                     printf("[KILL SWITCH] Room trade liquidated: PnL=$%.2f\n", state->room_trade.pnl);
@@ -1125,6 +1155,7 @@ void room_market_stats(RoomState *state);
                 state->room_wins++;
                 state->room_trade.won = true;
                 state->room_trade.pnl = profit;
+                state->daily_pnl += state->room_trade.pnl;
                 state->consec_room_losses = 0;  // Reset on win
             } else {
                 // Loser: lose stake + fee
@@ -1132,6 +1163,7 @@ void room_market_stats(RoomState *state);
                 state->room_trade.won = false;
                 state->room_trade.pnl = -(state->room_trade.stake * (1.0f + TAKER_FEE));
                 state->room_capital += state->room_trade.pnl;  // capital already deducted
+                state->daily_pnl += state->room_trade.pnl;
                 state->consec_room_losses++;  // Track consecutive losses
             }
             state->room_trade.exit_price = tick.close;
