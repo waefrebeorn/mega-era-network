@@ -275,4 +275,11 @@
 |  - Fresh-path: returns 0 silently (no cron noise)
 |  - Cron: `*/30 * * * *` via coingecko_fallback.sh (Hermes no_agent script)
 |  - Tested: appended CoinGecko BTC=72595.00 at ts=1780312440
+|  - P1: 94→93
+|- **D37: No data gap alerting** — FIXED: data_gap_alerter.sh + cron
+|  - Monitors 7 critical data sources using timeline.db timestamp queries
+|  - Per-source staleness thresholds (Yahoo=24h, CoinGecko=2h, etc.)
+|  - Writes JSON alert to docs/data/data_gap_alert.json
+|  - Cron: */30min via Hermes no_agent script
+|  - Tested: detected 4 stale sources (NewsGDELT, CBOE, Fear&Greed, FRED)
 |  - P1: 93→92
