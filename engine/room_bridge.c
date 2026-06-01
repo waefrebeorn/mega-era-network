@@ -53,11 +53,11 @@ RoomError room_bridge_write(RoomState *state) {
     fprintf(f, "\"market\": {\n");
     fprintf(f, "  \"asset\": \"%s\",\n", state->current_market.asset);
     fprintf(f, "  \"window_ts\": %ld,\n", state->current_market.window_ts);
-    fprintf(f, "  \"open\": %.2f,\n", state->current_market.open);
-    fprintf(f, "  \"high\": %.2f,\n", state->current_market.high);
-    fprintf(f, "  \"low\": %.2f,\n", state->current_market.low);
-    fprintf(f, "  \"close\": %.2f,\n", state->current_market.close);
-    fprintf(f, "  \"volume\": %.2f,\n", state->current_market.volume);
+    fprintf(f, "  \"open\": %.4f,\n", state->current_market.open);
+    fprintf(f, "  \"high\": %.4f,\n", state->current_market.high);
+    fprintf(f, "  \"low\": %.4f,\n", state->current_market.low);
+    fprintf(f, "  \"close\": %.4f,\n", state->current_market.close);
+    fprintf(f, "  \"volume\": %.4f,\n", state->current_market.volume);
     fprintf(f, "  \"pump_score\": %.4f,\n", state->current_market.pump_score);
     fprintf(f, "  \"fear_greed\": %.1f\n", state->current_market.fear_greed);
     fprintf(f, "},\n");
