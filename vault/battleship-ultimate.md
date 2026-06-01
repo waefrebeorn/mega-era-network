@@ -149,8 +149,8 @@
 || C17 | No auto-kill on 6 consecutive losses | Risk | 🟡 | ✅ | **STALE**: enforced at room_capital.c:224-225 — `if (agents[aid].consecutive_losses >= 6) agents[aid].alive = false;`. Running in all engine modes. |
 || C18 | No win-rate-floor auto-kill | Risk | ⚪ | ⏳ | Agent below 30% WR over 100 trades should be auto-culled between Darwin events. |
 | C19 | No capital-floor auto-kill | Risk | ⚪ | ⏳ | Agent below $1 capital can't trade. Should be auto-killed. |
-| C20 | No max_position_pct_room per agent | Risk | 🟡 | ⏳ | Defined in RoomState but may not be enforced in capital allocation. |
-| C21 | No max_total_exposure_pct enforcement | Risk | 🟡 | ⏳ | All agents combined could bet >100% of capital. No leverage limit. |
+|| C20 | No max_position_pct_room per agent | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1285-1292. position_size capped to max_position_pct_room (2%) of total capital per agent. Logged as [LIMIT] when triggered. |
+| C21 | No max_total_exposure_pct enforcement | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1297-1304. Total exposure across all agents capped to max_total_exposure_pct (25%). Votes exceeding remaining budget get position_size=0 and logged as [LIMIT] skip. |
 | C22 | No trade throttle per agent | Risk | ⚪ | ⏳ | One agent could place 100 trades in one cycle. Should be rate-limited. |
 | C23 | No duplicate trade detection | Risk | 🟡 | ⏳ | Two rooms could place same trade on same market. Double exposure. |
 | C24 | No market correlation across rooms | Risk | 🟡 | ⏳ | Sports room and consensus room both trade binary events. Correlation unknown. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 13 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 8 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 12 | 0 | 21 | 0 |
+|| C: Risk Management | 40 | 0 | 10 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 38 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 | F: Infrastructure | 35 | 0 | 17 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **119** | **0** | **228** | **0** |
+||| **TOTAL** | **365** | **1** | **117** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 119 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 117 major gaps | ⚪ P3: 228 minor/feature gaps

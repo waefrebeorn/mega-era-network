@@ -188,3 +188,5 @@
 - **A49: v2/v3 binaries** — vaulted stale. v2 (54KB, macro only) old build; v3 (149KB) old multi-market engine replaced by room_engine_market (88KB). Active: room_engine (paper) for c_room, room_engine_market for live. Neither v2/v3 referenced in crontab/scripts. P1: 122→121.
 - **A13: Regime transition model** — FIXED: added 3×3 Markov transition matrix to RoomState. Tracks regime→regime transitions per tick (room_features.c:535-560). predicted_regime = argmax of transition counts. Persists across restarts. types.h: new fields + STATE_MAGIC bump. P1: 121→120.
 - **A14: Volatility regime position sizing** — FIXED: room_capital_apply() halves stake when predicted_regime==2 (volatile). Uses A13's Markov model. room_capital.c:74-76 + signature/call site updates. P1: 120→119.
+- **C20: max_position_pct_room** — vaulted stale. Enforced at room_engine.c:1285-1292. 2% cap per agent. Already active.
+- **C21: max_total_exposure_pct** — vaulted stale. Enforced at room_engine.c:1297-1304. 25% total exposure cap. Votes excessing budget get skipped with [LIMIT] log.
