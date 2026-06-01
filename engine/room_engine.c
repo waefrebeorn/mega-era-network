@@ -82,6 +82,23 @@ static time_t g_last_hot_reload_ts = 0;
 #define HOT_RELOAD_DIR   "/home/wubu2/money-room/data/multi_market"
 #define HOT_RELOAD_CYCLE 1000  // Check every 1000 cycles
 
+// ── C25: Panic stop sentinel file ──
+// When this file exists, all trading halts immediately.
+// Create: touch /tmp/money_room_panic
+// Remove: rm /tmp/money_room_panic  (engine resumes on next cycle)
+#define PANIC_FILE "/tmp/money_room_panic"
+static inline int check_panic(RoomState *state) {
+    int panicking = (access(PANIC_FILE, F_OK) == 0);
+    if (panicking && !state->panic_stop) {
+        printf("[PANIC] Panic stop file detected — halting all trading!\n");
+        state->panic_stop = 1;
+    } else if (!panicking && state->panic_stop) {
+        printf("[PANIC] Panic stop file removed — resuming trading.\n");
+        state->panic_stop = 0;
+    }
+    return state->panic_stop;
+}
+
 // ── Forward decls ──
 RoomError room_feeds_load(MarketTick *tick);
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s);
@@ -578,6 +595,8 @@ static RoomError load_or_init_state(void) {
         // ── T20: Slippage tracking defaults ──
         state->total_slippage_paid = 0.0f;
         state->slippage_events = 0;
+        // ── C25: Panic stop ──
+        state->panic_stop = 0;
         printf("[ROOM] Initialized %d agents, $50 room seed\n", MAX_AGENTS);
         printf("[ROOM] CB: consec_room_losses=%d max_consecutive_losses=%d circuit_breaker_cycles=%d\n",
                state->consec_room_losses, state->max_consecutive_losses, state->circuit_breaker_cycles);
@@ -777,6 +796,16 @@ void room_market_stats(RoomState *state);
             double signal = (g_nested_prediction[MARKET_CRYPTO] - 0.5) * 2.0;
             printf("[NESTED] cycle=%d pred=%.4f signal=%+.4f\n",
                    state->cycle, g_nested_prediction[MARKET_CRYPTO], signal);
+        }
+
+        // ── C25: Check panic stop before voting/trading ──
+        if (check_panic(state)) {
+            // Panic mode: skip vote, capital allocation, and trading.
+            // Features are still computed for monitoring, but no trades placed.
+            if (state->cycle % 100 == 0)
+                printf("[PANIC] cycle=%d — halted (no trades)\n", state->cycle);
+            state->writing = 0;
+            goto skip_trading;
         }
 
         // ── L3: Run vote ──

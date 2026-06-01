@@ -301,6 +301,8 @@ typedef struct {
     int      max_consecutive_losses; // Config: max consecutive losses before trip
     int      consec_room_losses;     // Current consecutive room trade losses
     float    prev_close;             // Previous cycle's close price (persisted across process restarts)
+    // ── C25: Panic stop flag ---
+    int      panic_stop;             // 1 = all trading halted (set externally via /tmp/money_room_panic)
     // ── T18: Position limits ──
     float    max_position_pct_room;   // Max % of total room capital any single agent can bet
     float    max_total_exposure_pct;  // Max % of total capital all agents can risk combined
