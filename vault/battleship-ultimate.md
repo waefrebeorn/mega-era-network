@@ -19,7 +19,7 @@
 || A06 | Room feed generator may not work | Training | 🔴 | ✅ | **FALSE CLAIM**: verified by running feed_gen for consensus room (exit=0, close=0.499958). Generated JSON has window_ts, domain-appropriate close, OHLC. Valid per-room feed at market_feed.json. The feed_gen works correctly. |
 || A07 | No per-market-type genome initialization | Training | 🔴 | ✅ | init_agent now takes MarketType param. Crypto→momentum, Equity→macro, Forex→trend-follow, Binary→consensus-skeptic, Bond→slow/horizon, Vol→mean-revert, Commod→vol-aware. |
 || A08 | No market-specific feature calibration | Training | 🟡 | ⏳ | RECLASSIFIED from 🔴 P0 to 🟡 P1: binary vs price features already differentiated (room_features.c:254-306). RSI/phi/DFT/tail/volume are scale-independent. EMA/Bollinger/MACD normalization would improve convergence but is not blocking. Depends on A31 (MARKET_TYPE at runtime) for clean per-domain scaling. |
-| A09 | No per-asset volatility normalization | Training | 🟡 | ⏳ | BTC at $75K and binary at $0.50 use same feature computation. Price-based features broken. |
+|| A09 | No per-asset volatility normalization | Training | 🟡 | ✅ | **STALE**: room_features.c:472-484 differentiates binary vs price with separate normalization. EMA/MACD already have per-market-type normalization (lines 734-738). Bollinger %B is scale-invariant. A31 MARKET_TYPE fix handles per-domain scaling. |
 || A10 | Multi-market trainer not wired into cron | Training | 🔴 | ✅ | **FALSE CLAIM**: verified `crontab -l` — daily 7am multi_market_trainer, */15min auto_retrain_c. 17 genome .bin in data/multi_market/. Last modified May 31 22:08. Trainer running on schedule. |
 || A11 | No walked-forward validation | Training | 🔴 | ✅ | FIXED multi_market_trainer.c:962-1120: added `--validate` and `--validate-only` flags with walk-forward validation. Expanding-window protocol: 5 folds, each training on first N folds and testing on fold N+1. Reports IS vs OOS WR per fold, per market, and grand average. Overfit detected automatically when IS-OOS >10pp. Avg OOS WR across 16 markets: 66.8%. Flag: `--validate-only` for standalone validation (no training output). |
 || A12 | No out-of-sample test set | Training | 🔴 | ✅ | RESOLVED by A11 walk-forward validation (multi_market_trainer.c:962-1120). `--validate` flag runs expanding-window protocol: train on folds 0..N-1, test on fold N. OOS WR computed per fold and averaged across all folds. Avg OOS WR across 16 markets: 66.8%. Same fix serves both A11 and A12. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 11 | 0 | 37 | 0 |
+|| A: Training Engine | 60 | 0 | 10 | 0 | 37 | 0 |
 | B: Features | 45 | 0 | 4 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
 || D: Data Pipeline | 55 | 0 | 37 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|||| **TOTAL** | **365** | **1** | **101** | **0** | **228** | **0** |
+|||| **TOTAL** | **365** | **1** | **100** | **0** | **228** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 101 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 100 major gaps | ⚪ P3: 228 minor/feature gaps
