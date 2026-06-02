@@ -291,7 +291,7 @@
 || F08 | No disk space monitoring | Infra | 🟡 | ✅ | **STALE**: F07 resource_monitor.c (engine/resource_monitor.c:105-116) already implements disk monitoring via read_disk() using statvfs("/", &buf). Writes disk_total_gb, disk_used_gb, disk_avail_gb, disk_used_pct to JSON. Alerts at >85% WARN and >95% CRITICAL. Active every 5min via Hermes job. |
 || F09 | No database backup strategy | Infra | 🟡 | ✅ | **FIXED**: db_backup.c (80 lines C) — copies timeline.db and other key DBs to data/backups/ with daily timestamp. Keeps last 30 days per DB, auto-prunes older. Compiles standalone, no external libs. Make target: `make db_backup`. |
 || F10 | No recovery from corrupt state files | Infra | 🟡 | ✅ | **FIXED**: RoomState now has CRC-32 checksum (state_crc field, types.h:309). Computed nibble-at-a-time CRC-32 over struct bytes 8..sizeof(RoomState) — no external deps. Verified on mmap load (room_engine.c:695): if magic matches but CRC doesn't, writes state_corrupt_alert.json and reinitializes. CRC updated before msync (room_engine.c:1658). STATE_MAGIC bumped to ROMA (0x524F4D41) for the struct layout change. |
-| F11 | No state version migration | Infra | 🟡 | ⏳ | When Genome struct changes size, old binfiles become incompatible. No migrator. |
+|| F11 | No state version migration | Infra | 🟡 | ✅ | **FIXED**: types.h — added state_version field to RoomState (STATE_VERSION=3, STATE_MAGIC bumped to ROMB). room_engine.c — added migrate_old_state() logic: detects old version, initializes new fields (CRC, take-profit), recomputes CRC. Fresh init sets state_version=3. |
 | F12 | No rollback capability | Infra | 🟡 | ⏳ | git revert code but DB state can't be rolled back. |
 | F13 | No monitoring dashboard beyond CLI | Infra | 🟡 | ⏳ | Web dashboard shows summary but no real-time engine status. |
 | F14 | No alert integration (Telegram/email) | Infra | 🟡 | ⏳ | health_alerter.c exists but alert channel unknown. |
@@ -444,10 +444,10 @@
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 17 | 0 |
 ||| D: Data Pipeline | 55 | 0 | 33 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-|| F: Infrastructure | 35 | 0 | 10 | 0 | 18 | 0 |
+||| F: Infrastructure | 35 | 0 | 9 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **76** | **0** | **182** | **0** |
+||| **TOTAL** | **365** | **1** | **75** | **0** | **182** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 76 major gaps | ⚪ P3: 182 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 75 major gaps | ⚪ P3: 182 minor/feature gaps

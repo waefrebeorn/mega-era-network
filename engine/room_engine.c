@@ -701,9 +701,25 @@ static RoomError load_or_init_state(void) {
 
     // Check if already initialized with valid CRC
     // F10: If magic matches but CRC doesn't, state is corrupted
+    // F11: If version is old, migrate in-place (check version first since CRC may fail across versions)
     bool crc_good = (state->magic == STATE_MAGIC && state_verify_crc(state) == 0);
+    // F11: Version migration — handle old state formats (before CRC check since layout changed)
+    if (state->magic == STATE_MAGIC && state->state_version > 0 && state->state_version < STATE_VERSION && state->state_version != STATE_VERSION) {
+        fprintf(stderr, "[F11] Migrating state from v%d to v%d\n", state->state_version, STATE_VERSION);
+        if (state->state_version < 2) {
+            state->state_crc = 0;
+        }
+        if (state->state_version < 3) {
+            state->room_take_profit_pct = 0.20f;
+            state->room_take_profit_triggered = 0;
+        }
+        state->state_version = STATE_VERSION;
+        state_compute_crc(state);
+        crc_good = true;
+        fprintf(stderr, "[F11] Migration complete — state now v%d\n", STATE_VERSION);
+    }
     if (!crc_good) {
-        // Corruption detected: magic matches but CRC doesn't
+        // Corruption detected: magic matches but CRC doesn't (and not a version mismatch)
         if (state->magic == STATE_MAGIC) {
             fprintf(stderr, "[F10] CRITICAL: state corruption detected via CRC mismatch — reinitializing\n");
             state_write_corrupt_alert(state);
@@ -788,6 +804,7 @@ static RoomError load_or_init_state(void) {
         state->room_capital_peak = 50.0f;
         state->room_take_profit_pct = 0.20f; // C35: 20% profit target
         state->room_take_profit_triggered = 0;
+        state->state_version = STATE_VERSION; // F11: mark current version
         state->prev_room_capital = 50.0f;
         state->room_trade.resolved_at = -1; // Mark as init
         // ── T17: Circuit breaker defaults ──

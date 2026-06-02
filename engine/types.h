@@ -45,7 +45,8 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D41  // "ROMA" — bumped for F10 state CRC-32 checksum (new state_crc field)
+#define STATE_MAGIC       0x524F4D42  // "ROMB" — bumped for F11 state version field
+#define STATE_VERSION     3           // Current struct layout version
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
@@ -310,6 +311,7 @@ typedef struct {
 typedef struct {
     uint32_t magic;             // STATE_MAGIC for validation
     uint32_t state_crc;         // F10: CRC-32 checksum over rest of struct (bytes 8..sizeof(RoomState))
+    int      state_version;     // F11: struct layout version for migration (current=3)
     int64_t  last_updated;      // Unix ns
     int      cycle;             // Current cycle number
 
