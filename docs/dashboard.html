@@ -334,25 +334,12 @@ function renderPerformance() {
 
 // ── Load data ──
 async function loadAll() {
-  const t0 = Date.now();
-
-  // Pipeline data
-  try {
-    const r = await fetch('data/pipeline_status.json?_=' + t0);
-    pipelineData = await r.json();
-  } catch(e) { pipelineData = null; }
-
-  // Quality data
-  try {
-    const r = await fetch('data/data_quality.json?_=' + t0);
-    qualityData = await r.json();
-  } catch(e) { qualityData = null; }
-
-  // Performance data
-  try {
-    const r = await fetch('data/risk_analytics.json?_=' + t0);
-    perfData = await r.json();
-  } catch(e) { perfData = null; }
+  // Fetch all 4 sources via data_fetcher (tries localhost:9090 first, then relative)
+  var df = window.DATA_FETCHER;
+  var pipelineData = await new Promise(function(r) { df.fetchJSON('pipeline_status.json', function(e,d) { r(d); }); });
+  var qualityData = await new Promise(function(r) { df.fetchJSON('data_quality.json', function(e,d) { r(d); }); });
+  var perfData = await new Promise(function(r) { df.fetchJSON('risk_analytics.json', function(e,d) { r(d); }); });
+  var survivalData = await new Promise(function(r) { df.fetchJSON('survival_stats.json', function(e,d) { r(d); }); });
 
   if (pipelineData) renderPipeline();
   else document.getElementById('pipelineBody').innerHTML =
@@ -360,13 +347,7 @@ async function loadAll() {
 
   if (qualityData) renderQuality();
   else if (activeTab === 'quality') document.getElementById('qualityBody').innerHTML =
-    '<tr><td colspan="5" class="error-state">⚠️ Cannot connect. Run data_quality first.</td></tr>';
-
-  // Survival data
-  try {
-    const r = await fetch('data/survival_stats.json?_=' + t0);
-    survivalData = await r.json();
-  } catch(e) { survivalData = null; }
+    '<tr><td colspan="5" class="error-state">\u26a0 Cannot connect. Run data_quality first.</td></tr>';
 
   if (perfData) renderPerformance();
   if (survivalData) renderPerformance();

@@ -1,1 +1,1 @@
-{"ts":1780312784,"ok":3,"stale":4,"alerts":"CRIT:NewsGDELT=547484s CRIT:CBOE=299984s WARN:FearGreed=226408s CRIT:FRED=no_data"}
+{"ts":1780396235,"ok":2,"stale":5,"alerts":"CRIT:NewsGDELT=630935s CRIT:CBOE=383435s CRIT:FearGreed=309859s WARN:Forex=101878s CRIT:FRED=no_data"}

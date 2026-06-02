@@ -573,6 +573,7 @@ function animateDataStream(){
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded',function(){
   updateNav();
+  // Load ticker with engine stats
   loadTicker();loadMarketPrices();loadStats();loadDeploy();animateDataStream();
   setInterval(loadTicker,30000);
   setInterval(loadMarketPrices,60000);

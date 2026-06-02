@@ -84,6 +84,9 @@ feed_bridge: exchange_api.o
 multi_market_trainer: multi_market_trainer.c types.h
 	$(CC) -O3 -o multi_market_trainer multi_market_trainer.c -lsqlite3 -ljansson -lm -I.
 
+backtest_replay: backtest_replay.c
+	$(CC) -O3 -o $@ $< -lsqlite3 -ljansson -lm -I.
+
 weather_collector: weather_collector.c
 	$(CC) -O2 -o weather_collector weather_collector.c -lcurl -ljansson -lm
 
@@ -222,3 +225,8 @@ memcheck: health_check withdrawal_scheduler paper_live_bridge paper_mode_sync da
 	@echo "=== paper_live_bridge ===" && timeout 15 valgrind --leak-check=full --show-leak-kinds=definite --error-exitcode=1 ./paper_live_bridge 2>&1 | grep -E "definitely lost|ERROR SUMMARY|All heap blocks"
 	@echo "=== paper_mode_sync ===" && timeout 15 valgrind --leak-check=full --show-leak-kinds=definite --error-exitcode=1 ./paper_mode_sync 2>&1 | grep -E "definitely lost|ERROR SUMMARY|All heap blocks"
 	@echo "=== data_server ===" && timeout 5 valgrind --leak-check=full --show-leak-kinds=definite --error-exitcode=1 ./data_server 2>&1 | grep -E "definitely lost|ERROR SUMMARY|All heap blocks"
+
+# ── Permutation feature-significance test ──
+permutation_test: permutation_test.c
+	$(CC) -O3 -o $@ $< -lm -I.
+

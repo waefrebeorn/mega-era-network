@@ -1,1 +1,19 @@
-{"cycle":706164,"trade_count":0,"active_agents":965404898,"resolved_trades":0,"profit_factor":0,"var_95":0,"var_99":0,"es_95":0,"es_99":0,"warn":"Not enough trades (0 < 100)"}
+{
+  "cycle": 0,
+  "trade_count": 135000,
+  "active_agents": 10000,
+  "resolved_trades": 130000,
+  "profit_factor": 12.7564,
+  "gross_win": 129366.98,
+  "gross_loss": 10141.31,
+  "var_95": 0.021818,
+  "var_99": 0.037844,
+  "expected_shortfall_95": 0.031356,
+  "expected_shortfall_99": 0.044495,
+  "simulations": 10000,
+  "samples": 130000,
+  "var_95_pct": 2.18,
+  "var_99_pct": 3.78,
+  "es_95_pct": 3.14,
+  "es_99_pct": 4.45
+}

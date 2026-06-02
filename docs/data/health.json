@@ -76,35 +76,35 @@
   "checks_warn": 1,
   "data_files": [
     {
-      "age_sec": 141,
+      "age_sec": 95,
       "exists": true,
       "name": "pipeline_status",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 140,
+      "age_sec": 379,
       "exists": true,
       "name": "data_quality",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 5251,
+      "age_sec": 378,
       "exists": true,
       "name": "market_summary",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 5483,
+      "age_sec": 378,
       "exists": true,
       "name": "weather_data",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 5,
+      "age_sec": 11,
       "exists": true,
       "name": "paper_state",
       "stale": false,
@@ -115,5 +115,5 @@
   "engine_status": "warn",
   "issues": "ENGINE NOT RUNNING: room_engine\n",
   "overall_status": "degraded",
-  "timestamp": 1780302742
+  "timestamp": 1780358796
 }

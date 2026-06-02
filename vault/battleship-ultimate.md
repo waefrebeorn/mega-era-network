@@ -210,7 +210,7 @@
 | D31 | No analyst rating changes | Data | 🟡 | ⏳ | Not tracked. |
 | D32 | No insider transaction beyond Form 4 | Data | ⚪ | ⏳ | Form 144 (planned sales) and Section 16 changes not tracked. |
 | D33 | No options flow beyond PCR/IV | Data | 🟡 | ⏳ | Real-time options flow flags missing. Only summary stats. |
-| D34 | No data freshness dashboard | Data | 🟡 | ⏳ | Each collector runs on cron but no centralized "last successful run" tracking. |
+|| D34 | No data freshness dashboard | Data | 🟡 | ✅ | **FIXED**: scripts/data_freshness.sh — checks last update time for 10 data sources (yahoo, coingecko, news, cboe, fear_greed, forex, fred, orderbook, cvd, funding) from timeline.db. Writes JSON with OK/WARN/STALE status to docs/data/data_freshness.json. |
 | D35 | No data quality scoring per source | Data | 🟡 | ⏳ | Some sources may return stale/empty data. No quality metric. |
 | D36 | No data consistency validation | Data | 🟡 | ⏳ | Cross-source consistency not checked (e.g., Kraken BTC vs Coinbase BTC). |
 || D37 | No data gap alerting | Data | 🟡 | ✅ | **FIXED**: data_gap_alerter.sh (~/.hermes/scripts/) — monitors 7 critical data sources (Yahoo, CoinGecko, News/GDELT, CBOE, Fear&Greed, Forex/Frankfurter, FRED). For each source, queries latest timestamp from timeline.db, compares against staleness threshold (1h-24h per source). Writes JSON to docs/data/data_gap_alert.json. Cron: */30min. Non-zero exit on stale sources for std err visibility. |
@@ -442,12 +442,12 @@
 ||| A: Training Engine | 60 | 0 | 5 | 0 | 28 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 16 | 0 |
-||| D: Data Pipeline | 55 | 0 | 33 | 0 | 15 | 0 |
+||| D: Data Pipeline | 55 | 0 | 32 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 ||| F: Infrastructure | 35 | 0 | 9 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **74** | **0** | **181** | **0** |
+||| **TOTAL** | **365** | **1** | **73** | **0** | **181** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 74 major gaps | ⚪ P3: 181 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 73 major gaps | ⚪ P3: 181 minor/feature gaps

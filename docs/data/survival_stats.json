@@ -1,12 +1,1 @@
-{
-  "status": "ok",
-  "timestamp": 1780312174,
-  "agents_alive": 2500,
-  "never_traded": 1250  Bankrupt: 0,
-  "win_rate_mean": $50.64,
-  "win_rate_stddev": $0.87,
-  "capital_total": 126609.77,
-  "capital_mean": 55.15%,
-  "darwin_epoch": 6410,
-  "raw":
-}
+{"status":"error","message":"state file not found"}

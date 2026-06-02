@@ -1,0 +1,12 @@
+{"generated": 1780397727, "sources": {
+  "yahoo": {"latest": 0, "age_sec": 1780397727, "threshold": 3600, "status": "STALE"},
+  "coingecko": {"latest": 0, "age_sec": 1780397727, "threshold": 1800, "status": "STALE"},
+  "news": {"latest": 0, "age_sec": 1780397727, "threshold": 7200, "status": "STALE"},
+  "cboe": {"latest": 0, "age_sec": 1780397727, "threshold": 900, "status": "STALE"},
+  "fear_greed": {"latest": 0, "age_sec": 1780397727, "threshold": 43200, "status": "STALE"},
+  "forex": {"latest": 0, "age_sec": 1780397727, "threshold": 3600, "status": "STALE"},
+  "fred": {"latest": 0, "age_sec": 1780397727, "threshold": 86400, "status": "STALE"},
+  "orderbook": {"latest": 0, "age_sec": 1780397727, "threshold": 300, "status": "STALE"},
+  "cvd": {"latest": 0, "age_sec": 1780397727, "threshold": 600, "status": "STALE"},
+  "funding": {"latest": 0, "age_sec": 1780397727, "threshold": 1800, "status": "STALE"}
+}}
