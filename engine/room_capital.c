@@ -265,6 +265,9 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                 trades[i].pnl_pct = -1.0f;
                 if (agents[aid].consecutive_losses >= 6)
                     agents[aid].alive = false;
+                // ── C19: Capital-floor auto-kill — agent below $1 can't trade ──
+                if (agents[aid].capital < 1.0f)
+                    agents[aid].alive = false;
             }
 
             agents[aid].total_pnl += trades[i].pnl_pct * trades[i].position_size;
@@ -278,7 +281,10 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
             float wr = trades[i].won ? 1.0f : 0.0f;
             agents[aid].win_rate_ema = agents[aid].win_rate_ema * 0.9f + wr * 0.1f;
 
-            // ── A19: Mini-batch SGD update ──
+            // ── C18: Win-rate-floor auto-kill — cull agents below 30% WR over 100+ trades ──
+            if (agents[aid].trades >= 100 && agents[aid].win_rate_ema < 0.30f) {
+                agents[aid].alive = false;
+            }
             // REINFORCE: w += lr * (actual - predicted) * feature
             // Accumulates gradients then applies as batch to reduce variance.
             // actual = 1.0 (won) or 0.0 (lost), predicted = last_conviction
@@ -318,6 +324,12 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                     memset(agents[aid].grad_accum[sgd_regime], 0, sizeof(float) * N_FEATURES);
                     agents[aid].bias_accum[sgd_regime] = 0.0f;
                     agents[aid].batch_count = 0;
+                    // A21: L2 weight decay on regime weights
+                    float l2_lambda = 0.001f;
+                    for (int fi = 0; fi < N_FEATURES; fi++) {
+                        agents[aid].genome.regime_weight[sgd_regime][fi]
+                            -= l2_lambda * agents[aid].genome.regime_weight[sgd_regime][fi];
+                    }
                 }
             }
 

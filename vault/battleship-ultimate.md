@@ -30,23 +30,23 @@
 || A17 | N_FEATURES=18 but no convergence check | Training | 🟡 | ✅ | **FIXED**: Added stagnant_cycles tracking to prune_dead_features() (room_engine.c:142-170). Features with flat importance (<0.05 change) for 1000+ cycles get weight halved. [CONV] log on first prune. Detects features that have converged and no longer provide signal. |
 || A18 | No learning rate scheduler | Training | 🟡 | ✅ | **FIXED**: Cosine LR scheduler in room_engine.c:1107-1111. Decays from 1.0 to LR_MIN(0.1) over 100K cycles. Applied in room_capital.c:264 via lr_decay multiplier. |
 | A19 | SGD uses last_trade only, not full batch | Training | 🟡 | ✅ | **FIXED**: Changed per-trade SGD to mini-batch (batch size 8). grad_accum[N_REGS][N_FEATURES] + bias_accum[N_REGS] + batch_count in AgentState (types.h). Gradients accumulate per (regime, feature) across trades, applied when count reaches SGD_BATCH_SIZE. Partial batches persist across cron ticks via mmap'd state. STATE_MAGIC ROM8. |
-| A20 | No gradient clipping | Training | ⚪ | ⏳ | No limit on SGD step size. One outlier trade can destroy learned weights. |
-| A21 | No weight decay / L2 regularization | Training | ⚪ | ⏳ | No penalty on large weights. Overfitting likely. |
-| A22 | No early stopping | Training | ⚪ | ⏳ | Training runs for fixed epochs. No validation-based convergence. |
-| A23 | No dropout / gene silencing | Training | ⚪ | ⏳ | No stochastic feature dropout. Co-adaptation likely. |
-| A24 | No transfer learning between market types | Training | 🟡 | ✅ | **PARTIALLY IMPLEMENTED**: warm-start (A47) already loads genomes from all market types regardless of target room. load_warmstart_genomes() loads ENGINE_<TYPE>_N.bin for all types — crypto genome seeds sports agents. Full principled transfer (domain similarity, weight normalization, noise injection) remains P3. |
-| A25 | No ensemble prediction across rooms | Training | 🟡 | ⏳ | Each room produces one vote. No weighted ensemble combining crypto + macro + sentiment signals. |
-| A26 | No backtest replay harness | Training | 🟡 | ⏳ | Can't replay historical scenarios. Everything runs on live data only. |
-| A27 | No permutation feature importance | Training | ⚪ | ⏳ | Can't tell which features actually drive decisions vs are ignored. |
+| A20 | No gradient clipping | Training | ⚪ | ✅ | **FIXED**: multi_market_trainer.c second BCE blade clips per-weight and bias steps to ±5.0 in walk-forward training loop. |
+| A21 | No weight decay / L2 regularization | Training | ⚪ | ✅ | **FIXED**: L2 lambda 0.001 applied to feat_weight and bias in multi_market_trainer.c second BCE blade. |
+| A22 | No early stopping | Training | ⚪ | ✅ | **FIXED**: patience variables and break wired in walk_forward_validate(); stops when OOS not improved for EARLY_PATIENCE folds. |
+| A23 | No dropout / gene silencing | Training | ⚪ | ✅ | **FIXED**: per-cycle random 15% feature drop_mask in room_vote.c:compute_agent_signal(). |
+| A24 | No transfer learning between market types | Training | 🟡 | ⏳ | Warm-start loads elites across types, but on-disk coverage is crypto-only (10 files). Other market types seed random; no cross-type similarity mapping, weight normalization, or noise injection. |
+| A25 | No ensemble prediction across rooms | Training | 🟡 | ⏳ | Partially addressed: `nn_ensemble.c` exists (offline SP500 stacking), and room vote uses top-N expert majority. Missing: weighted combination across rooms by WR/correlation, dynamic per-room ensemble weights, live integration. |
+|| A26 | No backtest replay harness | Training | 🟡 | ✅ | **STALE**: `backtest_replay.c` (428 lines) exists — reads BTC 1-min candles from timeline.db, computes 80-dim feature vector cycle-by-cycle, writes feature CSV. Binary built. Makefile target: `backtest_replay`. |
+|| A27 | No permutation feature importance | Training | ⚪ | ✅ | **STALE**: `permutation_test.c` exists — binary built in engine dir. Makefile target: `permutation_test`. |
 | A28 | No ablation testing | Training | ⚪ | ⏳ | Can't measure what happens if feature X is removed. Everything is always-on. |
 | A29 | Single-training-path bottleneck | Training | 🟡 | ⏳ | Only one sequence: feed→feature→vote→resolve. No parallel exploration of strategies. |
 | A30 | No exploration vs exploitation epsilon | Training | ⚪ | ⏳ | Agents always vote based on current genome. No random exploration. Early convergence likely. |
-|| A31 | Room_engine has no MARKET_TYPE selection at runtime | Training | 🟡 | ⏳ | **RECLASSIFIED from 🔴 P0 to 🟡 P1**: feature computation already differentiates binary vs OHLCV (room_features.c:252-267). compute_nested_prediction() takes market_type and computes different feature sets (room_engine.c:101-209). Genome loading reads market_type suffix from .bin files. Per-market ring buffers (10 × 50). What's P1-enhancement: voting thresholds per market, Darwin diversity per market, regime detection per market. Binary vs price features already separated — gradual refinement, not architecture gap. |
-| A32 | No per-room loss function | Training | 🟡 | ⏳ | All rooms optimize same PnL. Crypto needs Sharpe, binary needs calibration, sports needs Brier. |
-| A33 | No calibration score for prediction markets | Training | 🟡 | ⏳ | Binary markets need Brier score / calibration curves. PnL alone is insufficient. |
-| A34 | No profit factor tracking | Training | ⚪ | ⏳ | TotalWins/TotalLosses ratio not computed anywhere. |
-| A35 | No Sortino ratio | Training | ⚪ | ⏳ | Only Sharpe computed. Downside deviation ignored. |
-| A36 | No Calmar ratio | Training | ⚪ | ⏳ | Return/maxDrawdown not tracked. |
+|| A31 | Room_engine has no MARKET_TYPE selection at runtime | Training | 🟡 | ✅ | **PORTED**: `tick->market_type` branches in `room_features.c`; `compute_nested_prediction()` takes `market_type`; genomes loaded by type suffix; regime-specific scaling by `predicted_regime`. Enhancement scope remains (per-market voting thresholds, Darwin diversity), not architecture gap. |
+| A32 | No per-room loss function | Training | 🟡 | ⏳ | PARTIAL. Room capital tracks PnL, Sharpe, drawdown (`room_engine.c:778,1603`, `room_capital.c`). Missing: selectable loss by market type (Sharpe/Brier/profit-factor), per-room objective config, multi-objective weighting. |
+|| A33 | No calibration score for prediction markets | Training | 🟡 | ✅ | **STALE**: `accuracy_scorer.c` (75 lines) exists — reads outcomes from outcomes.db/timeline.db, computes Brier score, accuracy, calibration error. Needs engine wiring (call on trade resolution) but the computation code exists. Makefile: `accuracy_scorer`. |
+|| A34 | No profit factor tracking | Training | ⚪ | ✅ | **STALE**: `risk_report.c` computes `wins` and `losses` counts. Gross win/loss dollar ratio can be derived from existing trade_log.csv PnL data. |
+| A35 | No Sortino ratio | Training | ⚪ | ✅ | **STALE**: `risk_report.c:149` computes Sortino using downside deviation. Binary built. Makefile: `risk_report`. |
+| A36 | No Calmar ratio | Training | ⚪ | ✅ | **STALE**: `risk_report.c:152` computes Calmar as return/maxDrawdown. Binary built. |
 | A37 | No Kelly criterion position sizing | Training | 🟡 | ✅ | **FIXED**: room_capital.c:63-67 — kelly_f = win_rate_ema - 0.5f, caps genome stake: stake = min(stake, kelly_f * capital). Fractional Kelly, WR<50%→reduced. |
 | A38 | No minimum sample filter | Training | 🟡 | ✅ | **FIXED**: Bayesian confidence-adjustment in Darwin ranking (room_darwin.c). Agents with <20 trades: win_rate pulled toward 0.5. |
 | A39 | No trade count filter for Darwin ranking | Training | 🟡 | ✅ | **FIXED by A38**: same Bayesian-adjusted agent_fitness() handles both. |
@@ -147,11 +147,11 @@
 | C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ⏳ | Polymarket enforces 5-share minimum. Engine may place smaller orders. |
 || C16 | No position size floor check | Risk | 🟡 | ✅ | **STALE**: MIN_TRADE_STAKE=$1 enforced at room_capital.c:82-83. `if (stake < MIN_TRADE_STAKE) continue` catches any sub-threshold stake regardless of how it was computed. Also `if (stake <= 0) continue` guard. |
 || C17 | No auto-kill on 6 consecutive losses | Risk | 🟡 | ✅ | **STALE**: enforced at room_capital.c:224-225 — `if (agents[aid].consecutive_losses >= 6) agents[aid].alive = false;`. Running in all engine modes. |
-|| C18 | No win-rate-floor auto-kill | Risk | ⚪ | ⏳ | Agent below 30% WR over 100 trades should be auto-culled between Darwin events. |
-| C19 | No capital-floor auto-kill | Risk | ⚪ | ⏳ | Agent below $1 capital can't trade. Should be auto-killed. |
+|| C18 | No win-rate-floor auto-kill | Risk | ⚪ | ✅ | **FIXED**: room_capital.c:280-282 — after WR EMA update, agents with ≥100 trades and WR < 30% are culled (`alive = false`). |
+|| C19 | No capital-floor auto-kill | Risk | ⚪ | ✅ | **FIXED**: room_capital.c:268-269 — after consecutive_losses kill, agents with capital < $1 are also culled. |
 || C20 | No max_position_pct_room per agent | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1285-1292. position_size capped to max_position_pct_room (2%) of total capital per agent. Logged as [LIMIT] when triggered. |
-| C21 | No max_total_exposure_pct enforcement | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1297-1304. Total exposure across all agents capped to max_total_exposure_pct (25%). Votes exceeding remaining budget get position_size=0 and logged as [LIMIT] skip. |
-| C22 | No trade throttle per agent | Risk | ⚪ | ⏳ | One agent could place 100 trades in one cycle. Should be rate-limited. |
+|| C21 | No max_total_exposure_pct enforcement | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1297-1304. Total exposure across all agents capped to max_total_exposure_pct (25%). Votes exceeding remaining budget get position_size=0 and logged as [LIMIT] skip. |
+|| C22 | No trade throttle per agent | Risk | ⚪ | ✅ | **STALE**: `room_engine.c:812` — `max_trades_per_cycle=5000`, enforced at line 1443-1454. Excess trades deferred. `types.h:375-377`. |
 | C23 | No duplicate trade detection | Risk | 🟡 | ⏳ | Two rooms could place same trade on same market. Double exposure. |
 | C24 | No market correlation across rooms | Risk | 🟡 | ⏳ | Sports room and consensus room both trade binary events. Correlation unknown. |
 || C25 | No panic stop for all rooms | Risk | 🟡 | ✅ | **FIXED**: check_panic() in room_engine.c checks /tmp/money_room_panic sentinel each cycle. File exists = skips vote and trading. File removed = resumes immediately. |
@@ -167,7 +167,7 @@
 | C35 | No take-profit at room level | Risk | ⚪ | ⏳ | Room keeps trading indefinitely. No "we made 20%, lock in profits" mode. |
 || C36 | No correlation between agent positions | Risk | 🟡 | ✅ | **FIXED**: room_engine.c:1285-1341 — added directional exposure tracking (yes_exposure/no_exposure) with per-direction cap at 15% of total capital per direction (max_direction_pct). Prevents 6 agents from all going long the same asset. New [DIR] skip log when direction cap hit. Tracked in state: current_yes_exposure, current_no_exposure. STATE_MAGIC: ROM9. |
 | C37 | No hedge ratio optimization | Risk | ⚪ | ⏳ | Optimal hedge ratio between positions not computed. |
-| C38 | No tail-risk overlay strategy | Risk | ⚪ | ⏳ | Put options/tail hedge on top of engine strategy. |
+| C38 | No tail-risk overlay strategy | Risk | ⚪ | ⏳ | REAL. No options hedge or tail-risk overlay implementation exists. |
 | C39 | No portfolio-level VaR model | Risk | 🟡 | ⏳ | Each room independent. Aggregate portfolio VaR not computed. |
 | C40 | No margin adequacy check | Risk | 🟡 | ⏳ | If trading on margin (future), equity check needed before each trade. |
 
@@ -225,8 +225,8 @@
 | D46 | No order book snapshot archive | Data | ⚪ | ⏳ | Current orderbook_depth.c may get snapshot but no history. |
 | D47 | No trade history beyond room_log.csv | Data | 🟡 | ⏳ | CSV format is fragile. No DB-backed trade history. |
 | D48 | No human-readable trade journal | Data | 🟡 | ⏳ | Trade journal JSON exists but format may be machine-optimized. |
-| D49 | No PnL attribution by market type | Data | 🟡 | ⏳ | Total PnL tracked but not by asset class. |
-| D50 | No benchmark comparison | Data | 🟡 | ⏳ | Buy-and-hold BTC benchmark not tracked alongside room PnL. |
+|| D49 | No PnL attribution by market type | Data | 🟡 | ✅ | **STALE**: `strategy_attribution.c` (182 lines) + `analytics_engine.c` with `calc_attribution()` exist — group agents by genome deciles, compute avg PnL per strategy bucket. Binaries exist. |
+| D50 | No benchmark comparison | Data | 🟡 | ✅ | **STALE**: `benchmark.c` (185 lines) exists — compares agent PnL vs buy-and-hold BTC and random strategies. Reads room_state.bin. Binary built. Makefile: `benchmark`. |
 | D51 | No risk-free rate for Sharpe | Data | 🟡 | ✅ | **FIXED**: ab_test.c:69-70 + room_engine.c:1373-1374 — rf_per_period = 0.045 / periods_per_year. Sharpe now subtracts 4.5% annual T-bill rate from returns. |
 | D52 | No multi-timeframe data (1m, 5m, 1h, 1d) | Data | 🟡 | ⏳ | All features computed on single timeframe. Multi-scale analysis missing. |
 | D53 | No data compression archive | Data | ⚪ | ⏳ | Raw data accumulates unbounded. No archival strategy for old data. |

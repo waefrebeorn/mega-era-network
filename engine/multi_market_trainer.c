@@ -6,7 +6,9 @@
  * Compile:
  *   gcc -O3 -o multi_market_trainer multi_market_trainer.c -lsqlite3 -ljansson -lm -I.
  * Usage:
- *   ./multi_market_trainer [--epochs N] [--agents N]
+ * Usage: ./multi_market_trainer [--epochs N] [--agents N]
+ *         ./multi_market_trainer --strategy balanced --epochs 6
+ * Scheduler modes: round_robin/balanced/regime/regime_balanced
  */
 #define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
@@ -929,9 +931,16 @@ static int train_market(MarketPop *pop, const MarketData *md) {
             float y_pred = 1.0f / (1.0f + expf(-pred_score));
             float err = y_pred - y_true;  // BCE gradient w.r.t. logits
             float lr = pop->agents[i].genome.learning_rate;
-            for (int w = 0; w < N_FEATURES; w++)
-                pop->agents[i].genome.feat_weight[w] -= lr * err * (feats[w] - 0.5f);
-            pop->agents[i].genome.bias -= lr * err;
+            // A20: clip per-weight gradient step to reduce outlier destabilization
+            for (int w = 0; w < N_FEATURES; w++) {
+                float step = lr * err * (feats[w] - 0.5f);
+                if (step > 5.0f) step = 5.0f;
+                if (step < -5.0f) step = -5.0f;
+                pop->agents[i].genome.feat_weight[w] -= step;
+            }
+            float bstep = lr * err;
+            if (bstep > 5.0f) bstep = 5.0f; if (bstep < -5.0f) bstep = -5.0f;
+            pop->agents[i].genome.bias -= bstep;
 
             tcount[i]++; if (won) wcount[i]++;
             pop->agents[i].capital += pnl;
@@ -1064,6 +1073,11 @@ static double walk_forward_validate(const MarketData *md, int n_agents) {
     if (fold_size < 40) { n_folds = 3; fold_size = n / n_folds; }
     if (fold_size < 40) return 0.5;
 
+    // A22: Early stopping patience for walk-forward validation
+    #define EARLY_PATIENCE 2
+    int best_fold = -1;
+    double best_oos = -1.0;
+    int patience_left = EARLY_PATIENCE;
     double in_sample_wr_sum = 0, out_sample_wr_sum = 0;
     int valid_windows = 0;
 
@@ -1109,27 +1123,41 @@ static double walk_forward_validate(const MarketData *md, int n_agents) {
                 build_features(md, idx, feats);
             }
             for (int i = 0; i < n_agents; i++) {
-                if (!pop.agents[i].alive) continue;
+                if (!pop->agents[i].alive) continue;
                 bool dir; float conv;
-                if (!agent_vote(&pop.agents[i], feats, &dir, &conv)) continue;
+                if (!agent_vote(&pop->agents[i], feats, &dir, &conv)) continue;
                 bool won;
                 if (is_binary) {
                     won = dir == (md->closes[idx] >= 0.5);
                 } else {
                     won = dir == (md->closes[idx] >= md->opens[idx]);
                 }
-                float pos = pop.agents[i].genome.position_size * pop.agents[i].capital;
+                float pos = pop->agents[i].genome.position_size * pop->agents[i].capital;
                 float pnl = won ? pos * 0.01f : -pos * 0.01f;
                 float y_true = won ? 1.0f : 0.0f;
-                float pred_score = pop.agents[i].genome.bias;
+                float pred_score = pop->agents[i].genome.bias;
                 for (int w = 0; w < N_FEATURES; w++)
-                    pred_score += (feats[w] - 0.5f) * pop.agents[i].genome.feat_weight[w];
+                    pred_score += (feats[w] - 0.5f) * pop->agents[i].genome.feat_weight[w];
                 float y_pred = 1.0f / (1.0f + expf(-pred_score));
                 float err = y_pred - y_true;
-                float lr = pop.agents[i].genome.learning_rate;
-                for (int w = 0; w < N_FEATURES; w++)
-                    pop.agents[i].genome.feat_weight[w] -= lr * err * (feats[w] - 0.5f);
-                pop.agents[i].genome.bias -= lr * err;
+                float lr = pop->agents[i].genome.learning_rate;
+                // A20: clip per-weight gradient step to reduce outlier destabilization
+                for (int w = 0; w < N_FEATURES; w++) {
+                    float step = lr * err * (feats[w] - 0.5f);
+                    if (step > 5.0f) step = 5.0f;
+                    if (step < -5.0f) step = -5.0f;
+                    pop->agents[i].genome.feat_weight[w] -= step;
+                }
+                float bstep = lr * err;
+                if (bstep > 5.0f) bstep = 5.0f;
+                if (bstep < -5.0f) bstep = -5.0f;
+                pop->agents[i].genome.bias -= bstep;
+                // A21: L2 weight decay on feat_weight and bias
+                float l2_lambda = 0.001f;
+                for (int w = 0; w < N_FEATURES; w++) {
+                    pop->agents[i].genome.feat_weight[w] -= l2_lambda * pop->agents[i].genome.feat_weight[w];
+                }
+                pop->agents[i].genome.bias -= l2_lambda * pop->agents[i].genome.bias;
                 tcount[i]++; if (won) wcount[i]++;
                 pop.agents[i].trades++; if (won) pop.agents[i].wins++; else pop.agents[i].losses++;
             }
@@ -1144,7 +1172,7 @@ static double walk_forward_validate(const MarketData *md, int n_agents) {
         }
 
         double is_wr = tcount[bi] > 0 ? (double)wcount[bi] / tcount[bi] : 0.5;
-        double oos_wr = evaluate_genome(&pop.agents[bi].genome, md, test_start, test_end);
+        double oos_wr = evaluate_genome(&pop->agents[bi].genome, md, test_start, test_end);
 
         printf("  Fold %d/5: train[0..%d] test[%d..%d]  IS=%.1f%%  OOS=%.1f%%  Δ=%.1f%%\n",
                f, train_end, test_start, test_end, is_wr * 100, oos_wr * 100,
@@ -1154,8 +1182,22 @@ static double walk_forward_validate(const MarketData *md, int n_agents) {
         out_sample_wr_sum += oos_wr;
         valid_windows++;
 
+        // A22: Early stopping — break if OOS hasn't improved for EARLY_PATIENCE folds
+        if (oos_wr > best_oos + 0.005) {  // meaningful improvement threshold (>0.5pp)
+            best_oos = oos_wr;
+            best_fold = f;
+            patience_left = EARLY_PATIENCE;
+        } else {
+            patience_left--;
+            if (patience_left <= 0) {
+                printf("  [A22] Early stop at fold %d (best OOS=%.1f%% at fold %d, no improvement for %d folds)\n",
+                       f, best_oos * 100, best_fold, EARLY_PATIENCE);
+                break;
+            }
+        }
+
         // Cleanup
-        free(pop.agents);
+        free(pop->agents);
         free(tcount); free(wcount);
     }
 
