@@ -176,16 +176,22 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
             }
         }
 
-        // Sort by win_rate_ema descending
+        // Sort by fitness descending
         qsort(mt_agents, nmt, sizeof(AgentState), cmp_agents_desc);
 
-        // Cull bottom 10% of this market type
+        // ── A52: Elite preservation — protect top agents from culling ──
+        int elite_count = nmt / 20; // Top 5% are elites (minimum 1)
+        if (elite_count < 1) elite_count = 1;
+        if (elite_count > 5) elite_count = 5; // Cap at 5 elites per market type
+        // Mark elites at the front of the sorted array (already sorted desc)
+
+        // Cull bottom 10% of this market type (skip elites)
         int cull_count = nmt / 10;
         if (cull_count < 1) cull_count = 1;
 
         float redistribution_pool = 0;
         int culled = 0;
-        for (int i = nmt - 1; i >= 0 && culled < cull_count; i--) {
+        for (int i = nmt - 1; i >= elite_count && culled < cull_count; i--) {
             if (!mt_agents[i].alive) continue;
             redistribution_pool += mt_agents[i].capital;
             mt_agents[i].alive = false;

@@ -70,7 +70,7 @@
 | A57 | Cycle count and trade count may not persist | Training | 🟡 | ✅ | **FIXED**: room_engine.c:835-839 — preserved `prev_cycle = state->cycle` before boot-time hard reset, then restored `state->cycle = prev_cycle`. Cycle count now continues from previous run instead of resetting to 0 on every restart. |
 | A58 | No heartbeat timeout alert | Training | 🟡 | ✅ | **FIXED**: Added heartbeat/alert files to cycle_all_rooms.c. Start heartbeat (heartbeat.json + "starting") on launch. Alert file (alert_timeout.json) written on any room timeout (-2) or failure. Final heartbeat written on completion with "ok"/"degraded" status and room counts. Timeouts and failures tracked separately in Phase 3 output. Non-zero exit when any engine failed or timed out. |
 | A59 | No multi-threaded room cycling | Training | ⚪ | ⏳ | cycle_all_rooms runs rooms sequentially. 16 rooms × 5s = 80s. Parallel would be 5s. |
-| A60 | Room watchdog only restarts, doesn't report | Training | ⚪ | ⏳ | watchdog.sh restarts dead processes but doesn't log or alert about restarts. |
+|| A60 | Room watchdog only restarts, doesn't report | Training | ⚪ | ✅ | **STALE**: room_watchdog.c already reports via log_msg (stdout), write_heartbeat (heartbeat files per room), and checks snapshot freshness. Writes per-room heartbeats for btc_main, macro, momentum, polymarket + aggregate. Restarts on stale snapshot with 5min threshold. |
 
 ---
 
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 7 | 0 | 30 | 0 |
+|| A: Training Engine | 60 | 0 | 7 | 0 | 28 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
 || C: Risk Management | 40 | 0 | 3 | 0 | 18 | 0 |
 || D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
-| E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-||| F: Infrastructure | 35 | 0 | 13 | 0 | 18 | 0 |
-| G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
-| H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
-| I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **87** | **0** | **196** | **0** |
+|| E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
+|| F: Infrastructure | 35 | 0 | 12 | 0 | 18 | 0 |
+|| G: Security | 35 | 0 | 17 | 0 | 16 | 0 |
+|| H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
+|| I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
+|| **TOTAL** | **365** | **1** | **83** | **0** | **183** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 87 major gaps | ⚪ P3: 196 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 83 major gaps | ⚪ P3: 183 minor/feature gaps
