@@ -284,7 +284,7 @@
 | F01 | No Docker container for engine | Infra | 🟡 | ⏳ | Single-host deployment. No portability. |
 | F02 | No CI/CD beyond GitHub Pages | Infra | 🟡 | ⏳ | No automated build test on git push. |
 | F03 | No hermetic build environment | Infra | 🟡 | ⏳ | Builds depend on global libraries. Version pinning absent. |
-| F04 | No environment variable management | Infra | 🟡 | ⏳ | secrets.h has hardcoded paths. No .env pattern. |
+|| F04 | No environment variable management | Infra | 🟡 | ✅ | **STALE**: secrets.h already implements .env pattern. Reads from ~/.hermes/secrets.env (gitignored, outside repo). Supports KEY=VALUE format, optional expiry timestamps, key rotation with auto-renew hooks. SECRETS_PATH defined at line 32. |
 | F05 | No graceful shutdown | Infra | 🟡 | ✅ | **FIXED**: Added SIGTERM/SIGINT handler to room_engine.c. `g_shutdown_flag` volatile sig_atomic_t flag set by `handle_signal()`. Main loop checks flag after each cycle, completes current cycle then exits normally. `msync()` flush added before `munmap()` to ensure mmap'd state is committed to disk. Signal handler registered at line 810, loop check at line 847, msync at line 1596. |
 | F06 | No process health beyond heartbeat | Infra | 🟡 | ✅ | **STALE**: room_watchdog.c already implements responsiveness check — verifies snapshot.json mtime < 5min before declaring healthy. If stale (hung engine), cycles all engines with timeout. 4 per-room heartbeats written on success. |
 || F07 | resource_monitor.c — CPU/memory/disk/process monitoring | Infra | 🟡 | ✅ | **FIXED**: resource_monitor.c (240 lines C) — reads /proc/meminfo, /proc/loadavg, /proc/stat, statvfs for disk, /proc/[pid]/status for engine processes (RSS/VSz/uptime). Writes JSON to ~/.hermes/infra/resource_monitor.json + docs/data/. Cron: every 5min via Hermes job. Threshold alerts: memory>80%=WARN, >90%=CRIT; disk>85%=WARN, >95%=CRIT; load>8=WARN, >16=CRIT on 8-core system. |
@@ -444,10 +444,10 @@
 || C: Risk Management | 40 | 0 | 2 | 0 | 18 | 0 |
 || D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-|| F: Infrastructure | 35 | 0 | 12 | 0 | 18 | 0 |
+|| F: Infrastructure | 35 | 0 | 11 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **79** | **0** | **183** | **0** |
+|| **TOTAL** | **365** | **1** | **78** | **0** | **183** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 79 major gaps | ⚪ P3: 183 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 78 major gaps | ⚪ P3: 183 minor/feature gaps
