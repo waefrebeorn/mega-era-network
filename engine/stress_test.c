@@ -62,9 +62,11 @@ int main(int argc, char **argv) {
         {0.30f, 1, 0.30f, 2020},     // -30% in 1 day
         {0.20f, 60, 0.0033f, 2022},  // -20% over 60 days (bear)
         {0.50f, 1, 0.50f, 2026},     // Black swan: -50% gap down in 1 day
+        {0.40f, 0, 0.40f, 2020},     // C09: Flash crash -40% in minutes (instant)
     };
 
-    for (int s = 0; s < 4; s++) {
+    int nscenarios = sizeof(scenarios) / sizeof(scenarios[0]);
+    for (int s = 0; s < nscenarios; s++) {
         float total_drop = scenarios[s][0];
         int days = (int)scenarios[s][1];
         float daily_loss = scenarios[s][2];
@@ -116,7 +118,7 @@ int main(int argc, char **argv) {
     }
 
     printf("═══ VERDICT ═══\n");
-    printf("C23: Stress test scenarios defined: 2008 (50%% over 20d), 2020 flash (30%% 1d), 2022 bear (20%% 60d), 2026 black swan (50%% 1d)\n");
+    printf("C23/C09: Stress test scenarios defined: 2008 (50%% over 20d), 2020 flash (30%% 1d), 2022 bear (20%% 60d), 2026 black swan (50%% 1d), C09 flash crash (40%% instant)\n");
     printf("T17 circuit breaker would trip at 20%% drawdown in all scenarios.\n");
     printf("Position limits (T18) + volatility scaling (P23) + A14 volatile regime half-sizing would reduce impact.\n");
 
