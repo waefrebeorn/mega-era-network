@@ -38,7 +38,7 @@
 | A25 | No ensemble prediction across rooms | Training | 🟡 | ⏳ | Partially addressed: `nn_ensemble.c` exists (offline SP500 stacking), and room vote uses top-N expert majority. Missing: weighted combination across rooms by WR/correlation, dynamic per-room ensemble weights, live integration. |
 || A26 | No backtest replay harness | Training | 🟡 | ✅ | **STALE**: `backtest_replay.c` (428 lines) exists — reads BTC 1-min candles from timeline.db, computes 80-dim feature vector cycle-by-cycle, writes feature CSV. Binary built. Makefile target: `backtest_replay`. |
 || A27 | No permutation feature importance | Training | ⚪ | ✅ | **STALE**: `permutation_test.c` exists — binary built in engine dir. Makefile target: `permutation_test`. |
-| A28 | No ablation testing | Training | ⚪ | ⏳ | Can't measure what happens if feature X is removed. Everything is always-on. |
+|| A28 | No ablation testing | Training | ⚪ | ✅ | **FIXED**: engine/ablation_test.c — measures Brier score impact of zeroing each feature. Identifies most/least useful features. Reports delta vs baseline. |
 | A29 | Single-training-path bottleneck | Training | 🟡 | ⏳ | Only one sequence: feed→feature→vote→resolve. No parallel exploration of strategies. |
 || A30 | No exploration vs exploitation epsilon | Training | ⚪ | ✅ | **FIXED**: room_vote.c — epsilon-greedy exploration. EPSILON_INIT=0.05, EPSILON_MIN=0.005, EPSILON_DECAY=0.9995. Random vote with probability epsilon, decays each cycle. Initialized in room_engine.c:820-822, decayed at line ~1068. types.h: RoomState.epsilon/epsilon_init/epsilon_min fields added. |
 || A31 | Room_engine has no MARKET_TYPE selection at runtime | Training | 🟡 | ✅ | **PORTED**: `tick->market_type` branches in `room_features.c`; `compute_nested_prediction()` takes `market_type`; genomes loaded by type suffix; regime-specific scaling by `predicted_regime`. Enhancement scope remains (per-market voting thresholds, Darwin diversity), not architecture gap. |
@@ -62,7 +62,7 @@
 || A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ✅ | **STALE**: v2 (54KB, macro only) — old build, replaced by current engine. v3 (149KB) — older multi-market engine, replaced by room_engine_market (88KB). Active: room_engine (paper, 83KB) for c_room, room_engine_market (MARKET_MODE) for live rooms. v2/v3 are mega-era-network vestiges. Neither referenced in crontab or scripts. |
 || A50 | No genome diversity metric tracked over time | Training | ⚪ | ✅ | **STALE**: room_darwin.c:384-441 computes both weight_diversity (stddev of L2 norms) and genome_diversity (mean pairwise distance). RoomStats.weight_diversity + RoomStats.genome_diversity populated each Darwin epoch. |
 || A51 | No mutation rate decay schedule | Training | ⚪ | ✅ | **STALE**: room_darwin.c:142 — `mutation_rate = fmaxf(0.05f, 0.3f - epoch * 0.01f)`. Starts at 0.3, decays 0.01/epoch, floors at 0.05. |
-| A52 | No elite preservation | Training | ⚪ | ⏳ | Best agents can be culled if they happen to lose. No guaranteed survival. |
+|| A52 | No elite preservation | Training | ⚪ | ✅ | **FIXED**: room_darwin.c — added elite_count = max(1, elite_fraction * nmt). Top elite_count agents (sorted by fitness) are protected from culling. Clone loop selects parents from top 10%. |
 | A53 | No island model for speciation | Training | ⚪ | ⏳ | One global population. Different strategies compete but can't specialize in niches. |
 || A54 | Room engine market configs stored but not validated | Training | 🟡 | ✅ | **FIXED**: room_feed_gen.c — added validation of required fields (name, market_type, domain) in room_config.json. Warns on missing/invalid fields. |
 | A55 | No A/B test harness for config changes | Training | ⚪ | ⏳ | Every engine change affects all rooms. Can't isolate effect of one parameter change. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-||| A: Training Engine | 60 | 0 | 5 | 0 | 28 | 0 |
+||| A: Training Engine | 60 | 0 | 5 | 0 | 27 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 16 | 0 |
 ||| D: Data Pipeline | 55 | 0 | 31 | 0 | 13 | 0 |
@@ -448,6 +448,6 @@
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **72** | **0** | **179** | **0** |
+||| **TOTAL** | **365** | **1** | **72** | **0** | **177** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 72 major gaps | ⚪ P3: 179 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 72 major gaps | ⚪ P3: 177 minor/feature gaps
