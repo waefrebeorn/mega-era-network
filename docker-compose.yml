@@ -1,0 +1,46 @@
+# F01: Docker Compose for money-room
+# Usage: docker compose up -d
+
+version: "3.8"
+
+services:
+  engine:
+    build: .
+    container_name: money-room-engine
+    restart: unless-stopped
+    volumes:
+      - money-room-data:/data
+      - money-room-state:/state
+    environment:
+      - ROOM_DIR=/data
+      - STATE_PATH=/state/room_state.bin
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "health_check"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  data-server:
+    build: .
+    container_name: money-room-data-server
+    restart: unless-stopped
+    command: data_server
+    volumes:
+      - money-room-data:/data
+    ports:
+      - "9091:9090"
+
+  watchdog:
+    build: .
+    container_name: money-room-watchdog
+    restart: unless-stopped
+    command: room_watchdog
+    volumes:
+      - money-room-data:/data
+      - money-room-state:/state
+
+volumes:
+  money-room-data:
+  money-room-state:

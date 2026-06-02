@@ -281,9 +281,9 @@
 
 | # | Gap | Domain | Pri | Status | Detail |
 |---|-----|--------|-----|--------|--------|
-| F01 | No Docker container for engine | Infra | 🟡 | ⏳ | Single-host deployment. No portability. |
-| F02 | No CI/CD beyond GitHub Pages | Infra | 🟡 | ⏳ | No automated build test on git push. |
-| F03 | No hermetic build environment | Infra | 🟡 | ⏳ | Builds depend on global libraries. Version pinning absent. |
+|| F01 | No Docker container for engine | Infra | 🟡 | ✅ | **FIXED**: Dockerfile + docker-compose.yml. Multi-stage build (debian:bookworm-slim). Compiles all C binaries, copies to minimal runtime image. Non-root user, health check, volume mounts. Compose: engine + data-server + watchdog services. |
+|| F02 | No CI/CD beyond GitHub Pages | Infra | 🟡 | ✅ | **FIXED**: .github/workflows/ci.yml — builds all engine binaries, runs tests, runs valgrind memcheck on room_engine. Triggers on push/PR to main. Uploads artifacts. |
+|| F03 | No hermetic build environment | Infra | 🟡 | ✅ | **FIXED**: scripts/build.sh — checks all deps (gcc, make, pkg-config, libcurl, jansson, sqlite3), verifies versions, builds with make all -jN. Supports --clean, --test, --memcheck flags. Pinned version requirements documented. |
 || F04 | No environment variable management | Infra | 🟡 | ✅ | **STALE**: secrets.h already implements .env pattern. Reads from ~/.hermes/secrets.env (gitignored, outside repo). Supports KEY=VALUE format, optional expiry timestamps, key rotation with auto-renew hooks. SECRETS_PATH defined at line 32. |
 | F05 | No graceful shutdown | Infra | 🟡 | ✅ | **FIXED**: Added SIGTERM/SIGINT handler to room_engine.c. `g_shutdown_flag` volatile sig_atomic_t flag set by `handle_signal()`. Main loop checks flag after each cycle, completes current cycle then exits normally. `msync()` flush added before `munmap()` to ensure mmap'd state is committed to disk. Signal handler registered at line 810, loop check at line 847, msync at line 1596. |
 | F06 | No process health beyond heartbeat | Infra | 🟡 | ✅ | **STALE**: room_watchdog.c already implements responsiveness check — verifies snapshot.json mtime < 5min before declaring healthy. If stale (hung engine), cycles all engines with timeout. 4 per-room heartbeats written on success. |
@@ -294,7 +294,7 @@
 || F11 | No state version migration | Infra | 🟡 | ✅ | **FIXED**: types.h — added state_version field to RoomState (STATE_VERSION=3, STATE_MAGIC bumped to ROMB). room_engine.c — added migrate_old_state() logic: detects old version, initializes new fields (CRC, take-profit), recomputes CRC. Fresh init sets state_version=3. |
 | F12 | No rollback capability | Infra | 🟡 | ⏳ | git revert code but DB state can't be rolled back. |
 | F13 | No monitoring dashboard beyond CLI | Infra | 🟡 | ⏳ | Web dashboard shows summary but no real-time engine status. |
-| F14 | No alert integration (Telegram/email) | Infra | 🟡 | ⏳ | health_alerter.c exists but alert channel unknown. |
+|| F14 | No alert integration (Telegram/email) | Infra | 🟡 | ✅ | **FIXED**: health_alerter.c — added send_telegram_alert() using curl to Telegram Bot API. Sends ⚠️ on health degradation, ✅ on recovery. Token from TELEGRAM_BOT_TOKEN env var. Async (background) delivery. |
 | F15 | No systemd service for engine | Infra | 🟡 | ⏳ | engine runs from crontab. No proper service management. |
 || F16 | No log rotation for all logs | Infra | 🟡 | ✅ | **FIXED**: Created logrotate config at ~/.hermes/logrotate-money-room. Covers CSV (7-day rotation, 100M max), JSONL (30-day, 500M max), room_log.csv (4-week, 50M max). copytruncate for running processes without restart. |
 | F17 | No structured logging (JSON) | Infra | ⚪ | ⏳ | Engine logs are text printf. Machine parsing hard. |
@@ -444,10 +444,10 @@
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 16 | 0 |
 ||| D: Data Pipeline | 55 | 0 | 31 | 0 | 13 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-||| F: Infrastructure | 35 | 0 | 9 | 0 | 18 | 0 |
+||| F: Infrastructure | 35 | 0 | 5 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **71** | **0** | **177** | **0** |
+||| **TOTAL** | **365** | **1** | **67** | **0** | **177** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 71 major gaps | ⚪ P3: 177 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 67 major gaps | ⚪ P3: 177 minor/feature gaps

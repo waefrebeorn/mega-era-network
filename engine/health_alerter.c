@@ -28,6 +28,29 @@
 #define HISTORY_LOG    "/home/wubu2/.hermes/pm_logs/health_alert_history.log"
 #define DATA_FILE      "/home/wubu2/money-room/data/alert_status.json"
 
+// F14: Telegram alert integration
+#define TELEGRAM_BOT_TOKEN_ENV "TELEGRAM_BOT_TOKEN"
+#define TELEGRAM_CHAT_ID "641099789"
+
+static void send_telegram_alert(const char *msg) {
+    const char *token = getenv(TELEGRAM_BOT_TOKEN_ENV);
+    if (!token || !token[0]) return;
+    char cmd[2048];
+    char encoded[1024];
+    int j = 0;
+    for (int i = 0; msg[i] && j < (int)sizeof(encoded)-4; i++) {
+        if (msg[i] == ' ') { encoded[j++]='%'; encoded[j++]='2'; encoded[j++]='0'; }
+        else if (msg[i] == '\n') { encoded[j++]='%'; encoded[j++]='0'; encoded[j++]='A'; }
+        else { encoded[j++] = msg[i]; }
+    }
+    encoded[j] = '\0';
+    snprintf(cmd, sizeof(cmd),
+        "curl -s -X POST 'https://api.telegram.org/bot%s/sendMessage' "
+        "-d 'chat_id=%s&text=%s' >/dev/null 2>&1 &",
+        token, TELEGRAM_CHAT_ID, encoded);
+    system(cmd);
+}
+
 static void log_alert(const char *msg) {
     FILE *f = fopen(HISTORY_LOG, "a");
     if (!f) return;
@@ -49,6 +72,7 @@ int main(void) {
         if (access(ALERT_FILE, F_OK) == 0) {
             remove(ALERT_FILE);
             log_alert("HEALTH RESTORED — alert cleared");
+            send_telegram_alert("✅ Money Room: HEALTH RESTORED — alert cleared");
         }
         /* Remove stale alert status JSON */
         FILE *f = fopen(DATA_FILE, "w");
@@ -69,6 +93,7 @@ int main(void) {
             fclose(af);
         }
         log_alert("HEALTH_DEGRADED — health_check exited non-zero, no JSON");
+        send_telegram_alert("⚠️ Money Room: HEALTH_DEGRADED — health_check failed, no health.json");
         return 1;
     }
 
@@ -87,6 +112,7 @@ int main(void) {
 
     if (!root) {
         log_alert("HEALTH_DEGRADED — health.json parse error");
+        send_telegram_alert("⚠️ Money Room: HEALTH_DEGRADED — health.json parse error");
         return 1;
     }
 
