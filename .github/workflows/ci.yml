@@ -38,6 +38,16 @@ jobs:
           cd engine
           make memcheck 2>&1 | tail -10
 
+      - name: "F20: Memory leak detection in CI"
+        run: |
+          cd engine
+          if make memcheck 2>&1 | grep -q "definitely lost: [1-9]"; then
+            echo "FAIL: memory leaks detected"
+            make memcheck 2>&1 | grep -E "(definitely|indirectly|possibly) leaked"
+            exit 1
+          fi
+          echo "PASS: 0 definite memory leaks"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

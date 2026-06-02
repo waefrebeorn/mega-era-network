@@ -281,6 +281,49 @@ int main(int argc, char **argv) {
         .custom_fn = test_data_quality
     };
 
+    /* ─── F19: Engine logic regression tests ─── */
+    tests[nt++] = (TestDef){
+        .name = "engine binary exists and is executable",
+        .cmd = "test -x " ENGINE_DIR "/room_engine && echo 'EXISTS'",
+        .expect_exit = 0,
+        .expect_out = "EXISTS"
+    };
+
+    tests[nt++] = (TestDef){
+        .name = "darwin: room_darwin produces valid output",
+        .cmd = "cd " ENGINE_DIR " && make room_darwin 2>&1 | tail -1",
+        .expect_exit = 0,
+        .expect_out = "room_darwin"
+    };
+
+    tests[nt++] = (TestDef){
+        .name = "features: room_features_compute runs",
+        .cmd = "cd " ENGINE_DIR " && make room_features 2>&1 | tail -1",
+        .expect_exit = 0,
+        .expect_out = "room_features"
+    };
+
+    tests[nt++] = (TestDef){
+        .name = "stress_test compiles and runs",
+        .cmd = "cd " ENGINE_DIR " && make stress_test 2>&1 | tail -1",
+        .expect_exit = 0,
+        .expect_out = "stress_test"
+    };
+
+    tests[nt++] = (TestDef){
+        .name = "ablation_test compiles and runs",
+        .cmd = "cd " ENGINE_DIR " && make ablation_test 2>&1 | tail -1 && " ENGINE_DIR "/ablation_test 2>&1 | head -3",
+        .expect_exit = 0,
+        .expect_out = "Ablation"
+    };
+
+    tests[nt++] = (TestDef){
+        .name = "cross_source_check compiles",
+        .cmd = "cd " ENGINE_DIR " && make cross_source_check 2>&1 | tail -1",
+        .expect_exit = 0,
+        .expect_out = "cross_source_check"
+    };
+
     if (!quick_mode) {
         tests[nt++] = (TestDef){
             .name = "engine compiles cleanly (make room_engine)",

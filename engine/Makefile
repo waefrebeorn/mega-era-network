@@ -1,6 +1,14 @@
 CC = gcc
 CFLAGS = -O3 -march=native -mtune=native -Wall -Wextra -Wpedantic -std=c11 -D_POSIX_C_SOURCE=199309L
 LDFLAGS = -lm
+LINK = $(CC) $(LDFLAGS)
+
+# Explicit tool rules for binaries that need -lm
+ablation_test: ablation_test.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+cross_source_check: cross_source_check.c
+	$(CC) $(CFLAGS) -o $@ $< -ljansson $(LDFLAGS)
 
 # All source files
 SRCS = room_engine.c room_feeds.c room_features.c room_vote.c room_capital.c room_darwin.c room_bridge.c
@@ -17,7 +25,7 @@ MKT_TARGET = room_engine_market
 # Tools: shell-to-C conversions
 TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all
 TOOL_SRCS = $(addsuffix .c, $(TOOLS))
-TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat
+TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check
 
 market: CFLAGS += -DMARKET_MODE
 market: $(MKT_TARGET)
