@@ -315,7 +315,7 @@
 | F32 | No post-mortem process | Infra | ⚪ | ⏳ | Failures not formally documented. |
 | F33 | No time-series metrics database | Infra | ⚪ | ⏳ | Prometheus/InfluxDB not deployed. No historical metric queries. |
 | F34 | No anomaly detection on engine metrics | Infra | ⚪ | ⏳ | If cycle time triples or trade volume drops 90%, no alert. |
-| F35 | No automated dependency install | Infra | 🟡 | ⏳ | New dev needs to manually install libcurl, jansson, sqlite3. |
+|| F35 | No automated dependency install | Infra | 🟡 | ✅ | **FIXED**: Created config/setup-deps.sh — detects package manager (apt/yum/pacman/apk), installs gcc, make, pkg-config, libcurl, jansson, sqlite3, valgrind. Verifies installations after setup. |
 
 ---
 
@@ -444,10 +444,10 @@
 || C: Risk Management | 40 | 0 | 2 | 0 | 18 | 0 |
 || D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-|| F: Infrastructure | 35 | 0 | 11 | 0 | 18 | 0 |
+|| F: Infrastructure | 35 | 0 | 10 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **78** | **0** | **183** | **0** |
+|| **TOTAL** | **365** | **1** | **77** | **0** | **183** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 78 major gaps | ⚪ P3: 183 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 77 major gaps | ⚪ P3: 183 minor/feature gaps
