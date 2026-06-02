@@ -172,6 +172,16 @@ int main(int argc, char **argv) {
     json_t *config = load_json(config_path);
     if (!config) return 1;
 
+    // ── A54: Validate room_config.json required fields ──
+    const char *required_fields[] = {"name", "market_type", "domain"};
+    int nrequired = sizeof(required_fields) / sizeof(required_fields[0]);
+    for (int i = 0; i < nrequired; i++) {
+        json_t *jf = json_object_get(config, required_fields[i]);
+        if (!jf || !json_is_string(jf)) {
+            fprintf(stderr, "[FEED_GEN] WARN: room_config.json missing/invalid '%s' field — using defaults\n", required_fields[i]);
+        }
+    }
+
     json_t *jname = json_object_get(config, "name");
     char room_name[64] = "unknown";
     if (jname && json_is_string(jname)) {

@@ -64,7 +64,7 @@
 || A51 | No mutation rate decay schedule | Training | ⚪ | ✅ | **STALE**: room_darwin.c:142 — `mutation_rate = fmaxf(0.05f, 0.3f - epoch * 0.01f)`. Starts at 0.3, decays 0.01/epoch, floors at 0.05. |
 | A52 | No elite preservation | Training | ⚪ | ⏳ | Best agents can be culled if they happen to lose. No guaranteed survival. |
 | A53 | No island model for speciation | Training | ⚪ | ⏳ | One global population. Different strategies compete but can't specialize in niches. |
-| A54 | Room engine market configs stored but not validated | Training | 🟡 | ⏳ | room_config.json exists per room but no schema validation. Bad configs run silently. |
+|| A54 | Room engine market configs stored but not validated | Training | 🟡 | ✅ | **FIXED**: room_feed_gen.c — added validation of required fields (name, market_type, domain) in room_config.json. Warns on missing/invalid fields. |
 | A55 | No A/B test harness for config changes | Training | ⚪ | ⏳ | Every engine change affects all rooms. Can't isolate effect of one parameter change. |
 || A56 | No training DB for per-cycle metrics | Training | 🟡 | ✅ | **FIXED**: room_engine.c — appends JSON lines to cycle_metrics.jsonl every 10 cycles. Records cycle, agents, votes, WR, sharpe, drawdown, capital, peak_cap, trades, PnL, epsilon, genome_div, weight_div, timestamp. Path: g_cycle_metrics_path (<room_dir>/cycle_metrics.jsonl). types.h: g_cycle_metrics_path[576]. |
 | A57 | Cycle count and trade count may not persist | Training | 🟡 | ✅ | **FIXED**: room_engine.c:835-839 — preserved `prev_cycle = state->cycle` before boot-time hard reset, then restored `state->cycle = prev_cycle`. Cycle count now continues from previous run instead of resetting to 0 on every restart. |
@@ -439,7 +439,7 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 6 | 0 | 28 | 0 |
+||| A: Training Engine | 60 | 0 | 5 | 0 | 28 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 17 | 0 |
 ||| D: Data Pipeline | 55 | 0 | 33 | 0 | 15 | 0 |
@@ -448,6 +448,6 @@
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **75** | **0** | **182** | **0** |
+||| **TOTAL** | **365** | **1** | **74** | **0** | **182** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 75 major gaps | ⚪ P3: 182 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 74 major gaps | ⚪ P3: 182 minor/feature gaps
