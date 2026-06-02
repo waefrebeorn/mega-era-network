@@ -224,13 +224,13 @@
 | D45 | No overnight swap/funding rate data | Data | ⚪ | ⏳ | Futures funding rates not collected. |
 | D46 | No order book snapshot archive | Data | ⚪ | ⏳ | Current orderbook_depth.c may get snapshot but no history. |
 | D47 | No trade history beyond room_log.csv | Data | 🟡 | ⏳ | CSV format is fragile. No DB-backed trade history. |
-| D48 | No human-readable trade journal | Data | 🟡 | ⏳ | Trade journal JSON exists but format may be machine-optimized. |
+|| D48 | No human-readable trade journal | Data | 🟡 | ✅ | **PORTED**: trade_journal.c (165 lines) reads trades.csv, writes trade_journal.json with timestamped entries including agent, direction, size, entry/exit, PnL, asset. Output is human-readable JSON. |
 || D49 | No PnL attribution by market type | Data | 🟡 | ✅ | **STALE**: `strategy_attribution.c` (182 lines) + `analytics_engine.c` with `calc_attribution()` exist — group agents by genome deciles, compute avg PnL per strategy bucket. Binaries exist. |
 | D50 | No benchmark comparison | Data | 🟡 | ✅ | **STALE**: `benchmark.c` (185 lines) exists — compares agent PnL vs buy-and-hold BTC and random strategies. Reads room_state.bin. Binary built. Makefile: `benchmark`. |
 | D51 | No risk-free rate for Sharpe | Data | 🟡 | ✅ | **FIXED**: ab_test.c:69-70 + room_engine.c:1373-1374 — rf_per_period = 0.045 / periods_per_year. Sharpe now subtracts 4.5% annual T-bill rate from returns. |
 | D52 | No multi-timeframe data (1m, 5m, 1h, 1d) | Data | 🟡 | ⏳ | All features computed on single timeframe. Multi-scale analysis missing. |
-| D53 | No data compression archive | Data | ⚪ | ⏳ | Raw data accumulates unbounded. No archival strategy for old data. |
-| D54 | No data retention policy | Data | ⚪ | ⏳ | How long to keep 1-min ticks? 1 year? Forever? No policy. |
+|| D53 | No data compression archive | Data | ⚪ | ✅ | **FIXED**: scripts/data_archive.sh — compresses CSV files older than 30 days into monthly tar.gz archives. Prunes archives older than 1 year. |
+|| D54 | No data retention policy | Data | ⚪ | ✅ | **FIXED**: config/data_retention_policy.json — defines retention rules: 1-min BTC (1yr), CSVs (2yr), JSON (1yr), archives (1yr), state/timeline/training (forever), logs (30d). Enforced by data_archive.sh. |
 | D55 | No privacy-protected data pipeline for user data | Data | ⚪ | ⏳ | If user trading data collected, no anonymization step. |
 
 ---
@@ -442,12 +442,12 @@
 ||| A: Training Engine | 60 | 0 | 5 | 0 | 28 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 16 | 0 |
-||| D: Data Pipeline | 55 | 0 | 32 | 0 | 15 | 0 |
+||| D: Data Pipeline | 55 | 0 | 31 | 0 | 13 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 ||| F: Infrastructure | 35 | 0 | 9 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **73** | **0** | **181** | **0** |
+||| **TOTAL** | **365** | **1** | **72** | **0** | **179** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 73 major gaps | ⚪ P3: 181 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 72 major gaps | ⚪ P3: 179 minor/feature gaps
