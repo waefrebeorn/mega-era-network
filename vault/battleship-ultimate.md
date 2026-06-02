@@ -332,9 +332,9 @@
 | G07 | No rate limit on API calls | Security | 🟡 | ⏳ | Could trigger exchange rate limits and get banned. |
 | G08 | No exchange-connection encryption check | Security | 🟡 | ⏳ | All connections use HTTPS, but no cert pinning. |
 | G09 | No local network exposure control | Security | 🟡 | ⏳ | data_server runs on port 9090. No auth. Local network can access. |
-| G10 | No CORS policy on data_server | Security | 🟡 | ⏳ | No CORS headers. Browser access from different origin may be blocked. |
-| G11 | No input validation on market_feed.json | Security | 🟡 | ⏳ | Engine reads market_feed.json without validation. Corrupt data = undefined behavior. |
-| G12 | No limits on genome mutation ranges | Security | ⚪ | ⏳ | Genome mutation bounds exist but no overflow guard. |
+|| G10 | No CORS policy on data_server | Security | 🟡 | ✅ | **STALE**: data_server.c already has CORS headers. `Access-Control-Allow-Origin: *` on all responses (400, 200, OPTIONS preflight). `Access-Control-Allow-Methods: POST, GET, OPTIONS`. `Access-Control-Allow-Headers: Content-Type`. CORS preflight handled at line 186. |
+|| G11 | No input validation on market_feed.json | Security | 🟡 | ✅ | **FIXED**: room_feeds.c — added NaN/Inf detection on all 14 float fields (replaces with 0 + warns). Validates high >= low (swaps if inverted). Rejects negative prices (returns ERR_NO_DATA). |
+|| G20 | No HTTPS for data_server | Security | 🟡 | ⏳ | Port 9090 serves HTTP. No TLS. |
 | G13 | No code signing | Security | ⚪ | ⏳ | Built binaries not signed. Tampering undetectable. |
 || G14 | No integrity check on state files | Security | 🟡 | ✅ | **STALE**: F10 fix added CRC-32 checksum to RoomState (types.h:312 state_crc). Computed on save, verified on load. Corrupt state triggers state_corrupt_alert.json and reinitialization. room_engine.c:695 (verify), 1658 (compute). |
 | G15 | No sandbox for collector binaries | Security | ⚪ | ⏳ | Collectors have full filesystem access. |
@@ -445,9 +445,9 @@
 || D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 12 | 0 | 18 | 0 |
-|| G: Security | 35 | 0 | 17 | 0 | 16 | 0 |
+|| G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **83** | **0** | **183** | **0** |
+|| **TOTAL** | **365** | **1** | **81** | **0** | **183** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 83 major gaps | ⚪ P3: 183 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 81 major gaps | ⚪ P3: 183 minor/feature gaps

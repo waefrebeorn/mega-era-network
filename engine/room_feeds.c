@@ -291,6 +291,33 @@ RoomError room_feeds_load(MarketTick *tick) {
     json_get_float(buf, "btc_30d_high", &tick->btc_30d_high);
     json_get_float(buf, "btc_30d_low", &tick->btc_30d_low);
 
+    // ── G11: Input validation on market_feed.json — reject NaN/Inf/corrupt values ──
+    float *fields[] = {&tick->open, &tick->high, &tick->low, &tick->close, &tick->volume,
+                       &tick->fear_greed, &tick->pump_score, &tick->btc_dominance,
+                       &tick->vix, &tick->sp500, &tick->btc_30d_volatility,
+                       &tick->btc_30d_mean, &tick->btc_30d_high, &tick->btc_30d_low};
+    int nfields = sizeof(fields) / sizeof(fields[0]);
+    for (int i = 0; i < nfields; i++) {
+        if ((*fields[i] != *fields[i]) || (*fields[i] > 1e30f || *fields[i] < -1e30f)) {
+            fprintf(stderr, "[FEED] WARN: field %d is NaN/Inf — replacing with 0\n", i);
+            *fields[i] = 0.0f;
+        }
+    }
+    // Validate price relationships: high >= low, close within [low, high]
+    if (tick->high > 0 && tick->low > 0 && tick->high < tick->low) {
+        fprintf(stderr, "[FEED] WARN: high(%.2f) < low(%.2f) — swapping\n", tick->high, tick->low);
+        float tmp = tick->high;
+        tick->high = tick->low;
+        tick->low = tmp;
+    }
+    // Validate non-negative prices
+    if (tick->close < 0 || tick->open < 0 || tick->high < 0 || tick->low < 0) {
+        fprintf(stderr, "[FEED] WARN: negative price detected — rejecting feed\n");
+        free(buf);
+        tick->window_ts = 0;
+        return ERR_NO_DATA;
+    }
+
     free(buf);
     if (tick->window_ts == 0) return ERR_NO_DATA;
     return ERR_OK;
