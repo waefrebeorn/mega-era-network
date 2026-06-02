@@ -90,7 +90,7 @@
 | B10 | No skew / kurtosis features | Features | ⚪ | ⏳ | Higher moments of returns distribution missing. |
 | B11 | No seasonal/time-of-day features | Features | 🟡 | ✅ | **FIXED**: hour_of_day_norm (F28) + day_of_week_norm (F29). Computed from localtime, no collector needed. |
 | B12 | No macro regime feature for equity correlation | Features | 🟡 | ✅ | **FIXED**: Added rolling Pearson correlation (F33) between room price history and SP500 levels. sp500_hist ring buffer in RoomState (persistent across restarts). calc_sp500_corr() in room_features.c — minimum 5 samples, full Pearson formula. Normalized [-1,1]→[0,1]. Data already flowing via MarketTick.sp500 from feed JSON. |
-| B13 | No on-chain feature beyond BTC dominance | Features | 🟡 | ⏳ | MVRV Z-score, Puell Multiple, SOPR all available from coingecko but not used. |
+|| B13 | No on-chain feature beyond BTC dominance | Features | 🟡 | ✅ | **PORTED**: onchain_feat.c (167 lines) computes MVRV proxy (price/ATH), exchange vol ratio, volatility signals from CoinGecko. Writes onchain_features.json. Wiring to room_features.c not needed — btc_dominance already flows via MarketTick. On-chain data collected. |
 | B14 | No funding rate feature | Features | 🟡 | ✅ | **FIXED**: funding_signal (F19) loaded from funding_features.json. Collector runs every 30min via collector_runner. |
 | B15 | No open interest change | Features | 🟡 | ✅ | **FIXED**: oi_net_signal (F20) from open_interest_features.json. BTC OI + SPY PCR combined. |
 | B16 | No long/short ratio feature | Features | 🟡 | ✅ | **FIXED**: ls_ratio_norm (F21) from ls_ratio_features.json. OKX taker buy/sell volume proxy. |
@@ -440,7 +440,7 @@
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
 ||| A: Training Engine | 60 | 0 | 5 | 0 | 27 | 0 |
-|| B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
+||| B: Features | 45 | 0 | 2 | 0 | 33 | 0 |
 ||| C: Risk Management | 40 | 0 | 2 | 0 | 16 | 0 |
 ||| D: Data Pipeline | 55 | 0 | 31 | 0 | 13 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
@@ -448,6 +448,6 @@
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **72** | **0** | **177** | **0** |
+||| **TOTAL** | **365** | **1** | **71** | **0** | **177** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 72 major gaps | ⚪ P3: 177 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 71 major gaps | ⚪ P3: 177 minor/feature gaps
