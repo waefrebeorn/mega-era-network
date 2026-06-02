@@ -97,6 +97,8 @@ static char g_log_path[576];
 #endif
 #define FEED_PATH  g_feed_path
 #define LOG_PATH   g_log_path
+// ── A56: Per-cycle metrics log path (JSON lines, append mode) ──
+static char g_cycle_metrics_path[576];
 
 // ── Init paths at startup ──
 static void init_paths(void) {
@@ -116,6 +118,8 @@ static void init_paths(void) {
     );
     snprintf(g_feed_path, sizeof(g_feed_path), "%s/market_feed.json", g_room_dir);
     snprintf(g_log_path, sizeof(g_log_path), "%s/room_log.csv", g_room_dir);
+    // ── A56: Per-cycle metrics JSON lines file ──
+    snprintf(g_cycle_metrics_path, sizeof(g_cycle_metrics_path), "%s/cycle_metrics.jsonl", g_room_dir);
 }
 static RoomState *state = NULL;
 static int state_fd = -1;
@@ -229,7 +233,7 @@ static void prune_dead_features(AgentState *agents, int n, FeatureImportance *im
 // ── Forward decls ──
 RoomError room_feeds_load(MarketTick *tick);
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s);
-RoomError room_vote_run(AgentState *agents, int n, const FeatureVector *fv, VoteRecord *votes, int *count);
+RoomError room_vote_run(AgentState *agents, int n, const FeatureVector *fv, VoteRecord *votes, int *count, float epsilon);
 RoomError room_capital_apply(VoteRecord *votes, int count, AgentState *agents, int n, TradeRecord *trades, int start_offset, int *new_count, int64_t window_ts, int predicted_regime);
 RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                const MarketTick *resolution_tick,
@@ -817,6 +821,10 @@ static RoomError load_or_init_state(void) {
         state->slippage_events = 0;
         // ── C25: Panic stop ──
         state->panic_stop = 0;
+        // ── A30: Epsilon-greedy exploration ──
+        state->epsilon = 0.05f;          // 5% initial exploration
+        state->epsilon_init = 0.05f;
+        state->epsilon_min = 0.005f;     // 0.5% floor
         printf("[ROOM] Initialized %d agents, $50 room seed\n", MAX_AGENTS);
         printf("[ROOM] CB: consec_room_losses=%d max_consecutive_losses=%d circuit_breaker_cycles=%d\n",
                state->consec_room_losses, state->max_consecutive_losses, state->circuit_breaker_cycles);
@@ -1051,8 +1059,14 @@ void room_market_stats(RoomState *state);
         // ── L3: Run vote ──
         int vote_count = 0;
         err = room_vote_run(state->agents, MAX_AGENTS, &state->features,
-                            state->votes, &vote_count);
+                            state->votes, &vote_count, state->epsilon);
         state->vote_count = vote_count;
+
+        // ── A30: Decay epsilon after each cycle ──
+        if (state->epsilon > state->epsilon_min) {
+            state->epsilon *= 0.9995f;
+            if (state->epsilon < state->epsilon_min) state->epsilon = state->epsilon_min;
+        }
 
         // ── L3b: P15 Tailslayer hedging — detect tail risk, scale exposure ──
         {
@@ -1654,6 +1668,36 @@ skip_trading:
                    state->cycle, s->active_agents, vote_count,
                    s->win_rate * 100, total_cap, elapsed / 1e6);
         }
+
+                // ── A56: Append per-cycle metrics to JSON lines file ──
+        if (state->cycle % 10 == 0) {
+            FILE *cm = fopen(g_cycle_metrics_path, "a");
+            if (cm) {
+                fprintf(cm,
+                    "{\"cycle\":%d,"
+                    "\"agents\":%d,"
+                    "\"votes\":%d,"
+                    "\"wr\":%.4f,"
+                    "\"sharpe\":%.4f,"
+                    "\"dd\":%.4f,"
+                    "\"cap\":%.2f,"
+                    "\"peak_cap\":%.2f,"
+                    "\"trades\":%d,"
+                    "\"pnl\":%.2f,"
+                    "\"epsilon\":%.4f,"
+                    "\"genome_div\":%.4f,"
+                    "\"weight_div\":%.4f,"
+                    "\"ts\":%ld}\n",
+                    state->cycle, s->active_agents, vote_count,
+                    s->win_rate, s->sharpe_ratio, s->max_drawdown,
+                    total_cap, s->capital_peak,
+                    state->trade_count, s->room_pnl_pct,
+                    state->epsilon, s->genome_diversity, s->weight_diversity,
+                    (long)time(NULL));
+                fclose(cm);
+            }
+        }
+
 
         // ── Pace: faster for paper mode ──
         int64_t sleep_ns = PAPER_PACE_NS - elapsed;

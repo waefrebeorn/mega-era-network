@@ -19,6 +19,10 @@
 
 #define SIGMA_NORMALIZER  0.15f  // Match typical bias range [−0.15, 0.15] so bias+features both drive votes
 #define SIGMOID_SCALE     2.5f   // Sharper sigmoid for conviction diversity
+// ── A30: Epsilon-greedy exploration ──
+#define EPSILON_INIT      0.05f  // 5% random exploration at start
+#define EPSILON_MIN       0.005f // Floor: 0.5% random exploration
+#define EPSILON_DECAY     0.9995f // Per-cycle decay toward minimum
 
 static inline float sigmoid(float x) {
     if (x < -10.0f) return 0.0f;
@@ -45,14 +49,18 @@ static float tailslayer_threshold(float base_conviction_threshold, float tail_ri
  * evolved by Darwin and refined by online SGD.
  */
 static float compute_agent_signal(const Genome *g, const FeatureVector *fv) {
-    float *features = (float*)fv;  // FeatureVector is 13 consecutive floats
+    float *features = (float*)fv;
     // ── P22: Use regime-specific weights ──
-    int regime = (int)(fv->regime_indicator + 0.5f);  // Round to nearest 0,1,2
+    int regime = (int)(fv->regime_indicator + 0.5f);
     if (regime < 0) regime = 0;
     if (regime >= N_REGS) regime = N_REGS - 1;
+    // A23: gene silencing — fresh random mask each call (15% feature dropout)
     float signal = g->regime_bias[regime];
     for (int i = 0; i < N_FEATURES; i++) {
-        signal += g->regime_weight[regime][i] * features[i];
+        // Each feature independently has 15% chance of being silenced
+        if (((float)rand() / RAND_MAX) < 0.15f) continue;
+        float w = g->regime_weight[regime][i];
+        signal += w * features[i];
     }
 
     // ── Modulation by genome meta-params ──
@@ -115,7 +123,7 @@ void init_genome_weights(Genome *g) {
 
 RoomError room_vote_run(AgentState *agents, int n,
                         const FeatureVector *fv,
-                        VoteRecord *votes, int *count) {
+                        VoteRecord *votes, int *count, float epsilon) {
     *count = 0;
     if (!agents || !fv || !votes) return ERR_NO_AGENTS;
 
@@ -127,6 +135,13 @@ RoomError room_vote_run(AgentState *agents, int n,
         float z = raw / SIGMA_NORMALIZER;
         float conviction = sigmoid(z * SIGMOID_SCALE);
         bool direction = conviction >= 0.5f;
+
+        // ── A30: Epsilon-greedy exploration — random vote with probability epsilon ──
+        bool explore = ((float)rand() / RAND_MAX) < epsilon;
+        if (explore) {
+            conviction = (float)rand() / (float)RAND_MAX;
+            direction = conviction >= 0.5f;
+        }
 
         // ── Update hidden state ──
         update_hidden_state(&agents[i], raw);

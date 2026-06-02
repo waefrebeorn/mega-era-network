@@ -391,6 +391,10 @@ typedef struct {
     float    vix_hist[FEED_HISTORY];
     int      vix_hist_len;
     int      vix_hist_idx;
+    // ── A30: Epsilon-greedy exploration state ──
+    float    epsilon;                // Current exploration rate (decays each cycle)
+    float    epsilon_init;           // Starting epsilon (default 0.05)
+    float    epsilon_min;            // Floor epsilon (default 0.005)
 } RoomState;
 
 // ── Error codes ──

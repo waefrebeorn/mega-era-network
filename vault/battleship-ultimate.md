@@ -40,9 +40,9 @@
 || A27 | No permutation feature importance | Training | ⚪ | ✅ | **STALE**: `permutation_test.c` exists — binary built in engine dir. Makefile target: `permutation_test`. |
 | A28 | No ablation testing | Training | ⚪ | ⏳ | Can't measure what happens if feature X is removed. Everything is always-on. |
 | A29 | Single-training-path bottleneck | Training | 🟡 | ⏳ | Only one sequence: feed→feature→vote→resolve. No parallel exploration of strategies. |
-| A30 | No exploration vs exploitation epsilon | Training | ⚪ | ⏳ | Agents always vote based on current genome. No random exploration. Early convergence likely. |
+|| A30 | No exploration vs exploitation epsilon | Training | ⚪ | ✅ | **FIXED**: room_vote.c — epsilon-greedy exploration. EPSILON_INIT=0.05, EPSILON_MIN=0.005, EPSILON_DECAY=0.9995. Random vote with probability epsilon, decays each cycle. Initialized in room_engine.c:820-822, decayed at line ~1068. types.h: RoomState.epsilon/epsilon_init/epsilon_min fields added. |
 || A31 | Room_engine has no MARKET_TYPE selection at runtime | Training | 🟡 | ✅ | **PORTED**: `tick->market_type` branches in `room_features.c`; `compute_nested_prediction()` takes `market_type`; genomes loaded by type suffix; regime-specific scaling by `predicted_regime`. Enhancement scope remains (per-market voting thresholds, Darwin diversity), not architecture gap. |
-| A32 | No per-room loss function | Training | 🟡 | ⏳ | PARTIAL. Room capital tracks PnL, Sharpe, drawdown (`room_engine.c:778,1603`, `room_capital.c`). Missing: selectable loss by market type (Sharpe/Brier/profit-factor), per-room objective config, multi-objective weighting. |
+|| A32 | No per-room loss function | Training | 🟡 | ⏳ | PARTIAL. Room capital tracks PnL, Sharpe, drawdown (`room_engine.c:778,1603`, `room_capital.c`). Missing: selectable loss by market type (Sharpe/Brier/profit-factor), per-room objective config, multi-objective weighting. |
 || A33 | No calibration score for prediction markets | Training | 🟡 | ✅ | **STALE**: `accuracy_scorer.c` (75 lines) exists — reads outcomes from outcomes.db/timeline.db, computes Brier score, accuracy, calibration error. Needs engine wiring (call on trade resolution) but the computation code exists. Makefile: `accuracy_scorer`. |
 || A34 | No profit factor tracking | Training | ⚪ | ✅ | **STALE**: `risk_report.c` computes `wins` and `losses` counts. Gross win/loss dollar ratio can be derived from existing trade_log.csv PnL data. |
 | A35 | No Sortino ratio | Training | ⚪ | ✅ | **STALE**: `risk_report.c:149` computes Sortino using downside deviation. Binary built. Makefile: `risk_report`. |
@@ -50,7 +50,7 @@
 | A37 | No Kelly criterion position sizing | Training | 🟡 | ✅ | **FIXED**: room_capital.c:63-67 — kelly_f = win_rate_ema - 0.5f, caps genome stake: stake = min(stake, kelly_f * capital). Fractional Kelly, WR<50%→reduced. |
 | A38 | No minimum sample filter | Training | 🟡 | ✅ | **FIXED**: Bayesian confidence-adjustment in Darwin ranking (room_darwin.c). Agents with <20 trades: win_rate pulled toward 0.5. |
 | A39 | No trade count filter for Darwin ranking | Training | 🟡 | ✅ | **FIXED by A38**: same Bayesian-adjusted agent_fitness() handles both. |
-| A40 | No multi-objective evolution | Training | ⚪ | ⏳ | Only PnL optimizes. Sharpe, drawdown, trade frequency not in Darwin fitness. |
+|| A40 | No multi-objective evolution | Training | ⚪ | ✅ | **FIXED**: room_darwin.c:agent_fitness() — now combines WR 40% + PnL 30% + drawdown 20% + trade frequency 10%. Previously only used win_rate_ema. |
 | A41 | No cross-validation strategy | Training | ⚪ | ⏳ | All data trained once. No k-fold. |
 | A42 | No model checkpointing | Training | ⚪ | ⏳ | If binary crashes mid-training, all progress lost. |
 | A43 | No training speed benchmark | Training | ⚪ | ⏳ | No baseline for how fast training should complete. Degradation invisible. |
@@ -60,13 +60,13 @@
 | A47 | No warm-start from prior genomes | Training | 🟡 | ✅ | **FIXED**: load_warmstart_genomes() in room_engine.c loads ENGINE_<TYPE>_N.bin elites on restart. Seeds 200 agents (2%) from saved genomes. Elite genomes saved by room_darwin_save_elite() each cycle. |
 || A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ✅ | RESOLVED by A02 fix: trade_count now persists across restarts (room_engine.c:657). Once rooms accumulate 100+ trades across cron cycles, Darwin fires and epoch increments. |
 || A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ✅ | **STALE**: v2 (54KB, macro only) — old build, replaced by current engine. v3 (149KB) — older multi-market engine, replaced by room_engine_market (88KB). Active: room_engine (paper, 83KB) for c_room, room_engine_market (MARKET_MODE) for live rooms. v2/v3 are mega-era-network vestiges. Neither referenced in crontab or scripts. |
-| A50 | No genome diversity metric tracked over time | Training | ⚪ | ⏳ | Can't tell if population is converging to monoculture. |
-| A51 | No mutation rate decay schedule | Training | ⚪ | ⏳ | Initial high mutation rate persists forever. Should decay as population matures. |
+|| A50 | No genome diversity metric tracked over time | Training | ⚪ | ✅ | **STALE**: room_darwin.c:384-441 computes both weight_diversity (stddev of L2 norms) and genome_diversity (mean pairwise distance). RoomStats.weight_diversity + RoomStats.genome_diversity populated each Darwin epoch. |
+|| A51 | No mutation rate decay schedule | Training | ⚪ | ⏳ | Initial high mutation rate persists forever. Should decay as population matures. |
 | A52 | No elite preservation | Training | ⚪ | ⏳ | Best agents can be culled if they happen to lose. No guaranteed survival. |
 | A53 | No island model for speciation | Training | ⚪ | ⏳ | One global population. Different strategies compete but can't specialize in niches. |
 | A54 | Room engine market configs stored but not validated | Training | 🟡 | ⏳ | room_config.json exists per room but no schema validation. Bad configs run silently. |
 | A55 | No A/B test harness for config changes | Training | ⚪ | ⏳ | Every engine change affects all rooms. Can't isolate effect of one parameter change. |
-| A56 | No training DB for per-cycle metrics | Training | 🟡 | ⏳ | room_snapshot.json overwrites each cycle. No historical series of metrics. |
+|| A56 | No training DB for per-cycle metrics | Training | 🟡 | ✅ | **FIXED**: room_engine.c — appends JSON lines to cycle_metrics.jsonl every 10 cycles. Records cycle, agents, votes, WR, sharpe, drawdown, capital, peak_cap, trades, PnL, epsilon, genome_div, weight_div, timestamp. Path: g_cycle_metrics_path (<room_dir>/cycle_metrics.jsonl). types.h: g_cycle_metrics_path[576]. |
 | A57 | Cycle count and trade count may not persist | Training | 🟡 | ✅ | **FIXED**: room_engine.c:835-839 — preserved `prev_cycle = state->cycle` before boot-time hard reset, then restored `state->cycle = prev_cycle`. Cycle count now continues from previous run instead of resetting to 0 on every restart. |
 | A58 | No heartbeat timeout alert | Training | 🟡 | ✅ | **FIXED**: Added heartbeat/alert files to cycle_all_rooms.c. Start heartbeat (heartbeat.json + "starting") on launch. Alert file (alert_timeout.json) written on any room timeout (-2) or failure. Final heartbeat written on completion with "ok"/"degraded" status and room counts. Timeouts and failures tracked separately in Phase 3 output. Non-zero exit when any engine failed or timed out. |
 | A59 | No multi-threaded room cycling | Training | ⚪ | ⏳ | cycle_all_rooms runs rooms sequentially. 16 rooms × 5s = 80s. Parallel would be 5s. |
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-| A: Training Engine | 60 | 0 | 8 | 0 | 37 | 0 |
-| B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
-||| C: Risk Management | 40 | 0 | 4 | 0 | 21 | 0 |
-|| D: Data Pipeline | 55 | 0 | 36 | 0 | 15 | 0 |
+|| A: Training Engine | 60 | 0 | 7 | 0 | 30 | 0 |
+|| B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
+|| C: Risk Management | 40 | 0 | 3 | 0 | 18 | 0 |
+|| D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
 | E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 ||| F: Infrastructure | 35 | 0 | 13 | 0 | 18 | 0 |
 | G: Security | 35 | 0 | 18 | 0 | 16 | 0 |
 | H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 | I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-| **TOTAL** | **365** | **1** | **95** | **0** | **228** | **0** |
+|| **TOTAL** | **365** | **1** | **87** | **0** | **196** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket CLOB external — blocked on $50 USDC deposit) | 🟡 P1: 95 major gaps | ⚪ P3: 228 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 87 major gaps | ⚪ P3: 196 minor/feature gaps
