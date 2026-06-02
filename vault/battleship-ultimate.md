@@ -61,7 +61,7 @@
 || A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ✅ | RESOLVED by A02 fix: trade_count now persists across restarts (room_engine.c:657). Once rooms accumulate 100+ trades across cron cycles, Darwin fires and epoch increments. |
 || A49 | room_engine_v2 and v3 binaries exist but unclear if used | Training | 🟡 | ✅ | **STALE**: v2 (54KB, macro only) — old build, replaced by current engine. v3 (149KB) — older multi-market engine, replaced by room_engine_market (88KB). Active: room_engine (paper, 83KB) for c_room, room_engine_market (MARKET_MODE) for live rooms. v2/v3 are mega-era-network vestiges. Neither referenced in crontab or scripts. |
 || A50 | No genome diversity metric tracked over time | Training | ⚪ | ✅ | **STALE**: room_darwin.c:384-441 computes both weight_diversity (stddev of L2 norms) and genome_diversity (mean pairwise distance). RoomStats.weight_diversity + RoomStats.genome_diversity populated each Darwin epoch. |
-|| A51 | No mutation rate decay schedule | Training | ⚪ | ⏳ | Initial high mutation rate persists forever. Should decay as population matures. |
+|| A51 | No mutation rate decay schedule | Training | ⚪ | ✅ | **STALE**: room_darwin.c:142 — `mutation_rate = fmaxf(0.05f, 0.3f - epoch * 0.01f)`. Starts at 0.3, decays 0.01/epoch, floors at 0.05. |
 | A52 | No elite preservation | Training | ⚪ | ⏳ | Best agents can be culled if they happen to lose. No guaranteed survival. |
 | A53 | No island model for speciation | Training | ⚪ | ⏳ | One global population. Different strategies compete but can't specialize in niches. |
 | A54 | Room engine market configs stored but not validated | Training | 🟡 | ⏳ | room_config.json exists per room but no schema validation. Bad configs run silently. |
@@ -296,7 +296,7 @@
 | F13 | No monitoring dashboard beyond CLI | Infra | 🟡 | ⏳ | Web dashboard shows summary but no real-time engine status. |
 | F14 | No alert integration (Telegram/email) | Infra | 🟡 | ⏳ | health_alerter.c exists but alert channel unknown. |
 | F15 | No systemd service for engine | Infra | 🟡 | ⏳ | engine runs from crontab. No proper service management. |
-| F16 | No log rotation for all logs | Infra | 🟡 | ⏳ | Logrotate config exists but may not cover all log files. |
+|| F16 | No log rotation for all logs | Infra | 🟡 | ✅ | **FIXED**: Created logrotate config at ~/.hermes/logrotate-money-room. Covers CSV (7-day rotation, 100M max), JSONL (30-day, 500M max), room_log.csv (4-week, 50M max). copytruncate for running processes without restart. |
 | F17 | No structured logging (JSON) | Infra | ⚪ | ⏳ | Engine logs are text printf. Machine parsing hard. |
 | F18 | No performance benchmark suite | Infra | ⚪ | ⏳ | No baseline for cycle time, memory usage, trade throughput. |
 | F19 | No regression test suite for engine | Infra | 🟡 | ⏳ | test_runner.c exists but may not cover engine logic. |
@@ -336,7 +336,7 @@
 | G11 | No input validation on market_feed.json | Security | 🟡 | ⏳ | Engine reads market_feed.json without validation. Corrupt data = undefined behavior. |
 | G12 | No limits on genome mutation ranges | Security | ⚪ | ⏳ | Genome mutation bounds exist but no overflow guard. |
 | G13 | No code signing | Security | ⚪ | ⏳ | Built binaries not signed. Tampering undetectable. |
-| G14 | No integrity check on state files | Security | 🟡 | ⏳ | room_state.bin has magic number but no checksum. |
+|| G14 | No integrity check on state files | Security | 🟡 | ✅ | **STALE**: F10 fix added CRC-32 checksum to RoomState (types.h:312 state_crc). Computed on save, verified on load. Corrupt state triggers state_corrupt_alert.json and reinitialization. room_engine.c:695 (verify), 1658 (compute). |
 | G15 | No sandbox for collector binaries | Security | ⚪ | ⏳ | Collectors have full filesystem access. |
 | G16 | No seccomp or capability dropping | Security | ⚪ | ⏳ | Binaries run with full Linux capabilities. |
 | G17 | No audit log for state changes | Security | ⚪ | ⏳ | Who changed what config when? No audit trail. |
