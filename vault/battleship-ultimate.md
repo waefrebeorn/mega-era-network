@@ -144,7 +144,7 @@
 | C12 | No slippage shock test | Risk | ⚪ | ⏳ | High-vol slippage can be 50bps. Simulation uses 5bps. 10x discrepancy. |
 || C13 | No fee model for different order types | Risk | 🟡 | ✅ | **STALE**: MARKET_MAKER_FEE (0%) and MARKET_TAKER_FEE (0.1%) both defined in types.h. In paper P2P mode, all orders are market orders (taker+0.1%). Maker model matters for live exchange execution (E01), not paper. No code change needed. |
 | C14 | No gas cost model for crypto trades | Risk | ⚪ | ⏳ | On-chain settlement costs $0.50-5 per trade. $50 seed would be decimated by gas. |
-| C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ⏳ | Polymarket enforces 5-share minimum. Engine may place smaller orders. |
+|| C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ✅ | **FIXED**: types.h — raised MIN_TRADE_STAKE from $1 to $5 to cover Polymarket 5-share minimum (5 shares × $1 max price). room_capital.c enforces this as universal minimum. |
 || C16 | No position size floor check | Risk | 🟡 | ✅ | **STALE**: MIN_TRADE_STAKE=$1 enforced at room_capital.c:82-83. `if (stake < MIN_TRADE_STAKE) continue` catches any sub-threshold stake regardless of how it was computed. Also `if (stake <= 0) continue` guard. |
 || C17 | No auto-kill on 6 consecutive losses | Risk | 🟡 | ✅ | **STALE**: enforced at room_capital.c:224-225 — `if (agents[aid].consecutive_losses >= 6) agents[aid].alive = false;`. Running in all engine modes. |
 || C18 | No win-rate-floor auto-kill | Risk | ⚪ | ✅ | **FIXED**: room_capital.c:280-282 — after WR EMA update, agents with ≥100 trades and WR < 30% are culled (`alive = false`). |
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-|| A: Training Engine | 60 | 0 | 7 | 0 | 28 | 0 |
+|| A: Training Engine | 60 | 0 | 6 | 0 | 28 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 3 | 0 | 18 | 0 |
+|| C: Risk Management | 40 | 0 | 2 | 0 | 18 | 0 |
 || D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 12 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **81** | **0** | **183** | **0** |
+|| **TOTAL** | **365** | **1** | **79** | **0** | **183** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 81 major gaps | ⚪ P3: 183 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 79 major gaps | ⚪ P3: 183 minor/feature gaps

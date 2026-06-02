@@ -50,8 +50,8 @@ extern const char *MARKET_TYPE_NAMES[];
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
 #define MATCH_FEE    0.002f   // Match fee on loser pool (0.2%)
-// ── T97: Minimum trade size ──
-#define MIN_TRADE_STAKE   1.0f    // Minimum $1 stake per trade (skip smaller)
+// ── T97/C15: Minimum trade size (raised to $5 for Polymarket 5-share minimum) ──
+#define MIN_TRADE_STAKE   5.0f    // Minimum $5 stake per trade (covers Polymarket 5-share min)
 // ── A19: Mini-batch SGD batch size ──
 #define SGD_BATCH_SIZE    8       // Trades per mini-batch gradient update
 // ── T20: Slippage model ──
