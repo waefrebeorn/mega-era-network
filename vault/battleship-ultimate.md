@@ -164,7 +164,7 @@
 || C32 | No Kelly bet sizing | Risk | 🟡 | ✅ | **STALE**: A37 already implements Fractional Kelly at room_capital.c:62-73. kelly_f = win_rate_ema - 0.5f caps genome stake. WR<50% → 1/4 genome size. Position capped at 5% max_loss and 50% of capital. |
 || C33 | No position unwind schedule | Risk | ⚪ | ⏳ | If room needs capital, which positions get closed first? |
 || C34 | No stop-loss at room level | Risk | 🟡 | ✅ | **STALE**: T17 circuit breaker IS the room-level stop-loss. Triggered at 20% drawdown or 10 consecutive losses. 100-cycle cooldown. |
-| C35 | No take-profit at room level | Risk | ⚪ | ⏳ | Room keeps trading indefinitely. No "we made 20%, lock in profits" mode. |
+|| C35 | No take-profit at room level | Risk | ⚪ | ✅ | **FIXED**: room_engine.c — added room_take_profit_pct (default 20%) and room_take_profit_triggered flag to RoomState (types.h). After consecutive losses check, if profit from $50 seed ≥ threshold, sets flag and skips trades via goto. One-shot trigger — once profits are locked, room stops trading. |
 || C36 | No correlation between agent positions | Risk | 🟡 | ✅ | **FIXED**: room_engine.c:1285-1341 — added directional exposure tracking (yes_exposure/no_exposure) with per-direction cap at 15% of total capital per direction (max_direction_pct). Prevents 6 agents from all going long the same asset. New [DIR] skip log when direction cap hit. Tracked in state: current_yes_exposure, current_no_exposure. STATE_MAGIC: ROM9. |
 | C37 | No hedge ratio optimization | Risk | ⚪ | ⏳ | Optimal hedge ratio between positions not computed. |
 | C38 | No tail-risk overlay strategy | Risk | ⚪ | ⏳ | REAL. No options hedge or tail-risk overlay implementation exists. |
@@ -214,7 +214,7 @@
 | D35 | No data quality scoring per source | Data | 🟡 | ⏳ | Some sources may return stale/empty data. No quality metric. |
 | D36 | No data consistency validation | Data | 🟡 | ⏳ | Cross-source consistency not checked (e.g., Kraken BTC vs Coinbase BTC). |
 || D37 | No data gap alerting | Data | 🟡 | ✅ | **FIXED**: data_gap_alerter.sh (~/.hermes/scripts/) — monitors 7 critical data sources (Yahoo, CoinGecko, News/GDELT, CBOE, Fear&Greed, Forex/Frankfurter, FRED). For each source, queries latest timestamp from timeline.db, compares against staleness threshold (1h-24h per source). Writes JSON to docs/data/data_gap_alert.json. Cron: */30min. Non-zero exit on stale sources for std err visibility. |
-| D38 | No anomaly detection on incoming data | Data | 🟡 | ⏳ | Spikes, flatlines, missing ticks in raw data go undetected. |
+|| D38 | No anomaly detection on incoming data | Data | 🟡 | ✅ | **FIXED**: room_feeds.c — added spike/flatline/volume anomaly detection after G11 validation. Tracks prev_close (static), detects >10% single-tick price spikes, flatline (identical close + zero volume), and volume spikes (>5x rolling avg). Logs to stderr. |
 ||| D39 | No data staleness flag in engine | Data | 🔴 | ✅ | **FALSE CLAIM**: already addressed by B44 fix in room_feeds.c:254-277. Engine validates timestamp on every feed load — rejects future timestamps (<-300s), WARNs at >5min, REJECTs at >1h. Stale data surfaces via stderr logs per cycle. |
 || D40 | No fallback data source for critical feeds | Data | 🟡 | ✅ | **FIXED**: coingecko_fallback.c (engine/coingecko_fallback.c) — standalone C binary that checks BTC 1-min CSV freshness (age >1h). If stale, queries CoinGecko API directly and appends synthetic OHLCV row. Uses libcurl+jansson, single binary deploy. Cron: */30min via Hermes script coingecko_fallback.sh. Fresh-data path returns exit 0 silently; stale path writes fallback row and logs price. |
 || D41 | CoinGecko wired into collector_runner | Data | 🟡 | ✅ | **FIXED**: coingecko_fetch.sh added to collector_runner.c NORMAL_TASKS (30min interval). Writes 25 crypto prices to timeline.db. Wrapper at ~/.hermes/scripts/coingecko_fetch.sh. Binary exists at engine/coingecko_collector. |
@@ -441,13 +441,13 @@
 |--------|-------|-------|-------|-------|-------|-------|
 || A: Training Engine | 60 | 0 | 6 | 0 | 28 | 0 |
 || B: Features | 45 | 0 | 3 | 0 | 33 | 0 |
-|| C: Risk Management | 40 | 0 | 2 | 0 | 18 | 0 |
-|| D: Data Pipeline | 55 | 0 | 34 | 0 | 15 | 0 |
+||| C: Risk Management | 40 | 0 | 2 | 0 | 17 | 0 |
+||| D: Data Pipeline | 55 | 0 | 33 | 0 | 15 | 0 |
 || E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
 || F: Infrastructure | 35 | 0 | 10 | 0 | 18 | 0 |
 || G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
 || H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
 || I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-|| **TOTAL** | **365** | **1** | **77** | **0** | **183** | **0** |
+||| **TOTAL** | **365** | **1** | **76** | **0** | **182** | **0** |
 
-🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 77 major gaps | ⚪ P3: 183 minor/feature gaps
+🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 76 major gaps | ⚪ P3: 182 minor/feature gaps

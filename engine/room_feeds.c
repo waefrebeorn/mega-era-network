@@ -318,6 +318,35 @@ RoomError room_feeds_load(MarketTick *tick) {
         return ERR_NO_DATA;
     }
 
+    // ── D38: Anomaly detection on incoming data — spike/flatline ──
+    static float prev_close = 0.0f;
+    static int has_prev = 0;
+    if (has_prev && prev_close > 0.0f && tick->close > 0.0f) {
+        float change_pct = fabsf(tick->close - prev_close) / prev_close;
+        // Spike: >10% single-tick price move (likely bad data)
+        if (change_pct > 0.10f) {
+            fprintf(stderr, "[FEED] ANOMALY: price spike %.1f%% (%.2f→%.2f) — flagging but accepting\n",
+                    change_pct * 100.0f, prev_close, tick->close);
+        }
+        // Flatline: identical close for consecutive ticks (stale data)
+        if (tick->close == prev_close && tick->volume == 0.0f) {
+            fprintf(stderr, "[FEED] ANOMALY: flatline detected (close=%.2f, vol=0) — stale data?\n",
+                    tick->close);
+        }
+        // Volume spike: >5x average (unusual activity)
+        static float avg_volume = 0.0f;
+        static int vol_samples = 0;
+        if (vol_samples > 10 && avg_volume > 0.0f && tick->volume > 5.0f * avg_volume) {
+            fprintf(stderr, "[FEED] ANOMALY: volume spike %.1fx avg (%.0f vs avg %.0f)\n",
+                    tick->volume / avg_volume, tick->volume, avg_volume);
+        }
+        // Update rolling average volume
+        avg_volume = (avg_volume * vol_samples + tick->volume) / (vol_samples + 1);
+        vol_samples = (vol_samples < 1000) ? vol_samples + 1 : vol_samples;
+    }
+    prev_close = tick->close;
+    has_prev = 1;
+
     free(buf);
     if (tick->window_ts == 0) return ERR_NO_DATA;
     return ERR_OK;

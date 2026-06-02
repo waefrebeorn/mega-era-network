@@ -786,6 +786,8 @@ static RoomError load_or_init_state(void) {
         state->stats.return_idx = 0;
         state->room_capital = 50.0f;  // Real $50 seed
         state->room_capital_peak = 50.0f;
+        state->room_take_profit_pct = 0.20f; // C35: 20% profit target
+        state->room_take_profit_triggered = 0;
         state->prev_room_capital = 50.0f;
         state->room_trade.resolved_at = -1; // Mark as init
         // ── T17: Circuit breaker defaults ──
@@ -1192,6 +1194,17 @@ void room_market_stats(RoomState *state);
             printf("[CB] TRIGGERED! %d consecutive losses. Cooling down %d cycles.\n",
                    state->consec_room_losses, state->circuit_cooldown_cycles / 2);
             goto skip_trading;
+        }
+
+        // ── C35: Take-profit at room level ──
+        if (!state->room_take_profit_triggered && state->room_capital_peak > 0) {
+            float room_profit_pct = (state->room_capital - 50.0f) / 50.0f; // profit from $50 seed
+            if (room_profit_pct >= state->room_take_profit_pct) {
+                state->room_take_profit_triggered = 1;
+                printf("[TAKE_PROFIT] Room hit %.0f%% profit target! Capital=$%.2f (profit=$%.2f) — locking profits, skipping trades\n",
+                       state->room_take_profit_pct * 100, state->room_capital, state->room_capital - 50.0f);
+                goto skip_trading;
+            }
         }
 
         // ── Kill switch check (SIGUSR1) ──

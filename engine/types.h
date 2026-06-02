@@ -333,6 +333,8 @@ typedef struct {
     // Room-level trading ($50 seed, one consensus bet per cycle)
     float    room_capital;         // $50 seed
     float    room_capital_peak;
+    float    room_take_profit_pct; // C35: take-profit threshold (default 20%)
+    int      room_take_profit_triggered; // C35: 1 when take-profit has fired
     int      room_trades;          // total room trades
     int      room_wins, room_losses;
     RoomTrade room_trade;          // current active room trade
