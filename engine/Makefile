@@ -20,13 +20,13 @@ TOOL_SRCS = $(addsuffix .c, $(TOOLS))
 TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat
 
 market: CFLAGS += -DMARKET_MODE
-market: clean $(MKT_TARGET)
+market: $(MKT_TARGET)
 
 $(MKT_TARGET): $(MKT_SRCS:.c=.o)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 paper: CFLAGS += -DPAPER_MODE
-paper: clean $(TARGET)_paper
+paper: $(TARGET)_paper
 
 $(TARGET)_paper: $(PAPER_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lsqlite3
