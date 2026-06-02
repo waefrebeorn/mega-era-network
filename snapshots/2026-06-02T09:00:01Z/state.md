@@ -1,8 +1,9 @@
-# State — Money Room System v5.4
-June 1, 2026 — T083 stress test + T084 survival stats now cron'd every 30min
-5 REAL GAPS resolved (T083/T084 PORTED, T092 duplicate removed)
+# State — Money Room System v5.5
+June 1, 2026 — 7 gaps closed: T096 (PDT), T088 (blockchain pipeline), T069 (collector cron),
+T100 (live state dash), T099 (data server restored), T105 (weight claim fixed), T101 (diverse genomes)
+8 REAL GAPS resolved (all T096/T088/T100/T099/T105/T101 + T069 verified + duplicates)
 
-## Status: ✅ 71 PORTED / 15 REAL GAP remaining in battleship
+## Status: ✅ 72 PORTED / 14 REAL GAP remaining in battleship
 
 ### Triple DA Fixes Applied
 
@@ -45,22 +46,23 @@ June 1, 2026 — T083 stress test + T084 survival stats now cron'd every 30min
 | T053 | docs/setup.md rewritten: C-only, zero Python |
 | T054 | docs/genome-params.md: 10 params, 18 features, P22 multi-regime |
 | T058 | sports_room.c verified EXISTS (429 lines, compiles) |
-| T064 | health_check.c written: 20 checks, 5-min cron, exit 0/1 |
-| T073 | exchange_market_collector scheduled: */30 * * * * |
-| T074 | edgar_collector scheduled: 0 */12 * * * |
-| T076 | data_pipeline scheduled: 0 5 * * * (2,454 samples) |
-| T077 | market_microstructure scheduled: */30 * * * * |
-| T078 | timeline_aggregator scheduled: 0 * * * * (124K rows) |
-| T069 | **blockchain_com_collector scheduled**: 0 */6 * * * |
-| T038 | **data_server.c serving docs/data/ on port 9090**: Static file server with CORS, systemd-managed. 8 JSON files served live. |
-| T040 | **rooms.html live dashboard**: SVG capital distribution chart + leaderboard + 16 room cards with data sources. Auto-refresh 30s. |
-| T042 | **register.html backend**: POST /register on data_server. Server-side key generation + CORS. Falls back to client-side. |
-| T055 | **withdrawal_scheduler compiled**: 627-line C binary for virtual profit withdrawals. SQLite-backed, 6 CLI commands. |
-| T056 | **WALLETS.md verified real**: Contains all 5 wallet addresses matching vault.md. Stale battleship claim corrected. |
-| T057 | **CHANGELOG.md + cron**: docs/CHANGELOG.md auto-generated from git. gen_changelog.sh runs every 6h. |
-| T066 | **Test suite**: `make test` — 9 integration tests, all passing. health_check JSON, data_server, data quality, engine compile, binary existence. |
-| T083 | **Stress test cron'd every 30min**: stress_test_paper — 4 crash scenarios, STATE_MAGIC validation, writes stress_test.json |
-| T084 | **Survival stats cron'd every 30min**: survival_stats_paper — agent age/WR/capital distribution, STATE_MAGIC validation |
+|| T064 | health_check.c written: 20 checks, 5-min cron, exit 0/1 |
+|| T073 | exchange_market_collector scheduled: */30 * * * * |
+|| T074 | edgar_collector scheduled: 0 */12 * * * |
+|| T076 | data_pipeline scheduled: 0 5 * * * (2,454 samples) |
+|| T077 | market_microstructure scheduled: */30 * * * * |
+|| T078 | timeline_aggregator scheduled: 0 * * * * (124K rows) |
+|| T069 | **blockchain_com_collector scheduled**: 0 */6 * * * |
+|| T038 | **data_server.c serving docs/data/ on port 9090**: Static file server with CORS, systemd-managed. 8 JSON files served live. |
+|| T040 | **rooms.html live dashboard**: SVG capital distribution chart + leaderboard + 16 room cards with data sources. Auto-refresh 30s. |
+|| T042 | **register.html backend**: POST /register on data_server. Server-side key generation + CORS. Falls back to client-side. |
+|| T055 | **withdrawal_scheduler compiled**: 627-line C binary for virtual profit withdrawals. SQLite-backed, 6 CLI commands. |
+|| T056 | **WALLETS.md verified real**: Contains all 5 wallet addresses matching vault.md. Stale battleship claim corrected. |
+|| T057 | **CHANGELOG.md + cron**: docs/CHANGELOG.md auto-generated from git. gen_changelog.sh runs every 6h. |
+|| T066 | **Test suite**: `make test` — 9 integration tests, all passing. health_check JSON, data_server, data quality, engine compile, binary existence. |
+|| T083 | **Stress test cron'd every 30min**: stress_test_paper — 4 crash scenarios, STATE_MAGIC validation, writes stress_test.json |
+|| T084 | **Survival stats cron'd every 30min**: survival_stats_paper — agent age/WR/capital distribution, STATE_MAGIC validation |
+|| T096 | **PDT enforcement**: 3 day trades/5-day rolling window for agents under $25K — SEC Pattern Day Trader compliance |
 
 ### Remaining Gaps
 
@@ -74,7 +76,7 @@ June 1, 2026 — T083 stress test + T084 survival stats now cron'd every 30min
 ### Key Metrics
 - 229,041 paper engine cycles, 217,986 trades, 2,500 agents, Agent WR 49.57%, Room WR 45.19%
 - Mean agent capital: $49.69 (total $124,215.71), Darwin epoch 0, 0 bankrupt agents
-- 71 PORTED / 15 REAL GAP remaining in battleship
+- 72 PORTED / 14 REAL GAP remaining in battleship
 - 722K historical BTC candles available for paper training
 - 128K live candles in timeline.db
 - 27 collector binaries compiled

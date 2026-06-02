@@ -1,6 +1,6 @@
 {
-  "timestamp": 1780303963,
-  "datetime": "2026-06-01T04:52:43",
+  "timestamp": 1780382487,
+  "datetime": "2026-06-02T02:41:27",
   "asset": "BTCUSDT",
   "price": 73067.73,
   "close": 73067.73,
@@ -17,7 +17,7 @@
   "btc_30d_mean": 71606.37,
   "btc_30d_high": 78913.14,
   "btc_30d_low": 67222.31,
-  "window_ts": 1780303800,
+  "window_ts": 1780382400,
   "cb_bid": 73031.19,
   "cb_ask": 73104.26,
   "spy_price": 7580.06,
