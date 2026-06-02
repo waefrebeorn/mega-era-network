@@ -1,0 +1,20 @@
+{
+  "trades": 100000,
+  "capital": 25.33,
+  "gross_pnl": -42416.76,
+  "return_pct": -167430.2574,
+  "win_rate": 0.2163,
+  "avg_pnl": -0.4242,
+  "std_dev": 1.0228,
+  "sharpe_0": -0.4147,
+  "sharpe_5": -0.4147,
+  "sortino": -0.3163,
+  "calmar": -0.9999,
+  "var_95": -2.2598,
+  "var_99": -2.4962,
+  "cvar_95": -2.4108,
+  "max_drawdown": 42421.19,
+  "wins": 21631,
+  "losses": 78369,
+  "timestamp": 1780283188
+}

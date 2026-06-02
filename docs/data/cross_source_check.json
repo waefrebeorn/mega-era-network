@@ -1,0 +1,26 @@
+{
+  "generated": 1780399306,
+  "sources_checked": 4,
+  "sources_found": 0,
+  "sources": [
+    {
+      "name": "kraken",
+      "found": false
+    },
+    {
+      "name": "yahoo",
+      "found": false
+    },
+    {
+      "name": "coingecko",
+      "found": false
+    },
+    {
+      "name": "feed",
+      "found": false
+    }
+  ],
+  "max_pct_diff": 0.0,
+  "issues": [],
+  "status": "OK"
+}

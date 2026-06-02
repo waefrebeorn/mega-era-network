@@ -1,0 +1,233 @@
+{
+  "generated_at": 1780399801,
+  "checks": [
+    {
+      "id": "btc_1min",
+      "name": "BTC 1-min OHLCV",
+      "exists": true,
+      "age_seconds": 87347,
+      "rows": 723915,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "sp500",
+      "name": "S&P500 Daily",
+      "exists": true,
+      "age_seconds": 796159,
+      "rows": 2610,
+      "status": "warn",
+      "result": 1,
+      "issues": [
+        "stale"
+      ]
+    },
+    {
+      "id": "btc_genome",
+      "name": "BTC Trained Genome",
+      "exists": true,
+      "age_seconds": 1797,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "sp500_genome",
+      "name": "SP500 Genome",
+      "exists": true,
+      "age_seconds": 1797,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "dow",
+      "name": "DOW Daily",
+      "exists": true,
+      "age_seconds": 795689,
+      "rows": 2515,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "nasdaq",
+      "name": "NASDAQ Daily",
+      "exists": true,
+      "age_seconds": 795690,
+      "rows": 2515,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "ftse",
+      "name": "FTSE100 Daily",
+      "exists": true,
+      "age_seconds": 795689,
+      "rows": 2526,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "nikkei",
+      "name": "NIKKEI Daily",
+      "exists": true,
+      "age_seconds": 795689,
+      "rows": 2443,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "eurusd",
+      "name": "EURUSD Daily",
+      "exists": true,
+      "age_seconds": 795688,
+      "rows": 1300,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "gbpusd",
+      "name": "GBPUSD Daily",
+      "exists": true,
+      "age_seconds": 795688,
+      "rows": 1301,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "usdjpy",
+      "name": "USDJPY Daily",
+      "exists": true,
+      "age_seconds": 795688,
+      "rows": 1300,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "gold",
+      "name": "GOLD Daily",
+      "exists": true,
+      "age_seconds": 795691,
+      "rows": 2513,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "silver",
+      "name": "SILVER Daily",
+      "exists": true,
+      "age_seconds": 795690,
+      "rows": 2513,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "crude",
+      "name": "CRUDE_OIL Daily",
+      "exists": true,
+      "age_seconds": 795690,
+      "rows": 2514,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "dgs10",
+      "name": "DGS10 Yield",
+      "exists": true,
+      "age_seconds": 781003,
+      "rows": 2609,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "vix",
+      "name": "VIX Daily",
+      "exists": true,
+      "age_seconds": 795691,
+      "rows": 3773,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "sports_json",
+      "name": "Sports Data",
+      "exists": true,
+      "age_seconds": 88,
+      "rows": 79,
+      "status": "fail",
+      "result": 2,
+      "issues": [
+        "too_few_rows"
+      ]
+    },
+    {
+      "id": "weather_json",
+      "name": "Weather Data",
+      "exists": true,
+      "age_seconds": 88,
+      "rows": 2928,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "polymarket",
+      "name": "Prediction Markets",
+      "exists": true,
+      "age_seconds": 120191,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "stats_json",
+      "name": "Engine Stats",
+      "exists": true,
+      "age_seconds": 88,
+      "value": 137204.01560000001,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "prices_json",
+      "name": "Prices Feed",
+      "exists": true,
+      "age_seconds": 88,
+      "value": 0.0,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    },
+    {
+      "id": "genome_dir",
+      "name": "Multi-Market Genomes",
+      "exists": true,
+      "age_seconds": 88,
+      "count": 27,
+      "status": "pass",
+      "result": 0,
+      "issues": []
+    }
+  ],
+  "summary": {
+    "total": 22,
+    "passed": 20,
+    "warned": 1,
+    "failed": 1,
+    "score": 95.454545454545453
+  }
+}

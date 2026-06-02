@@ -1,0 +1,25 @@
+{
+  "checked_at": 1780303722,
+  "total_keys": 12,
+  "healthy": 12,
+  "needs_rotation": 0,
+  "empty_placeholders": 4,
+  "keys": [
+    {"name":"FINNHUB_API_KEY","length":40,"status":"HEALTHY","age_days":0},
+    {"name":"EODHD_API_KEY","length":23,"status":"HEALTHY","age_days":0},
+    {"name":"CMC_API_KEY","length":32,"status":"HEALTHY","age_days":0},
+    {"name":"MARKETSTACK_API_KEY","length":32,"status":"HEALTHY","age_days":0},
+    {"name":"TWELVEDATA_API_KEY","length":32,"status":"HEALTHY","age_days":0},
+    {"name":"STOCKDATA_API_KEY","length":40,"status":"HEALTHY","age_days":0},
+    {"name":"POLYGON_RPC_URL","length":34,"status":"HEALTHY","age_days":0},
+    {"name":"FCS_API_KEY","length":26,"status":"HEALTHY","age_days":0},
+    {"name":"FOREXRATE_API_KEY","length":32,"status":"HEALTHY","age_days":0},
+    {"name":"EXCHANGERATE_HOST_KEY","length":32,"status":"HEALTHY","age_days":0},
+    {"name":"LEMONSQUEEZY_API_KEY","length":995,"status":"HEALTHY","age_days":0},
+    {"name":"HERMES_AUTH_KEY","length":35,"status":"HEALTHY","age_days":0},
+    {"name":"POLYMARKET_API_KEY","length":0,"status":"EMPTY","age_days":-1},
+    {"name":"COINBASE_API_KEY","length":0,"status":"EMPTY","age_days":-1},
+    {"name":"KRAKEN_API_KEY","length":0,"status":"EMPTY","age_days":-1},
+    {"name":"ALPHA_VANTAGE_KEY","length":0,"status":"EMPTY","age_days":-1}
+  ]
+}

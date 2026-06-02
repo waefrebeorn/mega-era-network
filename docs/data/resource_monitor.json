@@ -1,0 +1,40 @@
+{
+  "alert_count": 0,
+  "alerts": [],
+  "cpu_idle_pct": 64.236575576543103,
+  "cpu_iowait_pct": 6.7328029225328763,
+  "cpu_jiffies_total": 31446695,
+  "cpu_sys_pct": 3.7002044252981117,
+  "cpu_user_pct": 22.667730265453969,
+  "disk_avail_gb": 934.59512524800004,
+  "disk_total_gb": 1081.101176832,
+  "disk_used_gb": 91.513696256000003,
+  "disk_used_pct": 8.4648595540490259,
+  "engine_processes": [
+    {
+      "memory_mb": 12.546875,
+      "name": "/home/wubu2/money-room/engine/room_engine_paper",
+      "pid": 157922,
+      "uptime_sec": 63263,
+      "virtual_mb": 67.0390625
+    }
+  ],
+  "load_15m": 2.1099999999999999,
+  "load_1m": 1.6499999999999999,
+  "load_5m": 2.2200000000000002,
+  "memory_avail_mb": 11303.58984375,
+  "memory_total_mb": 11963.12890625,
+  "memory_used_mb": 659.5390625,
+  "memory_used_pct": 5.5130983513471241,
+  "procs_running": 5,
+  "procs_total": 255,
+  "swap_free_mb": 2115.3515625,
+  "swap_total_mb": 3072.0,
+  "swap_used_pct": 31.140899658203125,
+  "timestamp": 1780365990,
+  "tool": "resource_monitor.c",
+  "uptime_hours": 21.668424999999999,
+  "uptime_sec": 78006.330000000002,
+  "version": 1,
+  "warn_count": 0
+}
