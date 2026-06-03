@@ -1,16 +1,16 @@
 {
-  "generated_at": 1780464001,
-  "generated_at_iso": "Wed Jun  3 01:20:01 2026\n",
+  "generated_at": 1780470601,
+  "generated_at_iso": "Wed Jun  3 03:10:01 2026\n",
   "engine": {
-    "cycle": 5648022.0,
-    "capital": 136510.54689999999,
+    "cycle": 5736507.0,
+    "capital": 136727.48439999999,
     "win_rate": 0.47220000000000001,
     "trades_total": 31965.0,
     "agents": 2500.0,
-    "drawdown": 0.0067000000000000002,
+    "drawdown": 0.0051000000000000004,
     "sharpe": -9.2066999999999997,
-    "timestamp": 175423,
-    "price": 70347.0
+    "timestamp": 182375,
+    "price": 75439.757800000007
   },
   "components": [
     {
@@ -21,7 +21,7 @@
       "status": "stale",
       "healthy": false,
       "age_seconds": 255,
-      "last_run": 1780463746,
+      "last_run": 1780470346,
       "file_size": 61281288
     },
     {
@@ -41,8 +41,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 0,
-      "last_run": 1780464001,
-      "file_size": 1746152736
+      "last_run": 1780470601,
+      "file_size": 1756506889
     },
     {
       "id": "collector_runner",
@@ -51,7 +51,7 @@
       "schedule": "Every 1-15 min",
       "status": "stale",
       "healthy": false,
-      "age_seconds": 175197,
+      "age_seconds": 181797,
       "last_run": 1780288804,
       "file_size": 656537
     },
@@ -62,9 +62,9 @@
       "schedule": "Every minute",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 259,
-      "last_run": 1780463742,
-      "file_size": 206561
+      "age_seconds": 235,
+      "last_run": 1780470366,
+      "file_size": 213277
     },
     {
       "id": "money_c",
@@ -74,8 +74,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 300,
-      "last_run": 1780463701,
-      "file_size": 664
+      "last_run": 1780470301,
+      "file_size": 667
     },
     {
       "id": "room_watchdog",
@@ -85,8 +85,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 300,
-      "last_run": 1780463701,
-      "file_size": 270401
+      "last_run": 1780470301,
+      "file_size": 272227
     },
     {
       "id": "ws_feed",
@@ -96,8 +96,8 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 60,
-      "last_run": 1780463941,
-      "file_size": 728706
+      "last_run": 1780470541,
+      "file_size": 742566
     },
     {
       "id": "health_monitor",
@@ -106,9 +106,9 @@
       "schedule": "Every 15 min",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 300,
-      "last_run": 1780463701,
-      "file_size": 412
+      "age_seconds": 600,
+      "last_run": 1780470001,
+      "file_size": 446
     },
     {
       "id": "eco_runner",
@@ -117,9 +117,9 @@
       "schedule": "Every 5 min",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 239,
-      "last_run": 1780463762,
-      "file_size": 377
+      "age_seconds": 240,
+      "last_run": 1780470361,
+      "file_size": 378
     },
     {
       "id": "teacher_watchdog",
@@ -129,7 +129,7 @@
       "status": "ok",
       "healthy": true,
       "age_seconds": 300,
-      "last_run": 1780463701,
+      "last_run": 1780470301,
       "file_size": 104
     },
     {
@@ -139,7 +139,7 @@
       "schedule": "Weekly refresh",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 151547,
+      "age_seconds": 158147,
       "last_run": 1780312454,
       "file_size": 40116406
     },
@@ -148,9 +148,11 @@
       "name": "Weather Data",
       "category": "data",
       "schedule": "Daily at 6:00",
-      "status": "missing",
-      "healthy": false,
-      "age_seconds": -1
+      "status": "ok",
+      "healthy": true,
+      "age_seconds": 240,
+      "last_run": 1780470361,
+      "file_size": 24458
     },
     {
       "id": "sports",
@@ -159,8 +161,8 @@
       "schedule": "Daily at 6:30",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 264,
-      "last_run": 1780463737,
+      "age_seconds": 240,
+      "last_run": 1780470361,
       "file_size": 355902
     },
     {
@@ -170,7 +172,7 @@
       "schedule": "Daily at 6:00",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 69589,
+      "age_seconds": 76189,
       "last_run": 1780394412,
       "file_size": 513
     },
@@ -181,7 +183,7 @@
       "schedule": "Daily at 6:30",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 67781,
+      "age_seconds": 74381,
       "last_run": 1780396220,
       "file_size": 389
     },
@@ -192,7 +194,7 @@
       "schedule": "Daily at 7:00",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 65997,
+      "age_seconds": 72597,
       "last_run": 1780398004,
       "file_size": 6371
     },
@@ -203,7 +205,7 @@
       "schedule": "Every 6 hours",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 4799,
+      "age_seconds": 11399,
       "last_run": 1780459202,
       "file_size": 211
     },
@@ -215,7 +217,7 @@
       "status": "stale",
       "healthy": false,
       "age_seconds": 255,
-      "last_run": 1780463746,
+      "last_run": 1780470346,
       "file_size": 61281288
     },
     {
@@ -225,16 +227,16 @@
       "schedule": "Daily at 7:00",
       "status": "ok",
       "healthy": true,
-      "age_seconds": 263,
-      "last_run": 1780463738,
+      "age_seconds": 240,
+      "last_run": 1780470361,
       "file_size": 4096
     }
   ],
   "summary": {
     "total": 20,
-    "healthy": 15,
-    "unhealthy": 5,
-    "health_pct": 75.0,
+    "healthy": 16,
+    "unhealthy": 4,
+    "health_pct": 80.0,
     "genome_count": 27
   }
 }

@@ -16,9 +16,9 @@
       "status": "fail"
     },
     {
-      "exists": false,
+      "exists": true,
       "name": "collector_runner",
-      "status": "fail"
+      "status": "ok"
     },
     {
       "exists": true,
@@ -71,33 +71,33 @@
       "status": "ok"
     }
   ],
-  "checks_fail": 3,
-  "checks_ok": 15,
-  "checks_warn": 2,
+  "checks_fail": 2,
+  "checks_ok": 17,
+  "checks_warn": 1,
   "data_files": [
     {
-      "age_sec": 143,
+      "age_sec": 2,
       "exists": true,
       "name": "pipeline_status",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 424,
+      "age_sec": 2,
       "exists": true,
       "name": "data_quality",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 422,
+      "age_sec": 2,
       "exists": true,
       "name": "market_summary",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 422,
+      "age_sec": 2,
       "exists": true,
       "name": "weather_data",
       "stale": false,
@@ -110,9 +110,9 @@
       "status": "warn"
     }
   ],
-  "engine_running": false,
-  "engine_status": "warn",
-  "issues": "MISSING BIN: room_engine_paper\nMISSING BIN: cycle_all_rooms\nMISSING BIN: collector_runner\nENGINE NOT RUNNING: room_engine\n",
+  "engine_running": true,
+  "engine_status": "ok",
+  "issues": "MISSING BIN: room_engine_paper\nMISSING BIN: cycle_all_rooms\n",
   "overall_status": "degraded",
-  "timestamp": 1780445244
+  "timestamp": 1780470623
 }
