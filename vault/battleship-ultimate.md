@@ -183,11 +183,11 @@
 | D04 | No BTC 1-min historical data pipeline | Data | 🟡 | ✅ | **STALE**: BTC 1-min CSV exists at ~/.hermes/pm_logs/historical/btc_1min_latest.csv (723K rows, updated continuously via cron). Paper engine reads directly from it. |
 || D05 | Kraken backfill exists (kraken_backfill.c) — claim stale | Data | 🟡 | ✅ | **STALE**: kraken_backfill.c (305 lines C) already implements paginated backfill via 'since' parameter (720 candles/request). Supports resume from latest, timestamp, or full backfill from 2017. Writes to historical.db. Binary built. |
 | D06 | Coinbase has historical but no active collector | Data | 🟡 | ⏳ | Coinbase API supports start/end params but coinbase_live.c may not use them. |
-| D07 | No SP500 daily data pipeline | Data | 🟡 | ⏳ | Market_tide.c exists but SP500 data freshness unknown. |
+| D07 | No SP500 daily data pipeline | Data | 🟡 | ✅ | **STALE**: FRED SP500 (fred_sp500) already collected and loaded via room_feeds.c:288. training_pile.c:269 maps sp500 → fred_sp500. timeline_analyzer.c:386 includes fred_sp500 in source list. Data flows in. |
 | D08 | No forex historical data | Data | 🟡 | ⏳ | forex_collector.c exists but only gets current rates. No history. |
-| D09 | No commodity data pipeline | Data | 🟡 | ⏳ | GC=F, CL=F data via yahoo but no dedicated collector. |
+| D09 | No commodity data pipeline | Data | 🟡 | ✅ | **STALE**: stock_gold and stock_crude_oil both collected by macro_collector.c and loaded via training_pile.c:276-277. timeline_analyzer.c:386 includes both. |
 | D10 | No bond yield data pipeline | Data | 🟡 | ⏳ | ^TNX via yahoo but yield changes tracked erratically. |
-| D11 | No VIX data pipeline | Data | 🟡 | ⏳ | ^VIX via yahoo but high-resolution VIX data (1-min) missing. |
+| D11 | No VIX data pipeline | Data | 🟡 | ✅ | **STALE**: fred_vix collected by macro_collector.c and data_pipeline.c:176. feed_bridge.c:827 loads for engine cycle. nn_daily.c uses VIX regime features. Daily resolution sufficient. |
 | D12 | No economic indicator time series | Data | 🟡 | ⏳ | FRED data collected but may not be complete time series. |
 | D13 | No GDP data (current or historical) | Data | 🟡 | ⏳ | Not tracked. |
 | D14 | No unemployment data | Data | 🟡 | ⏳ | Not tracked. |
