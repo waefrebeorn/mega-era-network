@@ -136,7 +136,7 @@
 || C04 | Max drawdown threshold unknown | Risk | 🟡 | ✅ | **DOCUMENTED**: room_engine.c:684 — `state->max_drawdown_pct = 0.20f` (20%). benchmark.c:179 checks `max_drawdown < 0.20f`. Threshold is 20% of peak capital from circuit breaker peak tracking. |
 || C05 | No daily loss limit for room capital | Risk | 🟡 | ✅ | **FIXED**: Added day-boundary-checked daily_pnl tracking (room_engine.c:999-1005). Circuit breaker trips when daily loss exceeds max_daily_loss_pct (10% of peak capital, types.h:max_daily_loss_pct). Resets on day boundary via window_ts/86400. PnL updated after every trade resolution at 4 resolution points (dup-exit, kill-switch, slippage). |
 || C06 | No max position concentration check | Risk | 🟡 | ✅ | **STALE**: P2P matching inherently limits exposure — only min(YES_total, NO_total) is matched. Unmatched surplus stays in agent capital. No over-exposure possible. |
-|| C07 | No correlation-based position limits | Risk | ⚪ | ⏳ | If BTC and ETH are highly correlated, betting on both doesn't diversify. |
+||| C07 | No correlation-based position limits | Risk | ⚪ | ✅ | **FIXED**: Added correlation-based basket exposure cap (MAX_CORRELATION_EXPOSURE_PCT=25%, CORRELATION_THRESHOLD=0.80). New RoomState fields: asset_exposure[MAX_ASSETS][2], cross_room_correlation matrix, correlation_blocked count. Helper functions in room_capital.c: check_correlation_exposure(), update_asset_exposure(). Trades blocked when correlated basket >25% of room capital. |
 | C08 | No black swan scenario testing | Risk | 🟡 | ✅ | **FIXED**: Added 4th scenario to stress_test.c: 2026 black swan (-50% gap down in 1 day). 4 scenarios: 2008 crash (50% over 20d), 2020 flash crash (30% 1d), 2022 bear (20% 60d), 2026 black swan (50% 1d). T17 circuit breaker trips at 20% drawdown across all scenarios. A14 volatile half-sizing provides additional protection. |
 || C09 | No flash crash simulation | Risk | ⚪ | ✅ | **FIXED**: stress_test.c — added 5th scenario: 2020 flash crash (-40% instant drop in minutes). Loop now uses sizeof instead of hardcoded 4. |
 || C10 | No exchange outage handling | Risk | 🟡 | ✅ | **STALE**: Covered by B44 feed staleness detection (room_feeds.c:254-277 — >5min WARN, >1h REJECT) + T17 circuit breaker (drawdown+consecutive losses). Paper engine auto-exits on feed exhaustion (room_engine.c:832-864). Live mode would require exchange-specific handling but currently paper-only. |
@@ -152,8 +152,8 @@
 || C20 | No max_position_pct_room per agent | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1285-1292. position_size capped to max_position_pct_room (2%) of total capital per agent. Logged as [LIMIT] when triggered. |
 || C21 | No max_total_exposure_pct enforcement | Risk | 🟡 | ✅ | **STALE**: Enforced at room_engine.c:1297-1304. Total exposure across all agents capped to max_total_exposure_pct (25%). Votes exceeding remaining budget get position_size=0 and logged as [LIMIT] skip. |
 || C22 | No trade throttle per agent | Risk | ⚪ | ✅ | **STALE**: `room_engine.c:812` — `max_trades_per_cycle=5000`, enforced at line 1443-1454. Excess trades deferred. `types.h:375-377`. |
-| C23 | No duplicate trade detection | Risk | 🟡 | ⏳ | Two rooms could place same trade on same market. Double exposure. |
-| C24 | No market correlation across rooms | Risk | 🟡 | ⏳ | Sports room and consensus room both trade binary events. Correlation unknown. |
+| C23 | No duplicate trade detection | Risk | 🟡 | ✅ | **FIXED**: Added rolling trade key buffer (1024 entries) in RoomState. trade_key() generates unique key from (agent_id, window_ts, direction). is_duplicate_trade() checks before allowing trade. record_trade_key() stores after match. duplicate_trades_blocked counter tracked. |
+| C24 | No market correlation across rooms | Risk | 🟡 | ✅ | **FIXED**: Added cross_room_correlation[MAX_ASSETS][MAX_ASSETS] matrix + cross_room_return history ring buffers in RoomState. update_cross_room_correlation() computes Pearson correlation between all asset pairs. Called after each room cycle. Powers C07 correlation-based limits. |
 || C25 | No panic stop for all rooms | Risk | 🟡 | ✅ | **FIXED**: check_panic() in room_engine.c checks /tmp/money_room_panic sentinel each cycle. File exists = skips vote and trading. File removed = resumes immediately. |
 || C26 | No overnight gap risk model | Risk | ⚪ | ✅ | **FIXED**: types.h OVERNIGHT_GAP_BPS=50.0f. room_engine.c adds gap risk charge at market open (9-10am weekdays) on entry slippage. Crypto 24/7 exempt. |
 || C27 | No weekend liquidity model | Risk | ⚪ | ✅ | **FIXED**: types.h SLIPPAGE_WEEKEND_MUL=2.0f. room_engine.c checks tm_wday (0=Sun,6=Sat) via localtime_r, applies 2x to SLIPPAGE_BPS and SLIPPAGE_VOL_SCALE on all 3 slippage calc sites (entry, exit, P2P exit). |
@@ -211,8 +211,8 @@
 | D32 | No insider transaction beyond Form 4 | Data | ⚪ | ⏳ | Form 144 (planned sales) and Section 16 changes not tracked. |
 | D33 | No options flow beyond PCR/IV | Data | 🟡 | ⏳ | Real-time options flow flags missing. Only summary stats. |
 || D34 | No data freshness dashboard | Data | 🟡 | ✅ | **FIXED**: scripts/data_freshness.sh — checks last update time for 10 data sources (yahoo, coingecko, news, cboe, fear_greed, forex, fred, orderbook, cvd, funding) from timeline.db. Writes JSON with OK/WARN/STALE status to docs/data/data_freshness.json. |
-| D35 | No data quality scoring per source | Data | 🟡 | ⏳ | Some sources may return stale/empty data. No quality metric. |
-| D36 | No data consistency validation | Data | 🟡 | ⏳ | Cross-source consistency not checked (e.g., Kraken BTC vs Coinbase BTC). |
+| D35 | No data quality scoring per source | Data | 🟡 | ✅ | **FIXED**: data_quality_scorer.c — standalone C binary. Scores each data source 0.0-1.0 based on recency (40%), completeness (30%), consistency (30%). Queries timeline.db for row counts, null counts, range errors, age. Writes docs/data/data_quality.json with per-source scores (OK/WARN/STALE). |
+| D36 | No data consistency validation | Data | 🟡 | ✅ | **FIXED**: Added check_cross_source_consistency() and ConsistencyCheck report struct in room_capital.c. Compares same metric from different sources (e.g., Kraken BTC vs Coinbase BTC). Returns divergence % and inconsistency flag. Used by data_quality_scorer for cross-source validation. |
 || D37 | No data gap alerting | Data | 🟡 | ✅ | **FIXED**: data_gap_alerter.sh (~/.hermes/scripts/) — monitors 7 critical data sources (Yahoo, CoinGecko, News/GDELT, CBOE, Fear&Greed, Forex/Frankfurter, FRED). For each source, queries latest timestamp from timeline.db, compares against staleness threshold (1h-24h per source). Writes JSON to docs/data/data_gap_alert.json. Cron: */30min. Non-zero exit on stale sources for std err visibility. |
 || D38 | No anomaly detection on incoming data | Data | 🟡 | ✅ | **FIXED**: room_feeds.c — added spike/flatline/volume anomaly detection after G11 validation. Tracks prev_close (static), detects >10% single-tick price spikes, flatline (identical close + zero volume), and volume spikes (>5x rolling avg). Logs to stderr. |
 ||| D39 | No data staleness flag in engine | Data | 🔴 | ✅ | **FALSE CLAIM**: already addressed by B44 fix in room_feeds.c:254-277. Engine validates timestamp on every feed load — rejects future timestamps (<-300s), WARNs at >5min, REJECTs at >1h. Stale data surfaces via stderr logs per cycle. |
@@ -220,10 +220,10 @@
 || D41 | CoinGecko wired into collector_runner | Data | 🟡 | ✅ | **FIXED**: coingecko_fetch.sh added to collector_runner.c NORMAL_TASKS (30min interval). Writes 25 crypto prices to timeline.db. Wrapper at ~/.hermes/scripts/coingecko_fetch.sh. Binary exists at engine/coingecko_collector. |
 | D42 | CBOE data has 15-min delay | Data | 🟡 | ⏳ | Options chain data is delayed. Real-time requires paid OPRA feed. |
 | D43 | Finnhub API limited to 300 req/day | Data | 🟡 | ⏳ | stock_collector uses Finnhub free tier. 300 req/day covers ~50 tickers. |
-| D44 | No exchange fee table in engine | Data | 🟡 | ⏳ | Fee constants in types.h are hardcoded. No per-exchange fee lookup. |
+| D44 | No exchange fee table in engine | Data | 🟡 | ✅ | **FIXED**: Added exchange_fees[MAX_ASSETS] and exchange_min_orders[MAX_ASSETS] to RoomState. get_exchange_fee() and get_min_order() helper functions in room_capital.c. Per-asset fee lookup with fallback to TAKER_FEE/MIN_TRADE_STAKE defaults. Room cap apply now uses get_exchange_fee() for fee calculation. |
 | D45 | No overnight swap/funding rate data | Data | ⚪ | ⏳ | Futures funding rates not collected. |
 | D46 | No order book snapshot archive | Data | ⚪ | ⏳ | Current orderbook_depth.c may get snapshot but no history. |
-| D47 | No trade history beyond room_log.csv | Data | 🟡 | ⏳ | CSV format is fragile. No DB-backed trade history. |
+| D47 | No trade history beyond room_log.csv | Data | 🟡 | ✅ | **FIXED**: trade_history_db.c — standalone C binary. Imports trade_log.csv into SQLite DB (trade_history.db). Creates indexed table with all trade fields. Writes trade_history_summary.json with total trades, win rate, top-10 agents by PnL. |
 || D48 | No human-readable trade journal | Data | 🟡 | ✅ | **PORTED**: trade_journal.c (165 lines) reads trades.csv, writes trade_journal.json with timestamped entries including agent, direction, size, entry/exit, PnL, asset. Output is human-readable JSON. |
 || D49 | No PnL attribution by market type | Data | 🟡 | ✅ | **STALE**: `strategy_attribution.c` (182 lines) + `analytics_engine.c` with `calc_attribution()` exist — group agents by genome deciles, compute avg PnL per strategy bucket. Binaries exist. |
 | D50 | No benchmark comparison | Data | 🟡 | ✅ | **STALE**: `benchmark.c` (185 lines) exists — compares agent PnL vs buy-and-hold BTC and random strategies. Reads room_state.bin. Binary built. Makefile: `benchmark`. |
@@ -292,7 +292,7 @@
 || F09 | No database backup strategy | Infra | 🟡 | ✅ | **FIXED**: db_backup.c (80 lines C) — copies timeline.db and other key DBs to data/backups/ with daily timestamp. Keeps last 30 days per DB, auto-prunes older. Compiles standalone, no external libs. Make target: `make db_backup`. |
 || F10 | No recovery from corrupt state files | Infra | 🟡 | ✅ | **FIXED**: RoomState now has CRC-32 checksum (state_crc field, types.h:309). Computed nibble-at-a-time CRC-32 over struct bytes 8..sizeof(RoomState) — no external deps. Verified on mmap load (room_engine.c:695): if magic matches but CRC doesn't, writes state_corrupt_alert.json and reinitializes. CRC updated before msync (room_engine.c:1658). STATE_MAGIC bumped to ROMA (0x524F4D41) for the struct layout change. |
 || F11 | No state version migration | Infra | 🟡 | ✅ | **FIXED**: types.h — added state_version field to RoomState (STATE_VERSION=3, STATE_MAGIC bumped to ROMB). room_engine.c — added migrate_old_state() logic: detects old version, initializes new fields (CRC, take-profit), recomputes CRC. Fresh init sets state_version=3. |
-| F12 | No rollback capability | Infra | 🟡 | ⏳ | git revert code but DB state can't be rolled back. |
+| F12 | No rollback capability | Infra | 🟡 | ✅ | **FIXED**: state_rollback.c — standalone C binary. Three commands: snapshot (creates timestamped snapshot of timeline.db + state files), list (shows available snapshots), restore (restores DB + state from snapshot). Uses SQLite backup API for consistent DB copies. Keeps last 64 snapshots. Writes metadata JSON per snapshot. |
 | F13 | No monitoring dashboard beyond CLI | Infra | 🟡 | ⏳ | Web dashboard shows summary but no real-time engine status. |
 || F14 | No alert integration (Telegram/email) | Infra | 🟡 | ✅ | **FIXED**: health_alerter.c — added send_telegram_alert() using curl to Telegram Bot API. Sends ⚠️ on health degradation, ✅ on recovery. Token from TELEGRAM_BOT_TOKEN env var. Async (background) delivery. |
 || F15 | No systemd service for engine | Infra | 🟡 | ✅ | **FIXED**: config/money-room.service — systemd unit with auto-restart, SIGTERM shutdown, security hardening (NoNewPrivileges, ProtectSystem, PrivateTmp), resource limits (2G RAM, 80% CPU), journal logging. |
@@ -439,15 +439,15 @@
 
 | Domain | Cells | 🔴 P0 | 🟡 P1 | 🟢 P2 | ⚪ P3 | ⚫ P4 |
 |--------|-------|-------|-------|-------|-------|-------|
-||| A: Training Engine | 60 | 0 | 5 | 0 | 27 | 0 |
-||| B: Features | 45 | 0 | 2 | 0 | 33 | 0 |
-||| C: Risk Management | 40 | 0 | 2 | 0 | 16 | 0 |
-||| D: Data Pipeline | 55 | 0 | 31 | 0 | 13 | 0 |
-|| E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
-||| F: Infrastructure | 35 | 0 | 2 | 0 | 18 | 0 |
-|| G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
-|| H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
-|| I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
-||| **TOTAL** | **365** | **1** | **64** | **0** | **177** | **0** |
+| A: Training Engine | 60 | 0 | 5 | 0 | 27 | 0 |
+| B: Features | 45 | 0 | 2 | 0 | 33 | 0 |
+| C: Risk Management | 40 | 0 | 0 | 0 | 15 | 0 |
+| D: Data Pipeline | 55 | 0 | 27 | 0 | 13 | 0 |
+| E: Execution | 35 | 1 | 13 | 0 | 21 | 0 |
+| F: Infrastructure | 35 | 0 | 1 | 0 | 18 | 0 |
+| G: Security | 35 | 0 | 15 | 0 | 16 | 0 |
+| H: Website & UI | 30 | 0 | 16 | 0 | 14 | 0 |
+| I: Monetization | 30 | 0 | 11 | 0 | 19 | 0 |
+| **TOTAL** | **365** | **1** | **58** | **0** | **176** | **0** |
 
 🔴 P0: 1 critical gap (E04 Polymarket — blocked on $50 USDC) | 🟡 P1: 64 major gaps | ⚪ P3: 177 minor/feature gaps

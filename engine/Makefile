@@ -25,7 +25,7 @@ MKT_TARGET = room_engine_market
 # Tools: shell-to-C conversions
 TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all
 TOOL_SRCS = $(addsuffix .c, $(TOOLS))
-TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check
+TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check data_quality_scorer trade_history_db state_rollback
 
 market: CFLAGS += -DMARKET_MODE
 market: $(MKT_TARGET)
@@ -237,4 +237,16 @@ memcheck: health_check withdrawal_scheduler paper_live_bridge paper_mode_sync da
 # ── Permutation feature-significance test ──
 permutation_test: permutation_test.c
 	$(CC) -O3 -o $@ $< -lm -I.
+
+# ── D35: Data quality scorer ──
+data_quality_scorer: data_quality_scorer.c
+	$(CC) -O2 -o $@ $< -lsqlite3 -ljansson -lm
+
+# ── D47: Trade history DB (CSV → SQLite) ──
+trade_history_db: trade_history_db.c
+	$(CC) -O2 -o $@ $< -lsqlite3 -ljansson -lm
+
+# ── F12: State rollback (DB snapshot/restore) ──
+state_rollback: state_rollback.c
+	$(CC) -O2 -o $@ $< -lsqlite3 -ljansson
 

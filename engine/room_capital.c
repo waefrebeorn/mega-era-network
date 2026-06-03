@@ -25,6 +25,84 @@ typedef struct {
     float conviction;
 } Staker;
 
+// ── C23: Duplicate trade detection ──
+// Generate a unique key for each (agent_id, window_ts, direction) triple
+static inline int64_t trade_key(int agent_id, int64_t window_ts, bool direction) {
+    return ((int64_t)agent_id << 33) | ((window_ts & 0xFFFFFFFFULL) << 1) | (direction ? 1ULL : 0ULL);
+}
+
+// Check if this trade key exists in recent history (last 1024 trades)
+static bool is_duplicate_trade(RoomState *s, int64_t key) {
+    for (int i = 0; i < 1024; i++) {
+        if (s->recent_trade_keys[i] == key) return true;
+    }
+    return false;
+}
+
+// Record a trade key in the rolling buffer
+static void record_trade_key(RoomState *s, int64_t key) {
+    s->recent_trade_keys[s->recent_trade_key_idx] = key;
+    s->recent_trade_key_idx = (s->recent_trade_key_idx + 1) % 1024;
+}
+
+// ── C07: Correlation-based position limits ──
+// Check if adding this stake to the asset-direction bucket would exceed
+// the correlated-basket limit. Returns 1 if trade should be blocked.
+static int check_correlation_exposure(RoomState *s, int asset_id, bool direction,
+                                       float stake, float total_room_cap) {
+    if (asset_id < 0 || asset_id >= MAX_ASSETS) return 0;
+    if (total_room_cap <= 0) return 0;
+
+    // Calculate what the new exposure would be for this asset-direction
+    float new_exposure = s->asset_exposure[asset_id][direction] + stake;
+
+    // Sum exposure across all assets that are correlated with this one
+    float basket_exposure = 0;
+    for (int a = 0; a < MAX_ASSETS; a++) {
+        if (a == asset_id) {
+            basket_exposure += new_exposure;
+        } else {
+            // Check if asset a is correlated with asset_id
+            float corr = s->cross_room_correlation[a][asset_id];
+            if (corr < 0) corr = -corr;
+            if (corr >= CORRELATION_THRESHOLD) {
+                // This asset is correlated — include its exposure in basket
+                basket_exposure += s->asset_exposure[a][0] + s->asset_exposure[a][1];
+            }
+        }
+    }
+
+    float basket_pct = basket_exposure / total_room_cap;
+    if (basket_pct > MAX_CORRELATION_EXPOSURE_PCT) {
+        return 1;  // Block: correlated basket would exceed limit
+    }
+
+    return 0;  // OK
+}
+
+// After a trade is matched, update asset exposure
+static void update_asset_exposure(RoomState *s, int asset_id, bool direction, float stake) {
+    if (asset_id < 0 || asset_id >= MAX_ASSETS) return;
+    s->asset_exposure[asset_id][direction] += stake;
+}
+
+// ── D44: Exchange fee lookup ──
+// Return the fee rate for a given asset (defaults to TAKER_FEE)
+static float get_exchange_fee(RoomState *s, int asset_id) {
+    if (asset_id >= 0 && asset_id < MAX_ASSETS && s->exchange_fees[asset_id] > 0.0f) {
+        return s->exchange_fees[asset_id];
+    }
+    return TAKER_FEE;  // default
+}
+
+// Return the minimum order size for a given asset
+static float get_min_order(RoomState *s, int asset_id) {
+    if (asset_id >= 0 && asset_id < MAX_ASSETS && s->exchange_min_orders[asset_id] > 0.0f) {
+        return s->exchange_min_orders[asset_id];
+    }
+    return MIN_TRADE_STAKE;  // default
+}
+
 // ════════════════════════════════════════════════════════
 //  MATCH VOTES — pair YES vs NO agents, execute trades
 //  CRITICAL: Only matched_stake is deducted from capital.
@@ -35,7 +113,8 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
                              AgentState *agents, int n_unused,
                              TradeRecord *trades, int start_offset,
                              int *new_count, int64_t window_ts,
-                             int predicted_regime) {
+                             int predicted_regime,
+                             RoomState *s) {
     (void)n_unused;
     *new_count = 0;
     if (count < 2) return ERR_OK;
@@ -91,6 +170,33 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         if (GAS_FEE_EST > stake * 0.5f) continue;
         if (stake <= 0) continue;
 
+        // ── C23: Duplicate trade detection ──
+        {
+            int64_t tk = trade_key(aid, window_ts, votes[i].direction);
+            if (is_duplicate_trade(s, tk)) {
+                s->duplicate_trades_blocked++;
+                fprintf(stderr, "[C23] DUPLICATE BLOCKED: agent=%d ts=%lld dir=%d\n",
+                        aid, (long long)window_ts, votes[i].direction);
+                continue;
+            }
+        }
+
+        // ── C07: Correlation-based position limits ──
+        // Map asset string to index (simple hash of first 2 chars)
+        {
+            int asset_id = 0;  // Default to asset 0 for room-level trades
+            // For room trades, use market_type as asset proxy
+            asset_id = (int)(votes[i].direction ? 0 : 1);  // YES=0, NO=1 as asset buckets
+            if (asset_id >= MAX_ASSETS) asset_id = 0;
+
+            if (check_correlation_exposure(s, asset_id, votes[i].direction, stake, total_room_cap)) {
+                s->correlation_blocked++;
+                fprintf(stderr, "[C07] CORR LIMIT BLOCKED: agent=%d asset=%d dir=%d stake=%.2f\n",
+                        aid, asset_id, votes[i].direction, stake);
+                continue;
+            }
+        }
+
         // ── T96: PDT (Pattern Day Trader) enforcement ──
         // SEC Rule: accounts under $25K limited to 3 day trades per rolling 5-day window.
         // All agent trades resolve within 1 cycle → every trade is a day trade.
@@ -142,7 +248,8 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
 
     for (int i = 0; i < ny && trade_idx < start_offset + max_new; i++) {
         float matched_stake = yes[i].stake * yes_ratio;  // Portion at risk
-        float fee = matched_stake * TAKER_FEE;
+        // ── D44: Per-asset fee lookup (defaults to TAKER_FEE) ──
+        float fee = matched_stake * get_exchange_fee(s, 0);
         // NO surplus return — unmatched portion was never deducted
 
         AgentState *a = &agents[yes[i].agent_id];
@@ -150,6 +257,11 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         if (a->capital < 0) a->capital = 0;  // C1: capital floor
         a->trades++;
         a->last_trade_window = (int)window_ts;
+
+        // ── C23: Record trade key for duplicate detection ──
+        record_trade_key(s, trade_key(yes[i].agent_id, window_ts, true));
+        // ── C07: Update asset exposure ──
+        update_asset_exposure(s, 0, true, matched_stake);
 
         trades[trade_idx].window_ts = window_ts;
         trades[trade_idx].agent_id = yes[i].agent_id;
@@ -166,13 +278,19 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
 
     for (int i = 0; i < nn && trade_idx < start_offset + max_new; i++) {
         float matched_stake = no[i].stake * no_ratio;
-        float fee = matched_stake * TAKER_FEE;
+        // ── D44: Per-asset fee lookup (defaults to TAKER_FEE) ──
+        float fee = matched_stake * get_exchange_fee(s, 0);
 
         AgentState *a = &agents[no[i].agent_id];
         a->capital -= (matched_stake + fee);
         if (a->capital < 0) a->capital = 0;  // C1: capital floor
         a->trades++;
         a->last_trade_window = (int)window_ts;
+
+        // ── C23: Record trade key for duplicate detection ──
+        record_trade_key(s, trade_key(no[i].agent_id, window_ts, false));
+        // ── C07: Update asset exposure ──
+        update_asset_exposure(s, 0, false, matched_stake);
 
         trades[trade_idx].window_ts = window_ts;
         trades[trade_idx].agent_id = no[i].agent_id;
@@ -405,4 +523,120 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
     }
 
     return ERR_OK;
+}
+
+// ════════════════════════════════════════════════════════
+// ── C24: Cross-room market correlation tracking ══════════════════════
+// Call this after each room cycle to update cross-room return history
+// and recompute the correlation matrix.
+// asset_id: 0..MAX_ASSETS-1 — maps to each traded asset across rooms
+// ret: the simple return for this asset in this cycle (e.g., close/open - 1)
+// ════════════════════════════════════════════════════════
+void update_cross_room_correlation(RoomState *s, int asset_id, float ret) {
+    if (asset_id < 0 || asset_id >= MAX_ASSETS) return;
+
+    // Store return in ring buffer
+    int idx = s->cross_room_ret_idx[asset_id];
+    s->cross_room_return[asset_id][idx] = ret;
+    s->cross_room_ret_idx[asset_id] = (idx + 1) % FEED_HISTORY;
+    if (s->cross_room_ret_len[asset_id] < FEED_HISTORY)
+        s->cross_room_ret_len[asset_id]++;
+
+    // Recompute correlation between all pairs that have enough data
+    int min_len = 10;
+    for (int a = 0; a < MAX_ASSETS; a++) {
+        if (a == asset_id) { s->cross_room_correlation[a][a] = 1.0f; continue; }
+        int n = s->cross_room_ret_len[asset_id] < s->cross_room_ret_len[a]
+                ? s->cross_room_ret_len[asset_id] : s->cross_room_ret_len[a];
+        if (n < min_len) { s->cross_room_correlation[a][asset_id] = 0.0f; continue; }
+
+        int off_a = s->cross_room_ret_idx[a] - n;
+        int off_b = s->cross_room_ret_idx[asset_id] - n;
+        float sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0, sum_y2 = 0;
+        for (int i = 0; i < n; i++) {
+            int ia = (off_a + i + FEED_HISTORY) % FEED_HISTORY;
+            int ib = (off_b + i + FEED_HISTORY) % FEED_HISTORY;
+            float x = s->cross_room_return[a][ia];
+            float y = s->cross_room_return[asset_id][ib];
+            sum_x += x; sum_y += y;
+            sum_xy += x * y;
+            sum_x2 += x * x; sum_y2 += y * y;
+        }
+        float num = n * sum_xy - sum_x * sum_y;
+        float den = sqrtf((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y));
+        float corr = (den > 1e-10f) ? num / den : 0.0f;
+        s->cross_room_correlation[a][asset_id] = corr;
+        s->cross_room_correlation[asset_id][a] = corr;
+    }
+}
+
+// ════════════════════════════════════════════════════════
+// ── D35: Data quality scoring per source ═════════════════════════════
+// ════════════════════════════════════════════════════════
+typedef struct {
+    char name[64];
+    float score;
+    int   age_seconds;
+    int   fields_present;
+    int   fields_expected;
+    int   range_errors;
+} DataQualityScore;
+
+void score_data_source(DataQualityScore *qs, const char *name, int age_s,
+                       int present, int expected, int range_err) {
+    strncpy(qs->name, name, 63);
+    qs->name[63] = '\0';
+    qs->age_seconds = age_s;
+    qs->fields_present = present;
+    qs->fields_expected = expected;
+    qs->range_errors = range_err;
+
+    float recency;
+    if (age_s < 300) recency = 1.0f;
+    else if (age_s < 3600) recency = 0.5f;
+    else if (age_s < 14400) recency = 0.2f;
+    else recency = 0.0f;
+
+    float completeness = (expected > 0) ? (float)present / expected : 0.0f;
+    if (completeness > 1.0f) completeness = 1.0f;
+
+    float consistency = (present > 0)
+        ? 1.0f - fminf((float)range_err / present, 1.0f)
+        : 0.0f;
+
+    qs->score = recency * 0.4f + completeness * 0.3f + consistency * 0.3f;
+}
+
+// ════════════════════════════════════════════════════════
+// ── D36: Data consistency validation ═════════════════════════════════
+// ════════════════════════════════════════════════════════
+int check_cross_source_consistency(float val_a, float val_b, float threshold_pct) {
+    if (val_a == 0.0f && val_b == 0.0f) return 0;
+    float avg = (fabsf(val_a) + fabsf(val_b)) * 0.5f;
+    if (avg < 1e-10f) return 0;
+    float diff_pct = fabsf(val_a - val_b) / avg * 100.0f;
+    return (diff_pct > threshold_pct) ? 1 : 0;
+}
+
+typedef struct {
+    char metric[64];
+    char source_a[32];
+    char source_b[32];
+    float val_a;
+    float val_b;
+    float diff_pct;
+    int   inconsistent;
+} ConsistencyCheck;
+
+void check_consistency_report(ConsistencyCheck *cc, const char *metric,
+                               const char *src_a, const char *src_b,
+                               float val_a, float val_b, float threshold_pct) {
+    strncpy(cc->metric, metric, 63); cc->metric[63] = '\0';
+    strncpy(cc->source_a, src_a, 31); cc->source_a[31] = '\0';
+    strncpy(cc->source_b, src_b, 31); cc->source_b[31] = '\0';
+    cc->val_a = val_a; cc->val_b = val_b;
+
+    float avg = (fabsf(val_a) + fabsf(val_b)) * 0.5f;
+    cc->diff_pct = (avg > 1e-10f) ? fabsf(val_a - val_b) / avg * 100.0f : 0.0f;
+    cc->inconsistent = (cc->diff_pct > threshold_pct) ? 1 : 0;
 }

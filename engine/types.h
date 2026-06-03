@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D43  // "ROMC" — bumped for C30 win_rate_var field
+#define STATE_MAGIC       0x524F4D44  // "ROMD" — bumped for C07/C23/C24/D44 new RoomState fields
 #define STATE_VERSION     3           // Current struct layout version
 
 // Fee constants (shared across modules)
@@ -55,6 +55,15 @@ extern const char *MARKET_TYPE_NAMES[];
 // ── T97/C15: Minimum trade size (raised to $5 for Polymarket 5-share minimum) ──
 #define MIN_TRADE_STAKE   5.0f    // Minimum $5 stake per trade (covers Polymarket 5-share min)
 #define MAX_EXPOSURE_PCT  0.10f   // C11: Max 10% of room capital per single position
+
+// ── C07: Correlation-based position limits ──
+#define MAX_CORRELATION_EXPOSURE_PCT 0.25f  // C07: Max 25% of room capital in correlated asset basket
+#define CORRELATION_THRESHOLD        0.80f  // C07: Assets with |corr| > 0.80 are "correlated"
+
+// ── D44: Exchange fee table defaults ──
+#define DEFAULT_EXCHANGE_FEE  0.001f  // 0.1% default taker fee
+#define DEFAULT_MIN_ORDER     1.0f    // $1 minimum order size
+
 // ── A19: Mini-batch SGD batch size ──
 #define SGD_BATCH_SIZE    8       // Trades per mini-batch gradient update
 // ── T20: Slippage model ──
@@ -404,6 +413,29 @@ typedef struct {
     float    epsilon;                // Current exploration rate (decays each cycle)
     float    epsilon_init;           // Starting epsilon (default 0.05)
     float    epsilon_min;            // Floor epsilon (default 0.005)
+
+    // ── C07: Correlation-based position limits ──
+    // Tracks per-asset-direction exposure to cap correlated positions
+    float    asset_exposure[MAX_ASSETS][2];  // [asset_id][dir] = $ exposure
+    float    max_correlation_exposure_pct;    // Max % of capital in correlated basket
+    int      correlation_blocked;             // C07: count of trades blocked by correlation
+
+    // ── C23: Duplicate trade detection ──
+    // Key = (agent_id << 32) | (window_ts % 0xFFFFFFFF) stored per recent entry
+    // Simple hash set: last N trade keys to detect duplicates within window
+    int64_t  recent_trade_keys[1024];         // Rolling window of trade keys
+    int      recent_trade_key_idx;            // Current write index
+    int      duplicate_trades_blocked;        // C23: count of duplicate trades blocked
+
+    // ── C24: Cross-room market correlation ──
+    float    cross_room_correlation[MAX_ASSETS][MAX_ASSETS]; // Rolling return correlation
+    float    cross_room_return[MAX_ASSETS][FEED_HISTORY];    // Per-asset last N returns
+    int      cross_room_ret_idx[MAX_ASSETS];                 // Write index per asset
+    int      cross_room_ret_len[MAX_ASSETS];                 // Length per asset
+
+    // ── D44: Exchange fee table (per-asset fee lookup) ──
+    float    exchange_fees[MAX_ASSETS];      // Fee rate per asset (0.001 = 0.1%)
+    float    exchange_min_orders[MAX_ASSETS]; // Min order size per asset ($)
 } RoomState;
 
 // ── Error codes ──

@@ -356,3 +356,17 @@
 - **WW06: paper.html rework** — dead code removed, Promise-based fetch via data_fetcher for paper_stats.json + evolution_progress.json.
 - Root cause: `stats.json` never existed on data_server. Pages fetched a nonexistent endpoint. Fixed by mapping to paper_stats.json fields via DF.fetchStats().
 - Commit: d397954 — 10 files, 583 insertions, 180 deletions.
+
+## Batch 2026-06-02 — Risk/Data/Infra gap closure (8 gaps)
+- **C07: Correlation-based position limits** — Added asset_exposure[MAX_ASSETS][2], cross_room_correlation matrix, max_correlation_exposure_pct to RoomState. Constants: MAX_CORRELATION_EXPOSURE_PCT=25%, CORRELATION_THRESHOLD=0.80. check_correlation_exposure() blocks trades when correlated basket >25% of room capital. room_capital.c helper functions.
+- **C23: Duplicate trade detection** — Rolling 1024-entry trade key buffer in RoomState. trade_key() hashes (agent_id, window_ts, direction). is_duplicate_trade() checks before match. duplicate_trades_blocked counter.
+- **C24: Cross-room market correlation** — cross_room_return history ring buffers + cross_room_correlation[MAX_ASSETS][MAX_ASSETS] matrix in RoomState. update_cross_room_correlation() computes Pearson correlation between all asset pairs. Powers C07 correlation limits.
+- **D35: Data quality scoring** — data_quality_scorer.c: standalone C binary. Scores 15 data sources on recency (40%) + completeness (30%) + consistency (30%). Writes docs/data/data_quality.json with per-source scores.
+- **D36: Data consistency validation** — check_cross_source_consistency() and ConsistencyCheck report struct in room_capital.c. Compares same metric across sources with configurable threshold.
+- **D44: Exchange fee table** — exchange_fees[MAX_ASSETS] + exchange_min_orders[MAX_ASSETS] in RoomState. get_exchange_fee() and get_min_order() helpers. room_capital_apply now uses per-asset fee lookup.
+- **D47: Trade history DB** — trade_history_db.c: standalone C binary. CSV→SQLite import with indexed table. Writes trade_history_summary.json with win rate, top-10 agents.
+- **F12: State rollback** — state_rollback.c: snapshot/list/restore commands. Uses SQLite backup API. Keeps 64 snapshots. Meta JSON per snapshot.
+- **Files modified**: types.h (state fields + constants), room_capital.c (helpers + integration), Makefile (new targets). 3 new C files.
+- **STATE_MAGIC**: ROMC→ROMD (struct layout change for new RoomState fields)
+- **Engine**: room_engine + room_engine_paper compile clean. 10/15 tests pass (5 pre-existing failures unchanged).
+- **Battleship**: 64P1+177P3 → 58P1+176P3 (234 undone, -7 from batch)
