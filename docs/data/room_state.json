@@ -1,36 +1,36 @@
 {
 "magic": 1380928833,
-"cycle": 5163302,
-"last_updated": 171877399664363,
+"cycle": 5658311,
+"last_updated": 176137119812211,
 "market": {
   "asset": "BTC",
-  "window_ts": 1744936500,
-  "open": 84865.0000,
-  "high": 84866.0000,
-  "low": 84864.0000,
-  "close": 84864.0000,
-  "volume": 0.0241,
+  "window_ts": 1774748220,
+  "open": 66408.0000,
+  "high": 66408.0000,
+  "low": 66371.0000,
+  "close": 66371.0000,
+  "volume": 2.2760,
   "pump_score": 0.0000,
   "fear_greed": 30.0
 },
 "features": {
-  "price_delta_pct": -0.0004,
-  "micro_momentum": 0.0000,
-  "rsi_7": 0.2,
-  "volume_surge_ratio": 0.00,
+  "price_delta_pct": -0.0186,
+  "micro_momentum": -0.0005,
+  "rsi_7": 0.1,
+  "volume_surge_ratio": 0.63,
   "divergence_score": 0.5000,
   "pump_score": 0.5000,
   "regime_indicator": 0,
   "fear_greed_norm": 0.3000,
-  "herd_consensus": 0.0000,
-  "nested_prediction": 0.5890
+  "herd_consensus": 0.9996,
+  "nested_prediction": 0.5877
 },
 "vote_summary": {
   "total": 2500,
-  "up": 0,
-  "down": 2500,
-  "avg_conviction": nan,
-  "consensus_spread": nan
+  "up": 2499,
+  "down": 1,
+  "avg_conviction": 0.9996,
+  "consensus_spread": 0.0200
 },
 "stats": {
   "active_agents": 2500,
@@ -40,15 +40,15 @@
   "trades_lost": 16870,
   "win_rate": 0.4722,
   "sharpe_ratio": -9.2067,
-  "max_drawdown": 0.0059,
-  "capital_current": 136619.7812,
+  "max_drawdown": 0.0067,
+  "capital_current": 136510.5469,
   "capital_peak": 137429.7188,
-  "room_pnl_pct": -58598.6680,
+  "room_pnl_pct": -64097.6328,
   "weight_diversity": 0.000000,
   "genome_diversity": 4.692845,
   "return_count": 128,
   "return_idx": 107,
-  "room_trades": 4920244
+  "room_trades": 5394394
 },
 "cycle_returns": [
   7.276677,
@@ -223,15 +223,15 @@
   "mutation_rate": 0.0500
 },
 "top_agents": [
-  {"id": 32, "capital": 75.258423, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 51, "capital": 75.145760, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 33, "capital": 75.073227, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 53, "capital": 74.957436, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 36, "capital": 74.796555, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 50, "capital": 74.782051, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 8, "capital": 74.761314, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 19, "capital": 74.761314, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 26, "capital": 74.761314, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
-  {"id": 49, "capital": 74.761314, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9}
+  {"id": 32, "capital": 75.096420, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 51, "capital": 74.975685, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 33, "capital": 74.910538, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 53, "capital": 74.837334, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 36, "capital": 74.643867, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 50, "capital": 74.616821, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 29, "capital": 74.602028, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 8, "capital": 74.592628, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 19, "capital": 74.592628, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9},
+  {"id": 26, "capital": 74.592628, "win_rate_ema": 0.7032, "trades": 30, "wins": 21, "losses": 9}
 ]
 }

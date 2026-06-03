@@ -1,0 +1,25 @@
+# Sandbox Auth Plan — Edition `sandbox-dev-2025-06-03`
+
+## Plan
+1. Standalone auth server on port 9171.
+2. `POST /signup` with `email`, `name`, `password`, one-shot expiring in 1 minute.
+3. `POST /login` issues ephemeral HTTP session from `sessions.json`.
+4. Track viewing/prompt fetch usage with timestamp, key, and agent id.
+
+## Must Not Leak
+- Hashed secrets only; no passwords in logs or queues.
+- `sessions.json` must not be sent back to the client.
+- Global registry untouched.
+
+## Accepted Credentials (dev only)
+- username: `waefrebeorn`
+- password: `513513a`
+
+## Trackers
+- Track signup_ip + referrals.
+- Track every prompt read as a sandbox event.
+
+## File Ownership
+- Config: `data/turkeydev/sandbox/auth-config.json`
+- Log: `data/turkeydev/sandbox/usage.jsonl`
+- Sessions: private server memory

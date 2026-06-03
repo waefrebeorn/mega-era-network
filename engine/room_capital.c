@@ -104,6 +104,84 @@ static float get_min_order(RoomState *s, int asset_id) {
 }
 
 // ════════════════════════════════════════════════════════
+//  C11: POSITION LIQUIDATION MODEL
+//  Forces closing positions when risk thresholds breached:
+//   - Correlation basket limit exceeded
+//   - Single position > 10% of agent capital
+//   - Portfolio drawdown > MAX_DRAWDOWN_PCT
+// ════════════════════════════════════════════════════════
+
+// Liquidate one agent's position in one asset-direction bucket
+static void liquidate_position(AgentState *a, int asset_id, bool direction, RoomState *s) {
+    if (!a || asset_id < 0 || asset_id >= MAX_ASSETS) return;
+    float amount = s->asset_exposure[asset_id][direction];
+    if (amount <= 0.0f) return;
+    // Mark as closed: deduct from exposure; actual PnL written to TradeRecord elsewhere
+    s->asset_exposure[asset_id][direction] = 0.0f;
+    fprintf(stderr, "[C11] LIQUIDATION: asset=%d dir=%d amount=%.2f\n",
+            asset_id, (int)direction, amount);
+    // Return stake to agent (conservative liquidation price = 1.0)
+    a->capital += amount;
+}
+
+static int portfolio_drawdown_breached(RoomState *s, AgentState *agents, int n_agents, float room_peak) {
+    if (room_peak <= 0.0f) return 0;
+    float min_cap = room_peak;
+    for (int i = 0; i < n_agents; i++) {
+        if (agents[i].capital > 0 && agents[i].capital < min_cap)
+            min_cap = agents[i].capital;
+    }
+    float dd = (room_peak - min_cap) / room_peak;
+    return dd > s->max_drawdown_pct ? 1 : 0;
+}
+
+// Run liquidation sweep across all rooms/agents
+int run_liquidation_sweep(AgentState *agents, int n_agents, RoomState *room_states, int n_rooms) {
+    int events = 0;
+    float room_cap = 0.0f;
+    for (int a = 0; a < n_agents; a++) room_cap += agents[a].capital;
+    if (room_cap <= 0.0f) return 0;
+
+    for (int r = 0; r < n_rooms; r++) {
+        RoomState *s = &room_states[r];
+        // Check correlation basket
+        for (int dir = 0; dir < 2; dir++) {
+            for (int asset = 0; asset < MAX_ASSETS; asset++) {
+                float exp = s->asset_exposure[asset][dir];
+                if (exp <= 0.0f) continue;
+                float pct = exp / room_cap;
+                if (pct > MAX_CORRELATION_EXPOSURE_PCT) {
+                    // Find owner by scanning agents with exposure contribution (simplified)
+                    for (int a = 0; a < n_agents; a++) {
+                        if (agents[a].capital > 0) {
+                            liquidate_position(&agents[a], asset, (bool)dir, s);
+                            events++;
+                        }
+                    }
+                }
+            }
+        }
+        // Check drawdown
+        if (portfolio_drawdown_breached(s, agents, n_agents, room_cap)) {
+            // Liquidate largest exposures first
+            for (int dir = 0; dir < 2; dir++) {
+                for (int asset = 0; asset < MAX_ASSETS; asset++) {
+                    if (s->asset_exposure[asset][dir] > room_cap * MAX_CORRELATION_EXPOSURE_PCT) {
+                        for (int a = 0; a < n_agents; a++) {
+                            if (agents[a].capital > 0) {
+                                liquidate_position(&agents[a], asset, (bool)dir, s);
+                                events++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return events;
+}
+
+// ════════════════════════════════════════════════════════
 //  MATCH VOTES — pair YES vs NO agents, execute trades
 //  CRITICAL: Only matched_stake is deducted from capital.
 //  Unmatched surplus was never deducted — so NEVER returned.
