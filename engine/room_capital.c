@@ -322,6 +322,13 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
 
                 // Apply accumulated gradients as mini-batch when batch is full
                 if (agents[aid].batch_count >= SGD_BATCH_SIZE) {
+                    // ── A44: Compute gradient norm for SGD diagnosis ──
+                    float grad_norm_sq = 0.0f;
+                    for (int fi = 0; fi < N_FEATURES; fi++)
+                        grad_norm_sq += agents[aid].grad_accum[sgd_regime][fi] * agents[aid].grad_accum[sgd_regime][fi];
+                    float grad_norm = sqrtf(grad_norm_sq);
+                    if (grad_norm < 0.001f && agents[aid].trades >= 100)
+                        printf("[A44] SGD stall: agent=%d regime=%d grad_norm=%.6f\n", aid, sgd_regime, grad_norm);
                     float inv_batch = 1.0f / agents[aid].batch_count;
                     for (int fi = 0; fi < N_FEATURES; fi++) {
                         agents[aid].genome.regime_weight[sgd_regime][fi]

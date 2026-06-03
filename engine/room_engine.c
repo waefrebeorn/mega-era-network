@@ -1086,6 +1086,23 @@ void room_market_stats(RoomState *state);
             g_nested_prediction[mt] = compute_nested_prediction(&tick, (MarketType)mt);
         }
         state->nested_prediction = (float)g_nested_prediction[MARKET_CRYPTO];
+        // ── A42: Model checkpointing — save state snapshot every 1000 cycles ──
+        if (state->cycle > 0 && state->cycle % 1000 == 0) {
+            msync(state, sizeof(RoomState), MS_ASYNC);
+            char ckpt_path[600];
+            snprintf(ckpt_path, sizeof(ckpt_path), "%s.checkpoint.%d", STATE_PATH, state->cycle);
+            FILE *src = fopen(STATE_PATH, "rb");
+            FILE *dst = fopen(ckpt_path, "wb");
+            if (src && dst) {
+                char buf[8192]; size_t n;
+                while ((n = fread(buf, 1, sizeof(buf), src)) > 0)
+                    fwrite(buf, 1, n, dst);
+                fclose(dst); fclose(src);
+            } else { if (src) fclose(src); if (dst) fclose(dst); }
+            if (state->cycle % 5000 == 0)
+                printf("[CKPT] Saved checkpoint: %s\n", ckpt_path);
+        }
+
         if (state->cycle % 100 == 0 && g_nested) {
             double signal = (g_nested_prediction[MARKET_CRYPTO] - 0.5) * 2.0;
             printf("[NESTED] cycle=%d pred=%.4f signal=%+.4f\n",
@@ -1746,6 +1763,16 @@ skip_trading:
 
         // ── Check timing ──
         int64_t elapsed = ns_now() - cycle_start;
+        // ── A43: Training speed benchmark — track cycle latency degradation ──
+        { static int64_t sum_elapsed = 0; static int elapsed_samples = 0;
+          sum_elapsed += elapsed; elapsed_samples++;
+          if (elapsed_samples == 1000) {
+              float avg_ms = (float)sum_elapsed / elapsed_samples / 1e6f;
+              if (avg_ms > 50.0f)
+                  printf("[A43] WARN: avg cycle time %.1fms over 1000 cycles (degrading)\n", avg_ms);
+              sum_elapsed = 0; elapsed_samples = 0;
+          }
+        }
         if (elapsed > 100000000LL) { // >100ms
             printf("[ROOM] WARN: cycle %d took %.1fms (>100ms target)\n",
                    state->cycle, elapsed / 1e6);
