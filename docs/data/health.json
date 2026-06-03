@@ -6,19 +6,19 @@
       "status": "ok"
     },
     {
-      "exists": true,
+      "exists": false,
       "name": "room_engine_paper",
-      "status": "ok"
+      "status": "fail"
     },
     {
-      "exists": true,
+      "exists": false,
       "name": "cycle_all_rooms",
-      "status": "ok"
+      "status": "fail"
     },
     {
-      "exists": true,
+      "exists": false,
       "name": "collector_runner",
-      "status": "ok"
+      "status": "fail"
     },
     {
       "exists": true,
@@ -71,49 +71,48 @@
       "status": "ok"
     }
   ],
-  "checks_fail": 0,
-  "checks_ok": 19,
-  "checks_warn": 1,
+  "checks_fail": 3,
+  "checks_ok": 15,
+  "checks_warn": 2,
   "data_files": [
     {
-      "age_sec": 95,
+      "age_sec": 143,
       "exists": true,
       "name": "pipeline_status",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 379,
+      "age_sec": 424,
       "exists": true,
       "name": "data_quality",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 378,
+      "age_sec": 422,
       "exists": true,
       "name": "market_summary",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 378,
+      "age_sec": 422,
       "exists": true,
       "name": "weather_data",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 11,
-      "exists": true,
+      "age_sec": -1,
+      "exists": false,
       "name": "paper_state",
-      "stale": false,
-      "status": "ok"
+      "status": "warn"
     }
   ],
   "engine_running": false,
   "engine_status": "warn",
-  "issues": "ENGINE NOT RUNNING: room_engine\n",
+  "issues": "MISSING BIN: room_engine_paper\nMISSING BIN: cycle_all_rooms\nMISSING BIN: collector_runner\nENGINE NOT RUNNING: room_engine\n",
   "overall_status": "degraded",
-  "timestamp": 1780358796
+  "timestamp": 1780445244
 }

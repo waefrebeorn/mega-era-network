@@ -87,6 +87,8 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         { float max_exp = total_room_cap * MAX_EXPOSURE_PCT;
           if (max_exp > 0 && stake > max_exp) stake = max_exp; }
         if (stake < MIN_TRADE_STAKE) continue;  // T97/C15: skip tiny trades (min $5 for Polymarket)
+        // ── C14: Gas fee check — skip if gas would eat >50% of stake ──
+        if (GAS_FEE_EST > stake * 0.5f) continue;
         if (stake <= 0) continue;
 
         // ── T96: PDT (Pattern Day Trader) enforcement ──
@@ -286,7 +288,11 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                 agents[aid].max_drawdown = dd;
 
             float wr = trades[i].won ? 1.0f : 0.0f;
-            agents[aid].win_rate_ema = agents[aid].win_rate_ema * 0.9f + wr * 0.1f;
+            float old_ema = agents[aid].win_rate_ema;
+            agents[aid].win_rate_ema = old_ema * 0.9f + wr * 0.1f;
+            // ── C30: Online variance tracking (exponential) ──
+            float delta = wr - old_ema;
+            agents[aid].win_rate_var = agents[aid].win_rate_var * 0.9f + delta * (wr - agents[aid].win_rate_ema) * 0.1f;
 
             // ── C18: Win-rate-floor auto-kill — cull agents below 30% WR over 100+ trades ──
             if (agents[aid].trades >= 100 && agents[aid].win_rate_ema < 0.30f) {

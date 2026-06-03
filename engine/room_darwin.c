@@ -92,6 +92,17 @@ static void copy_genome(Genome *dst, const Genome *src) {
 // ── Agent comparison for sorting (descending by win_rate_ema, confidence-weighted) ──
 // A38: Minimum sample filter — agents with few trades are pulled toward 0.5 WR
 #define MIN_TRADES_FOR_RANKING 20
+// ── C31: Edge significance test (z-test for binomial WR vs H0: p=0.5) ──
+// Returns z-score. |z|>1.96 ≈ p<0.05 (significant edge).
+static float edge_zscore(const AgentState *a) {
+    if (a->trades < 30) return 0.0f;  // Not enough data
+    float p_hat = a->win_rate_ema;
+    float p0 = 0.5f;  // Null hypothesis: coin flip
+    float se = sqrtf(p0 * (1.0f - p0) / (float)a->trades);
+    if (se <= 0.0f) return 0.0f;
+    return (p_hat - p0) / se;
+}
+
 static float agent_fitness(const AgentState *a) {
     if (!a->alive || a->trades <= 0) return 0.0f;
     // Bayesian-adjusted win rate: pulls toward 0.5 for agents with few trades
@@ -115,9 +126,15 @@ static float agent_fitness(const AgentState *a) {
     float freq_score = fminf((float)a->trades / 200.0f, 1.0f) * 0.2f;
 
     // Weighted combination: WR 40% + PnL 30% + Drawdown 20% + Frequency 10%
-    return wr_score * 0.40f + pnl_score * 0.30f + dd_score * 0.20f + freq_score * 0.10f;
+    // ── C31: Penalize agents without statistically significant edge ──
+    float base_fitness = wr_score * 0.40f + pnl_score * 0.30f + dd_score * 0.20f + freq_score * 0.10f;
+    float z = edge_zscore(a);
+    if (z < 1.96f && a->trades >= 100) base_fitness *= 0.8f;  // No significant edge after 100 trades → 20% penalty
+    // ── C30: Penalize volatile WR — high variance means unreliable edge ──
+    if (a->win_rate_var > 0.10f) base_fitness *= 0.85f;  // Var > 0.10 → 15% penalty
+    return base_fitness;
 }
-static int cmp_agents_desc(const void *a, const void *b) {
+ static int cmp_agents_desc(const void *a, const void *b) {
     const AgentState *aa = (const AgentState *)a;
     const AgentState *bb = (const AgentState *)b;
     // Dead agents go to bottom

@@ -45,11 +45,12 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D42  // "ROMB" — bumped for F11 state version field
+#define STATE_MAGIC       0x524F4D43  // "ROMC" — bumped for C30 win_rate_var field
 #define STATE_VERSION     3           // Current struct layout version
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
+#define GAS_FEE_EST  2.50f    // C14: Avg on-chain gas cost USD (L2 ~$0.50, L1 ~$5.00)
 #define MATCH_FEE    0.002f   // Match fee on loser pool (0.2%)
 // ── T97/C15: Minimum trade size (raised to $5 for Polymarket 5-share minimum) ──
 #define MIN_TRADE_STAKE   5.0f    // Minimum $5 stake per trade (covers Polymarket 5-share min)
@@ -60,6 +61,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define SLIPPAGE_BPS          5.0f    // 5 bps = 0.05% baseline slippage
 #define SLIPPAGE_VOL_SCALE   5.0f    // Additional bps per $100 of position (market impact)
 #define SLIPPAGE_WEEKEND_MUL  2.0f   // C27: 2x slippage on weekends (lower liquidity)
+#define OVERNIGHT_GAP_BPS    50.0f   // C26: 50bps overnight gap risk charge for non-crypto markets
 
 // Market direction mode fees (for P2P ensemble paper proof)
 #ifdef MARKET_MODE
@@ -206,6 +208,7 @@ typedef struct {
     float    peak_capital;
     int      consecutive_losses;
     float    win_rate_ema;      // EMA of recent win rate (for ranking)
+    float    win_rate_var;      // C30: Running variance of WR (for stability filter)
     int      last_trade_window; // Window of last trade (to avoid double-count)
     // ── v2: Recurrent hidden state ──
     float    hidden[4];         // Persists across trades — gives memory

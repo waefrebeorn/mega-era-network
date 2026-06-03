@@ -390,6 +390,33 @@ static double compute_nested_prediction(const MarketTick *tick, MarketType marke
 
 // ── Signal handler ──
 static volatile int kill_switch_engaged = 0;
+
+// ── C28: US market holiday check (major holidays only) ──
+static bool is_us_holiday(struct tm *t) {
+    if (t->tm_wday == 0 || t->tm_wday == 6) return false; // weekends handled separately
+    int m = t->tm_mon + 1, d = t->tm_mday;
+    // Fixed-date holidays
+    if (m == 1 && d == 1) return true;   // New Year's
+    if (m == 7 && d == 4) return true;   // Independence Day
+    if (m == 12 && d == 25) return true; // Christmas
+    // MLK Day (3rd Monday Jan)
+    if (m == 1 && t->tm_wday == 1 && d >= 15 && d <= 21) return true;
+    // Presidents Day (3rd Monday Feb)
+    if (m == 2 && t->tm_wday == 1 && d >= 15 && d <= 21) return true;
+    // Labor Day (1st Monday Sep)
+    if (m == 9 && t->tm_wday == 1 && d <= 7) return true;
+    // Thanksgiving (4th Thursday Nov)
+    if (m == 11 && t->tm_wday == 4 && d >= 22 && d <= 28) return true;
+    return false;
+}
+
+// ── C33: Position unwind priority — close losers first, then oldest ──
+static float unwind_priority(const TradeRecord *t, int64_t now_ts) {
+    if (t->resolved_at > 0) return 1e9f;
+    float pnl = t->pnl_pct;
+    float age_factor = (float)(now_ts - t->window_ts) / 86400.0f;
+    return pnl - age_factor * 0.1f;
+}
 static void handle_sig(int sig) {
     if (sig == SIGUSR1) {
         kill_switch_engaged = 1;
@@ -1186,6 +1213,17 @@ void room_market_stats(RoomState *state);
                    drawdown * 100, state->max_drawdown_pct * 100,
                    state->room_capital, state->circuit_breaker_peak,
                    state->circuit_cooldown_cycles);
+            // ── C33: Log unwind priority for open positions ──
+            { float best_pri = 1e9f; int best_idx = -1;
+              for (int ui = 0; ui < state->trade_count && ui < MAX_TRADE_HIST; ui++) {
+                  float pri = unwind_priority(&state->trades[ui], tick.window_ts);
+                  if (pri < best_pri) { best_pri = pri; best_idx = ui; }
+              }
+              if (best_idx >= 0)
+                  printf("[CB] Unwind first: trade[%d] agent=%d pnl=%.2f%%\n",
+                         best_idx, state->trades[best_idx].agent_id,
+                         state->trades[best_idx].pnl_pct * 100);
+            }
             goto skip_trading;
         }
 
@@ -1293,8 +1331,11 @@ void room_market_stats(RoomState *state);
                 float slip_cost;
                 { struct tm tm_wk; time_t wt = (time_t)tick.window_ts;
                   localtime_r(&wt, &tm_wk);
-                  float wk_mul = (tm_wk.tm_wday == 0 || tm_wk.tm_wday == 6) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
-                  slip_cost = stake * (SLIPPAGE_BPS * wk_mul + stake * SLIPPAGE_VOL_SCALE * wk_mul) / 10000.0f; }
+                  float wk_mul = (tm_wk.tm_wday == 0 || tm_wk.tm_wday == 6 || is_us_holiday(&tm_wk)) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
+                  slip_cost = stake * (SLIPPAGE_BPS * wk_mul + stake * SLIPPAGE_VOL_SCALE * wk_mul) / 10000.0f;
+                  // ── C26: Overnight gap risk — add gap charge for non-crypto at market open ──
+                  if (tm_wk.tm_hour >= 9 && tm_wk.tm_hour < 10 && tm_wk.tm_wday >= 1 && tm_wk.tm_wday <= 5)
+                      slip_cost += stake * OVERNIGHT_GAP_BPS / 10000.0f; }
                 if (slip_cost > state->room_capital * 0.5f) slip_cost = state->room_capital * 0.5f;
                 if (slip_cost > 0.001f) {
                     state->room_capital -= slip_cost;
@@ -1332,7 +1373,7 @@ void room_market_stats(RoomState *state);
                 float exit_slip;
                 { struct tm tm_wk2; time_t wt2 = (time_t)tick.window_ts;
                   localtime_r(&wt2, &tm_wk2);
-                  float wk2 = (tm_wk2.tm_wday == 0 || tm_wk2.tm_wday == 6) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
+                  float wk2 = (tm_wk2.tm_wday == 0 || tm_wk2.tm_wday == 6 || is_us_holiday(&tm_wk2)) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
                   exit_slip = gross_ret * (SLIPPAGE_BPS * wk2 + gross_ret * SLIPPAGE_VOL_SCALE * wk2) / 10000.0f; }
                 state->room_capital += gross_ret - exit_slip;
                 state->total_slippage_paid += exit_slip;
@@ -1410,7 +1451,7 @@ void room_market_stats(RoomState *state);
                         float slip_pct_wk;
                         { struct tm tm_wk3; time_t wt3 = (time_t)tick.window_ts;
                           localtime_r(&wt3, &tm_wk3);
-                          float wk3 = (tm_wk3.tm_wday == 0 || tm_wk3.tm_wday == 6) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
+                          float wk3 = (tm_wk3.tm_wday == 0 || tm_wk3.tm_wday == 6 || is_us_holiday(&tm_wk3)) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
                           slip_pct_wk = (SLIPPAGE_BPS * wk3 + payout * SLIPPAGE_VOL_SCALE * wk3) / 10000.0f; }
                         float slip_cost = payout * slip_pct_wk;
                         if (slip_cost < 0.001f) continue;
