@@ -188,13 +188,13 @@
 | D09 | No commodity data pipeline | Data | 🟡 | ✅ | **STALE**: stock_gold and stock_crude_oil both collected by macro_collector.c and loaded via training_pile.c:276-277. timeline_analyzer.c:386 includes both. |
 | D10 | No bond yield data pipeline | Data | 🟡 | ⏳ | ^TNX via yahoo but yield changes tracked erratically. |
 | D11 | No VIX data pipeline | Data | 🟡 | ✅ | **STALE**: fred_vix collected by macro_collector.c and data_pipeline.c:176. feed_bridge.c:827 loads for engine cycle. nn_daily.c uses VIX regime features. Daily resolution sufficient. |
-| D12 | No economic indicator time series | Data | 🟡 | ⏳ | FRED data collected but may not be complete time series. |
-| D13 | No GDP data (current or historical) | Data | 🟡 | ⏳ | Not tracked. |
-| D14 | No unemployment data | Data | 🟡 | ⏳ | Not tracked. |
-| D15 | No CPI/inflation data | Data | 🟡 | ⏳ | Not tracked. |
-| D16 | No PMI manufacturing/services | Data | 🟡 | ⏳ | Not tracked. |
-| D17 | No retail sales data | Data | ⚪ | ⏳ | Not tracked. |
-| D18 | No central bank rate decisions | Data | 🟡 | ⏳ | FOMC dates not tracked. |
+| D12 | No economic indicator time series | Data | 🟡 | ✅ | **STALE**: data/economic_calendar.json has 1000+ events from multiple countries: PMI, CPI, GDP, unemployment, interest rate decisions, trade balance. Fed speeches, BoE, ECB all tracked. Updated daily via cron collector. |
+| D13 | No GDP data (current or historical) | Data | 🟡 | ✅ | **STALE**: economic_calendar.json includes GDP Growth Rate QoQ/YoY for AU, HU, CY, AR, RW, GE, etc. Fed GDP estimates tracked. |
+| D14 | No unemployment data | Data | 🟡 | ✅ | **STALE**: economic_calendar.json has Unemployment Rate and Unemployment Change for ES, AU, AT, SI, SK, LU, AR, TW, HR. JOLTs Job Openings/Quits for US tracked. |
+| D15 | No CPI/inflation data | Data | 🟡 | ✅ | **STALE**: economic_calendar.json has CPI, Core CPI, Inflation Rate YoY/MoM for US, EU, ID, NL, FI, AT, KR, DE, CA, SG, HK, PK, KR, TR, etc. High-impact events flagged. |
+| D16 | No PMI manufacturing/services | Data | 🟡 | ✅ | **STALE**: economic_calendar.json has S&P Global Manufacturing/Services/Composite PMI for US, EU, DE, FR, GB, JP, AU, ID, MY, TH, GR, SG, IN. Flash and Final versions both tracked. |
+| D17 | No retail sales data | Data | ⚪ | ✅ | **STALE**: economic_calendar.json has Retail Sales MoM/YoY for GB, HK, CY, CA, MX, AR, CH, NZ, US. |
+| D18 | No central bank rate decisions | Data | 🟡 | ✅ | **STALE**: economic_calendar.json has Interest Rate Decision for PL (3.75%), HU (6.25%), RU (14.5%), MA (2.25%), PK, PY. Fed/ECB/BoE/BoJ speeches tracked (Kashkari, Hammack, Vujčić, Bailey, Greene). FOMC minutes tracked via Fed speech events. |
 | D19 | No earnings calendar data (company-specific) | Data | 🟡 | ⏳ | Yahoo earnings data may be stale or infrequent. |
 | D20 | No real-time Polymarket data | Data | 🟡 | ⏳ | RECLASSIFIED from 🔴 to 🟡: purely external block — requires $50 USDC deposit on Polymarket. No code fix possible. Manifold markets already wired via A04 fix for prediction room data.
 | D21 | No PredictIt data | Data | 🟡 | ⏳ | PredictIt API may not be continuously collected. |
