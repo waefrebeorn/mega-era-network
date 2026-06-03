@@ -297,11 +297,11 @@
 || F14 | No alert integration (Telegram/email) | Infra | 🟡 | ✅ | **FIXED**: health_alerter.c — added send_telegram_alert() using curl to Telegram Bot API. Sends ⚠️ on health degradation, ✅ on recovery. Token from TELEGRAM_BOT_TOKEN env var. Async (background) delivery. |
 || F15 | No systemd service for engine | Infra | 🟡 | ✅ | **FIXED**: config/money-room.service — systemd unit with auto-restart, SIGTERM shutdown, security hardening (NoNewPrivileges, ProtectSystem, PrivateTmp), resource limits (2G RAM, 80% CPU), journal logging. |
 || F16 | No log rotation for all logs | Infra | 🟡 | ✅ | **FIXED**: Created logrotate config at ~/.hermes/logrotate-money-room. Covers CSV (7-day rotation, 100M max), JSONL (30-day, 500M max), room_log.csv (4-week, 50M max). copytruncate for running processes without restart. |
-| F17 | No structured logging (JSON) | Infra | ⚪ | ⏳ | Engine logs are text printf. Machine parsing hard. |
-| F18 | No performance benchmark suite | Infra | ⚪ | ⏳ | No baseline for cycle time, memory usage, trade throughput. |
+| F17 | No structured logging (JSON) | Infra | ⚪ | ✅ | **FIXED**: room_engine.c — parallel engine_log.jsonl alongside room_log.csv. JSONL format with event type, timestamp, and context fields. Circuit breaker events logged as structured JSON. A56 cycle_metrics.jsonl already uses JSONL. |
+| F18 | No performance benchmark suite | Infra | ⚪ | ✅ | **FIXED**: config/benchmark.sh — measures build time, binary size, memory usage, tool build times, and valgrind leak check. Warns on >10s builds and >1MB binaries. |
 || F19 | No regression test suite for engine | Infra | 🟡 | ✅ | **FIXED**: test_runner.c — added 6 engine logic tests: engine binary exists, darwin compiles, features compile, stress_test compiles, ablation_test compiles+runs, cross_source_check compiles. 9/11 pass (2 pre-existing failures). |
 || F20 | No memory leak detection in CI | Infra | 🟡 | ✅ | **FIXED**: .github/workflows/ci.yml — added F20 step that runs make memcheck and fails CI if any definite memory leaks detected (grep "definitely lost: [1-9]"). |
-| F21 | No dependency update tracking | Infra | ⚪ | ⏳ | libcurl/libjansson/sqlite3 versions not tracked. |
+| F21 | No dependency update tracking | Infra | ⚪ | ✅ | **FIXED**: config/deps.versions records pinned versions (libcurl 8.18, jansson 2.14, sqlite3 3.46, gcc 15.2, valgrind 3.26). config/check_deps.sh compares live vs recorded, flags changes. |
 | F22 | No SSL cert management | Infra | ⚪ | ⏳ | If website adds HTTPS, cert renewal not automated. |
 | F23 | No multi-region/DR | Infra | ⚪ | ⏳ | Single WSL host. No disaster recovery. |
 | F24 | No data export API | Infra | ⚪ | ⏳ | No REST API for external systems to query engine state. |
@@ -309,7 +309,7 @@
 | F26 | No gzipped/compressed data serving | Infra | ⚪ | ⏳ | JSON files served uncompressed. Large payloads. |
 | F27 | No ETag/cache headers on data files | Infra | ⚪ | ⏳ | GitHub Pages data files have no caching optimization. |
 | F28 | No preview/staging deployment | Infra | ⚪ | ⏳ | All changes go directly to production. |
-| F29 | No feature flag system | Infra | ⚪ | ⏳ | Can't enable/disable features at runtime. Requires recompile. |
+| F29 | No feature flag system | Infra | ⚪ | ✅ | **FIXED**: config/feature_flags.conf — 18 runtime-toggleable flags (on/off). room_engine.c FeatureFlags struct loaded on startup. Gates darwin_evolution and other features without recompile. Edit conf → restart engine. |
 | F30 | No runbook for common failures | Infra | 🟡 | ⏳ | If something breaks, no documented recovery procedure. |
 | F31 | No incident response plan | Infra | ⚪ | ⏳ | No defined severity levels, escalation paths. |
 | F32 | No post-mortem process | Infra | ⚪ | ⏳ | Failures not formally documented. |

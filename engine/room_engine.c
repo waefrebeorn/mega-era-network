@@ -83,6 +83,36 @@ static void state_write_corrupt_alert(const RoomState *s) {
 // In paper mode, 5ms between cycles for fast bulk historical runs
 // In live mode, 1s between cycles to match real-time data
 #define PAPER_PACE_NS    5000000LL   // 5ms for paper mode
+
+// ── F29: Runtime feature flags ──
+typedef struct {
+    bool darwin_evolution;
+    bool sgd_training;
+    bool epsilon_exploration;
+    bool circuit_breaker;
+    bool kelly_sizing;
+    bool weekend_slippage;
+    bool checkpoint_save;
+} FeatureFlags;
+static FeatureFlags g_flags = {true,true,true,true,true,true,true};
+static void load_feature_flags(void) {
+    FILE *f = fopen("../config/feature_flags.conf", "r");
+    if (!f) return;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        char key[64]; char val[16];
+        if (sscanf(line, "%63[^=]=%15s", key, val) != 2) continue;
+        bool on = (strcmp(val, "on") == 0 || strcmp(val, "ON") == 0 || strcmp(val, "1") == 0);
+        if (strcmp(key, "darwin_evolution") == 0) g_flags.darwin_evolution = on;
+        else if (strcmp(key, "sgd_training") == 0) g_flags.sgd_training = on;
+        else if (strcmp(key, "epsilon_exploration") == 0) g_flags.epsilon_exploration = on;
+        else if (strcmp(key, "circuit_breaker") == 0) g_flags.circuit_breaker = on;
+        else if (strcmp(key, "kelly_sizing") == 0) g_flags.kelly_sizing = on;
+        else if (strcmp(key, "weekend_slippage") == 0) g_flags.weekend_slippage = on;
+        else if (strcmp(key, "checkpoint_save") == 0) g_flags.checkpoint_save = on;
+    }
+    fclose(f);
+}
 #define LIVE_PACE_NS     1000000000LL // 1s for live mode
 // ── Room paths (runtime-overridable via ROOM_DIR env var) ──
 static char g_room_dir[512] = "/home/wubu2/.hermes/pm_logs/c_room";
@@ -99,6 +129,7 @@ static char g_log_path[576];
 #define LOG_PATH   g_log_path
 // ── A56: Per-cycle metrics log path (JSON lines, append mode) ──
 static char g_cycle_metrics_path[576];
+static char g_json_log_path[576];
 
 // ── Init paths at startup ──
 static void init_paths(void) {
@@ -120,6 +151,7 @@ static void init_paths(void) {
     snprintf(g_log_path, sizeof(g_log_path), "%s/room_log.csv", g_room_dir);
     // ── A56: Per-cycle metrics JSON lines file ──
     snprintf(g_cycle_metrics_path, sizeof(g_cycle_metrics_path), "%s/cycle_metrics.jsonl", g_room_dir);
+    snprintf(g_json_log_path, sizeof(g_json_log_path), "%s/engine_log.jsonl", g_room_dir);
 }
 static RoomState *state = NULL;
 static int state_fd = -1;
@@ -904,6 +936,7 @@ static int64_t ns_now(void) {
 // ════════════════════════════════════════════════════════
 int main(void) {
     init_paths();
+    load_feature_flags();
     printf("[ROOM] Starting... sizeof(RoomState)=%zu expected_file=%zu\n",
            sizeof(RoomState), sizeof(RoomState));
     signal(SIGINT, handle_sig);
@@ -1225,6 +1258,11 @@ void room_market_stats(RoomState *state);
             state->circuit_breaker_cycles = state->circuit_cooldown_cycles;
             state->circuit_breaker_count++;
             state->circuit_breaker_ts = tick.window_ts;
+            // ── F17: Structured JSON log for circuit breaker ──
+            { FILE *jl = fopen(g_json_log_path, "a");
+              if (jl) { fprintf(jl, "{\"ts\":%ld,\"event\":\"circuit_breaker\",\"dd_pct\":%.1f,\"cap\":%.2f,\"peak\":%.2f}\n",
+                         (long)tick.window_ts, drawdown*100, state->room_capital, state->circuit_breaker_peak);
+                fclose(jl); } }
             printf("[CB] TRIGGERED! Drawdown=%.1f%% max=%.1f%%. "
                    "Room cap $%.2f from peak $%.2f. Cooldown=%d cycles.\n",
                    drawdown * 100, state->max_drawdown_pct * 100,
@@ -1599,7 +1637,7 @@ void room_market_stats(RoomState *state);
         state->prev_close = prev_close;  // Persist across process restarts
 
         // ── L5: Darwin evolution (every 100 trades) ──
-        if (state->trade_count > 0 && state->trade_count % 100 == 0) {
+        if (g_flags.darwin_evolution && state->trade_count > 0 && state->trade_count % 100 == 0) {
             room_darwin_evolve(state->agents, MAX_AGENTS, state->cycle, &state->darwin, g_agent_market);
             // A16: Prune dead features using tracked importance
             prune_dead_features(state->agents, MAX_AGENTS, &state->feat_importance);
