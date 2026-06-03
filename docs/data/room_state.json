@@ -1,29 +1,29 @@
 {
 "magic": 1380928833,
-"cycle": 5001447,
-"last_updated": 169116416916274,
+"cycle": 5002344,
+"last_updated": 169237098319397,
 "market": {
   "asset": "BTC",
-  "window_ts": 1778420880,
-  "open": 80973.0000,
-  "high": 80973.0000,
-  "low": 80972.0000,
-  "close": 80972.0000,
-  "volume": 0.0003,
+  "window_ts": 1778475120,
+  "open": 80770.0000,
+  "high": 80777.0000,
+  "low": 80770.0000,
+  "close": 80777.0000,
+  "volume": 0.0401,
   "pump_score": 0.0000,
   "fear_greed": 30.0
 },
 "features": {
-  "price_delta_pct": -0.0002,
+  "price_delta_pct": 0.0017,
   "micro_momentum": 0.0000,
-  "rsi_7": 0.8,
+  "rsi_7": 0.3,
   "volume_surge_ratio": 0.00,
   "divergence_score": 0.5000,
   "pump_score": 0.5000,
   "regime_indicator": 0,
   "fear_greed_norm": 0.3000,
   "herd_consensus": 0.0000,
-  "nested_prediction": 0.5709
+  "nested_prediction": 0.5750
 },
 "vote_summary": {
   "total": 2500,
@@ -43,12 +43,12 @@
   "max_drawdown": 0.0057,
   "capital_current": 136647.6562,
   "capital_peak": 137429.7188,
-  "room_pnl_pct": -56674.2539,
+  "room_pnl_pct": -56684.3320,
   "weight_diversity": 0.000000,
   "genome_diversity": 4.692845,
   "return_count": 128,
   "return_idx": 107,
-  "room_trades": 4767926
+  "room_trades": 4768670
 },
 "cycle_returns": [
   7.276677,

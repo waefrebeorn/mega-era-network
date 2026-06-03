@@ -310,7 +310,7 @@
 | F27 | No ETag/cache headers on data files | Infra | ⚪ | ⏳ | GitHub Pages data files have no caching optimization. |
 | F28 | No preview/staging deployment | Infra | ⚪ | ⏳ | All changes go directly to production. |
 | F29 | No feature flag system | Infra | ⚪ | ✅ | **FIXED**: config/feature_flags.conf — 18 runtime-toggleable flags (on/off). room_engine.c FeatureFlags struct loaded on startup. Gates darwin_evolution and other features without recompile. Edit conf → restart engine. |
-| F30 | No runbook for common failures | Infra | 🟡 | ⏳ | If something breaks, no documented recovery procedure. |
+| F30 | No runbook for common failures | Infra | 🟡 | ✅ | **FIXED**: docs/RUNBOOK.md — 8 common failure scenarios with symptom/check/fix/root-cause: engine won't start, circuit breaker stuck, feed staleness, Darwin not evolving, memory leak, build fails, test failures, disk full. |
 | F31 | No incident response plan | Infra | ⚪ | ⏳ | No defined severity levels, escalation paths. |
 | F32 | No post-mortem process | Infra | ⚪ | ⏳ | Failures not formally documented. |
 | F33 | No time-series metrics database | Infra | ⚪ | ⏳ | Prometheus/InfluxDB not deployed. No historical metric queries. |
