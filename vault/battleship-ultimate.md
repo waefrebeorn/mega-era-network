@@ -55,7 +55,7 @@
 | A42 | No model checkpointing | Training | ⚪ | ✅ | **FIXED**: room_engine.c — msync + file copy every 1000 cycles to room_state.bin.checkpoint.N. Logged every 5000 cycles. Survives crash — latest checkpoint has all training progress. |
 | A43 | No training speed benchmark | Training | ⚪ | ✅ | **FIXED**: room_engine.c — tracks avg cycle time over 1000-cycle windows. Warns [A43] if avg >50ms (degradation). Existing per-cycle timing already catches >100ms spikes. |
 | A44 | No gradient history for SGD diagnosis | Training | ⚪ | ✅ | **FIXED**: room_capital.c — computes L2 gradient norm at each SGD batch apply. Logs [A44] SGD stall warning when grad_norm < 0.001 after 100+ trades (stuck in local minimum). |
-| A45 | No feature correlation matrix | Training | ⚪ | ⏳ | Two highly-correlated features get double-weight. No PCA/decorrelation. |
+| A45 | No feature correlation matrix | Training | ⚪ | ✅ | **FIXED**: feat_correlation.c — computes pairwise Pearson correlation across N_FEATURES from agent feature vectors. Flags redundant pairs (|corr|>0.85). Recommends PCA if >5 redundant pairs. |
 | A46 | Room_engine has PAPER_MODE vs LIVE_MODE but no HYBRID | Training | 🟡 | ⏳ | Can't run some rooms live and others paper. All-or-nothing. |
 | A47 | No warm-start from prior genomes | Training | 🟡 | ✅ | **FIXED**: load_warmstart_genomes() in room_engine.c loads ENGINE_<TYPE>_N.bin elites on restart. Seeds 200 agents (2%) from saved genomes. Elite genomes saved by room_darwin_save_elite() each cycle. |
 || A48 | Darwin epoch count always reads 0 in snapshot | Training | 🔴 | ✅ | RESOLVED by A02 fix: trade_count now persists across restarts (room_engine.c:657). Once rooms accumulate 100+ trades across cron cycles, Darwin fires and epoch increments. |
