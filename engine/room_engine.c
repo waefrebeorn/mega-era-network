@@ -1289,7 +1289,12 @@ void room_market_stats(RoomState *state);
                 if (stake < 0.01f) stake = 0.01f;
                 state->room_capital -= stake;
                 // ── T20: Entry slippage on room trade ──
-                float slip_cost = stake * (SLIPPAGE_BPS + stake * SLIPPAGE_VOL_SCALE) / 10000.0f;
+                // ── C27: Widen slippage on weekends (lower liquidity) ──
+                float slip_cost;
+                { struct tm tm_wk; time_t wt = (time_t)tick.window_ts;
+                  localtime_r(&wt, &tm_wk);
+                  float wk_mul = (tm_wk.tm_wday == 0 || tm_wk.tm_wday == 6) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
+                  slip_cost = stake * (SLIPPAGE_BPS * wk_mul + stake * SLIPPAGE_VOL_SCALE * wk_mul) / 10000.0f; }
                 if (slip_cost > state->room_capital * 0.5f) slip_cost = state->room_capital * 0.5f;
                 if (slip_cost > 0.001f) {
                     state->room_capital -= slip_cost;
@@ -1323,7 +1328,12 @@ void room_market_stats(RoomState *state);
                 float profit = state->room_trade.stake * (1.0f - TAKER_FEE);
                 float gross_ret = state->room_trade.stake + profit;
                 // ── T20: Exit slippage on room trade winner ──
-                float exit_slip = gross_ret * (SLIPPAGE_BPS + gross_ret * SLIPPAGE_VOL_SCALE) / 10000.0f;
+                // ── C27: Weekend slippage widening ──
+                float exit_slip;
+                { struct tm tm_wk2; time_t wt2 = (time_t)tick.window_ts;
+                  localtime_r(&wt2, &tm_wk2);
+                  float wk2 = (tm_wk2.tm_wday == 0 || tm_wk2.tm_wday == 6) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
+                  exit_slip = gross_ret * (SLIPPAGE_BPS * wk2 + gross_ret * SLIPPAGE_VOL_SCALE * wk2) / 10000.0f; }
                 state->room_capital += gross_ret - exit_slip;
                 state->total_slippage_paid += exit_slip;
                 state->slippage_events++;
@@ -1396,8 +1406,13 @@ void room_market_stats(RoomState *state);
                     if (state->trades[i].resolved_at == tick.window_ts && state->trades[i].won) {
                         float payout = state->trades[i].position_size * (1.0f + state->trades[i].pnl_pct);
                         if (payout <= 0) continue;
-                        float slip_pct = (SLIPPAGE_BPS + payout * SLIPPAGE_VOL_SCALE) / 10000.0f;
-                        float slip_cost = payout * slip_pct;
+                        // ── C27: Weekend slippage widening ──
+                        float slip_pct_wk;
+                        { struct tm tm_wk3; time_t wt3 = (time_t)tick.window_ts;
+                          localtime_r(&wt3, &tm_wk3);
+                          float wk3 = (tm_wk3.tm_wday == 0 || tm_wk3.tm_wday == 6) ? SLIPPAGE_WEEKEND_MUL : 1.0f;
+                          slip_pct_wk = (SLIPPAGE_BPS * wk3 + payout * SLIPPAGE_VOL_SCALE * wk3) / 10000.0f; }
+                        float slip_cost = payout * slip_pct_wk;
                         if (slip_cost < 0.001f) continue;
                         int aid = state->trades[i].agent_id;
                         if (aid >= 0 && aid < MAX_AGENTS && state->agents[aid].capital >= slip_cost) {

@@ -50,6 +50,10 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
     int ny = 0, nn = 0;
     float yes_total = 0, no_total = 0;
 
+    // ── C11: Pre-compute total room capital for exposure check ──
+    float total_room_cap = 0;
+    for (int ac = 0; ac < count; ac++) total_room_cap += agents[ac].capital;
+
     // ── Pass 1: collect stakes (no capital deduction yet) ──
     for (int i = 0; i < count; i++) {
         int aid = votes[i].agent_id;
@@ -79,6 +83,9 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         float max_loss = a->capital * 0.05f;
         if (stake > max_loss) stake = max_loss;
         if (stake > a->capital * 0.5f) stake = a->capital * 0.5f;
+        // ── C11: Max exposure — no single position > 10% of total room capital ──
+        { float max_exp = total_room_cap * MAX_EXPOSURE_PCT;
+          if (max_exp > 0 && stake > max_exp) stake = max_exp; }
         if (stake < MIN_TRADE_STAKE) continue;  // T97/C15: skip tiny trades (min $5 for Polymarket)
         if (stake <= 0) continue;
 

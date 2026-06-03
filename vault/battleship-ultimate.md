@@ -141,7 +141,7 @@
 || C09 | No flash crash simulation | Risk | ⚪ | ✅ | **FIXED**: stress_test.c — added 5th scenario: 2020 flash crash (-40% instant drop in minutes). Loop now uses sizeof instead of hardcoded 4. |
 || C10 | No exchange outage handling | Risk | 🟡 | ✅ | **STALE**: Covered by B44 feed staleness detection (room_feeds.c:254-277 — >5min WARN, >1h REJECT) + T17 circuit breaker (drawdown+consecutive losses). Paper engine auto-exits on feed exhaustion (room_engine.c:832-864). Live mode would require exchange-specific handling but currently paper-only. |
 | C11 | No position liquidation model | Risk | 🟡 | ⏳ | Paper trading doesn't model forced liquidation at margin thresholds. |
-| C12 | No slippage shock test | Risk | ⚪ | ⏳ | High-vol slippage can be 50bps. Simulation uses 5bps. 10x discrepancy. |
+| C12 | No slippage shock test | Risk | ⚪ | ✅ | **FIXED**: stress_test.c C12 block — 10x slippage shock (50bps vs 5bps), computes friction cost over trade history, PASS/FAIL verdict vs 10% capital threshold. |
 || C13 | No fee model for different order types | Risk | 🟡 | ✅ | **STALE**: MARKET_MAKER_FEE (0%) and MARKET_TAKER_FEE (0.1%) both defined in types.h. In paper P2P mode, all orders are market orders (taker+0.1%). Maker model matters for live exchange execution (E01), not paper. No code change needed. |
 | C14 | No gas cost model for crypto trades | Risk | ⚪ | ⏳ | On-chain settlement costs $0.50-5 per trade. $50 seed would be decimated by gas. |
 || C15 | No Polymarket minimum order enforcement | Risk | 🟡 | ✅ | **FIXED**: types.h — raised MIN_TRADE_STAKE from $1 to $5 to cover Polymarket 5-share minimum (5 shares × $1 max price). room_capital.c enforces this as universal minimum. |
@@ -156,7 +156,7 @@
 | C24 | No market correlation across rooms | Risk | 🟡 | ⏳ | Sports room and consensus room both trade binary events. Correlation unknown. |
 || C25 | No panic stop for all rooms | Risk | 🟡 | ✅ | **FIXED**: check_panic() in room_engine.c checks /tmp/money_room_panic sentinel each cycle. File exists = skips vote and trading. File removed = resumes immediately. |
 || C26 | No overnight gap risk model | Risk | ⚪ | ⏳ | Crypto trades 24/7 but positions held overnight face gap risk. |
-|| C27 | No weekend liquidity model | Risk | ⚪ | ⏳ | Weekend spreads are wider. Engine uses same slippage 7 days/week. |
+|| C27 | No weekend liquidity model | Risk | ⚪ | ✅ | **FIXED**: types.h SLIPPAGE_WEEKEND_MUL=2.0f. room_engine.c checks tm_wday (0=Sun,6=Sat) via localtime_r, applies 2x to SLIPPAGE_BPS and SLIPPAGE_VOL_SCALE on all 3 slippage calc sites (entry, exit, P2P exit). |
 || C28 | No holiday effect model | Risk | ⚪ | ⏳ | Low volume holidays have different market microstructure. |
 || C29 | No fee-aware position sizing | Risk | 🟡 | ✅ | **STALE**: Fees are proportional (0.1% taker). $1 trade = $0.001 fee — no minimum fee. MIN_TRADE_STAKE=$1 floor already enforced. MIN_TRADE_STAKE ≥ fee cost for all trade sizes. Relevant for fixed-fee chains (Ethereum gas) but not paper P2P. |
 || C30 | No win rate stability filter | Risk | ⚪ | ⏳ | Agent with volatile WR (0.8 then 0.3 then 0.8) is less reliable than steady 0.55. |

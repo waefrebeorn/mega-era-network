@@ -53,11 +53,13 @@ extern const char *MARKET_TYPE_NAMES[];
 #define MATCH_FEE    0.002f   // Match fee on loser pool (0.2%)
 // ── T97/C15: Minimum trade size (raised to $5 for Polymarket 5-share minimum) ──
 #define MIN_TRADE_STAKE   5.0f    // Minimum $5 stake per trade (covers Polymarket 5-share min)
+#define MAX_EXPOSURE_PCT  0.10f   // C11: Max 10% of room capital per single position
 // ── A19: Mini-batch SGD batch size ──
 #define SGD_BATCH_SIZE    8       // Trades per mini-batch gradient update
 // ── T20: Slippage model ──
 #define SLIPPAGE_BPS          5.0f    // 5 bps = 0.05% baseline slippage
 #define SLIPPAGE_VOL_SCALE   5.0f    // Additional bps per $100 of position (market impact)
+#define SLIPPAGE_WEEKEND_MUL  2.0f   // C27: 2x slippage on weekends (lower liquidity)
 
 // Market direction mode fees (for P2P ensemble paper proof)
 #ifdef MARKET_MODE

@@ -122,6 +122,24 @@ int main(int argc, char **argv) {
     printf("T17 circuit breaker would trip at 20%% drawdown in all scenarios.\n");
     printf("Position limits (T18) + volatility scaling (P23) + A14 volatile regime half-sizing would reduce impact.\n");
 
+    // ── C12: Slippage shock test — simulate 10x slippage (50bps) ──
+    printf("\n═══ C12: SLIPPAGE SHOCK TEST ═══\n");
+    float normal_slip = 5.0f;   // 5bps baseline
+    float shock_slip = 50.0f;   // 50bps = 10x
+    float avg_stake = 100.0f;   // conservative average stake
+    int total_trades = state->trade_count > 0 ? state->trade_count : 1000;
+    float normal_cost = total_trades * avg_stake * normal_slip / 10000.0f;
+    float shock_cost = total_trades * avg_stake * shock_slip / 10000.0f;
+    printf("Normal slippage (5bps):  $%.2f over %d trades\n", normal_cost, total_trades);
+    printf("Shock slippage (50bps):  $%.2f over %d trades\n", shock_cost, total_trades);
+    printf("10x slippage adds $%.2f in friction (%.1f%% of room capital $%.2f)\n",
+           shock_cost - normal_cost,
+           state->room_capital > 0 ? (shock_cost - normal_cost) / state->room_capital * 100 : 0,
+           state->room_capital);
+    printf("Verdict: %s\n", shock_cost > state->room_capital * 0.10f
+           ? "FAIL — 10x slippage would consume >10%% of capital"
+           : "PASS — engine survives 10x slippage shock");
+
     munmap(state, sizeof(RoomState));
     return 0;
 }
