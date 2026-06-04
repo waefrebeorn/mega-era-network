@@ -41,8 +41,8 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D44  // "ROMD" — bumped for C07/C23/C24/D44 new RoomState fields
-#define STATE_VERSION     3           // Current struct layout version
+#define STATE_MAGIC       0x524F4D42  // "ROMB" — STATE_VERSION=4 for walkway v5.6 + PDT + loss feedback loop + hot-reload fix
+#define STATE_VERSION     4           // Current struct layout version
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
