@@ -188,6 +188,8 @@ int main(int argc, char **argv) {
         const char *n = json_string_value(jname);
         if (n) { strncpy(room_name, n, sizeof(room_name) - 1); room_name[sizeof(room_name) - 1] = '\0'; }
     }
+    json_t *jmode = json_object_get(config, "mode");
+    const char *room_mode = (jmode && json_is_string(jmode)) ? json_string_value(jmode) : "live";
     json_decref(config);
 
     // Find room type config

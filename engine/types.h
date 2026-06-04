@@ -35,11 +35,7 @@ typedef enum {
 extern const char *MARKET_TYPE_NAMES[];
 
 // Paper proof uses fewer agents for faster evolution per trade cap
-#ifdef PAPER_MODE
-#define ROOM_AGENTS  2500
-#else
 #define ROOM_AGENTS  10000
-#endif
 #define MAX_AGENTS    ROOM_AGENTS
 #define N_FEATURES        34
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)

@@ -3,7 +3,7 @@
  *
  * Phase 1: Per-room feed generation (differentiated feeds by domain)
  * Phase 2: c_room multi-market engine (main)
- * Phase 3: All 15 room engines with ROOM_DIR
+ * Phase 3: All 16 room engines with ROOM_DIR (sequential)
  *
  * Compile: gcc -O2 -o cycle_all_rooms cycle_all_rooms.c
  * Usage:   ./cycle_all_rooms
@@ -26,7 +26,6 @@
 #define HEARTBEAT_FILE "/home/wubu2/.hermes/pm_logs/c_room/heartbeat.json"
 #define ALERT_FILE     "/home/wubu2/.hermes/pm_logs/c_room/alert_timeout.json"
 
-// ── A58: Write heartbeat / alert file ──
 static void write_heartbeat(const char *path, int ok, int total, const char *status) {
     FILE *f = fopen(path, "w");
     if (!f) return;
@@ -55,19 +54,12 @@ static const char *ROOMS[] = {
 
 static int run_cmd(const char *bin, const char *room_dir, int timeout_sec) {
     struct stat st;
-    if (stat(bin, &st) != 0 || !(st.st_mode & S_IXUSR)) {
-        return -1;  // Not executable
-    }
+    if (stat(bin, &st) != 0 || !(st.st_mode & S_IXUSR)) return -1;
 
     pid_t pid = fork();
-    if (pid < 0) { perror("fork"); return -1; }
-
+    if (pid < 0) { perror("fork"); return -3; }
     if (pid == 0) {
-        // Child: set ROOM_DIR if provided
-        if (room_dir) {
-            setenv("ROOM_DIR", room_dir, 1);
-        }
-        // Redirect stdout to /dev/null to suppress noise
+        if (room_dir) setenv("ROOM_DIR", room_dir, 1);
         FILE *null = fopen("/dev/null", "w");
         if (null) {
             dup2(fileno(null), STDOUT_FILENO);
@@ -77,48 +69,35 @@ static int run_cmd(const char *bin, const char *room_dir, int timeout_sec) {
         execl(bin, bin, NULL);
         _exit(127);
     }
-
-    // Parent: wait with timeout
-    struct timespec ts = {timeout_sec, 0};
+    struct timespec ts = { timeout_sec, 0 };
     int status;
     pid_t result;
     do {
         result = waitpid(pid, &status, WNOHANG);
         if (result == 0) {
-            nanosleep(&ts, NULL);  // Wait timeout then kill
+            nanosleep(&ts, NULL);
             kill(pid, SIGTERM);
-            // Give 1s to die gracefully
             nanosleep(&(struct timespec){1, 0}, NULL);
             result = waitpid(pid, &status, WNOHANG);
-            if (result == 0) {
-                kill(pid, SIGKILL);
-                waitpid(pid, &status, 0);
-            }
-            return -2;  // Timed out
+            if (result == 0) { kill(pid, SIGKILL); waitpid(pid, &status, 0); }
+            return -2;
         }
     } while (result == 0);
-
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    return -3;  // Signaled
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    return -3;
 }
 
 int main(void) {
     printf("[ROOMS] Cycling all engines...\n");
     int total = 0, ok = 0;
 
-    // ── A58: Write start heartbeat ──
     write_heartbeat(HEARTBEAT_FILE, 0, 0, "starting");
 
-    // ── Phase 1: Generate per-room feeds ──
-    struct stat st;
-    if (stat(FEED_GEN, &st) == 0 && (st.st_mode & S_IXUSR)) {
+    if (stat(FEED_GEN, &(struct stat){0}) == 0) {
         for (int i = 0; ROOMS[i]; i++) {
             char room_dir[256];
             snprintf(room_dir, sizeof(room_dir), "%s/%s", ROOMS_DIR, ROOMS[i]);
 
-            // Check room directory exists
             struct stat rd;
             if (stat(room_dir, &rd) != 0 || !S_ISDIR(rd.st_mode)) continue;
 
@@ -129,8 +108,7 @@ int main(void) {
     }
     printf("[ROOMS] Phase 1: %d/%d room feeds generated\n", ok, total);
 
-    // ── Phase 2: c_room main engine ──
-    if (stat(C_ENG, &st) == 0 && (st.st_mode & S_IXUSR)) {
+    if (stat(C_ENG, &(struct stat){0}) == 0) {
         int rc = run_cmd(C_ENG, NULL, 15);
         printf("[ROOMS] Phase 2: main engine %s\n",
                rc == 0 ? "OK" : (rc == -2 ? "TIMEOUT" : "FAILED"));
@@ -138,7 +116,6 @@ int main(void) {
         else if (rc != 0) write_alert("main_engine_failed");
     }
 
-    // ── Phase 3: All room engines ──
     total = 0; ok = 0;
     int timeouts = 0, failures = 0;
     for (int i = 0; ROOMS[i]; i++) {
@@ -164,7 +141,6 @@ int main(void) {
     struct tm *tm = localtime(&now);
     printf("[ROOMS] %02d:%02d: All engines cycled\n", tm->tm_hour, tm->tm_min);
 
-    // ── A58: Write final heartbeat with status ──
     const char *status = (timeouts > 0 || failures > 0) ? "degraded" : "ok";
     write_heartbeat(HEARTBEAT_FILE, ok, total, status);
 

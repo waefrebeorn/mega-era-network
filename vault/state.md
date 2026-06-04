@@ -3,7 +3,7 @@
 ## Current Status
 - **Engine:** 210+ C files, 10K agent paper trading (2500 active), 17 markets
 - **Website:** GH Pages at waefrebeorn.github.io/money-room/, data_server port 9090
-- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 58 🟡 P1, 176 ⚪ P3)
+- **Battleship:** 365 cells across 9 domains (1 🔴 P0, 57 🟡 P1, 176 ⚪ P3)
 - **Structure:** STATE_MAGIC=ROMD (0x524F4D44), STATE_VERSION=3, STATE_CRC active
 - **N_FEATURES:** 34
 

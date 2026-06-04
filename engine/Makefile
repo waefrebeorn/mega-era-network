@@ -30,6 +30,7 @@ TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter d
 market: CFLAGS += -DMARKET_MODE
 market: $(MKT_TARGET)
 
+$(MKT_TARGET): CFLAGS += -DMARKET_MODE
 $(MKT_TARGET): $(MKT_SRCS:.c=.o)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
@@ -39,7 +40,7 @@ paper: $(TARGET)_paper
 $(TARGET)_paper: $(PAPER_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lsqlite3
 
-all: $(TARGET)
+all: $(TARGET) health_check health_alerter data_server withdrawal_scheduler collector_runner cross_asset_c test_runner accuracy_scorer
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -54,28 +55,13 @@ clean:
 	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor coingecko_fallback timeline_sync
 
 # ── Shell-to-C conversions ──
-tools: cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal resource_monitor
+tools: cycle_all_rooms cycle_all_rooms_parallel room_feed_bridge paper_train collector_runner refresh_all cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal resource_monitor
 
 cycle_all_rooms: cycle_all_rooms.c
 	$(CC) -O2 -o $@ $<
 
-room_feed_bridge: room_feed_bridge.c
-	$(CC) -O2 -o $@ $<
-
-paper_train: paper_train.c
-	$(CC) -O2 -o $@ $<
-
-collector_runner: collector_runner.c
-	$(CC) -O2 -o $@ $<
-
-refresh_all: refresh_all.c
-	$(CC) -O2 -o $@ $< -lsqlite3
-
-run: $(TARGET)
-	./$(TARGET)
-
-stock: stock_collector.c
-	$(CC) -O3 -o stock_collector stock_collector.c -lcurl -ljansson -lsqlite3 -lm
+cycle_all_rooms_parallel: cycle_all_rooms_parallel.c
+	$(CC) -O2 -pthread -o $@ $<
 
 # ── T11: Exchange API module ──
 exchange_api.o: exchange_api.c exchange_api.h

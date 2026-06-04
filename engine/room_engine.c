@@ -119,12 +119,11 @@ static char g_room_dir[512] = "/home/wubu2/.hermes/pm_logs/c_room";
 static char g_state_path[576];
 static char g_feed_path[576];
 static char g_log_path[576];
+static char g_room_mode[16] = "live";
+static int is_paper_mode(void) { return strcmp(g_room_mode, "paper") == 0; }
+static int is_market_mode(void) { return strcmp(g_room_mode, "market") == 0; }
 #define ROOM_DIR g_room_dir
-#ifdef PAPER_MODE
 #define STATE_PATH g_state_path
-#else
-#define STATE_PATH g_state_path
-#endif
 #define FEED_PATH  g_feed_path
 #define LOG_PATH   g_log_path
 // ── A56: Per-cycle metrics log path (JSON lines, append mode) ──
@@ -141,11 +140,7 @@ static void init_paths(void) {
         }
     }
     snprintf(g_state_path, sizeof(g_state_path), "%s/room_state%s.bin", g_room_dir,
-#ifdef PAPER_MODE
-             "_paper"
-#else
-             ""
-#endif
+             is_paper_mode() ? "_paper" : ""
     );
     snprintf(g_feed_path, sizeof(g_feed_path), "%s/market_feed.json", g_room_dir);
     snprintf(g_log_path, sizeof(g_log_path), "%s/room_log.csv", g_room_dir);
@@ -621,6 +616,40 @@ static int load_warmstart_genomes(AgentState *agents, int n, int max_warm) {
                 fclose(fp); break;
             }
             fclose(fp);
+            // ── A24: normalize cross-type transfer via market similarity + noise ──
+            {
+                static const float market_similarity[N_MARKET_TYPES] = {
+                    1.00f, // CRYPTO    -> CRYPTO
+                    0.55f, // CRYPTO    -> EQUITY
+                    0.55f, // CRYPTO    -> FOREX
+                    0.50f, // CRYPTO    -> COMMODITY
+                    0.45f, // CRYPTO    -> BOND
+                    0.60f, // CRYPTO    -> VOLATILITY
+                    0.70f, // CRYPTO    -> PREDICTION/BINARY
+                    0.55f, // CRYPTO    -> SPORTS
+                    0.50f, // CRYPTO    -> WEATHER
+                    0.70f  // CRYPTO    -> ELECTION
+                };
+                float scale = 0.9f + market_similarity[mt] * 0.2f;
+                float noise_scale = (1.0f - market_similarity[mt]) * 0.10f;
+                int dim = N_FEATURES < N_REGS * N_FEATURES ? N_FEATURES : N_REGS * N_FEATURES;
+                for (int w = 0; w < dim; w++) {
+                    float base;
+                    if (w < N_FEATURES) {
+                        base = g.feat_weight[w];
+                    } else {
+                        base = g.regime_weight[w / N_FEATURES][w % N_FEATURES];
+                    }
+                    float noisy = base * scale + ((float)(rand() % 2001 - 1000)) / 20000.0f * noise_scale;
+                    if (noisy > 1.0f) noisy = 1.0f;
+                    if (noisy < -1.0f) noisy = -1.0f;
+                    if (w < N_FEATURES) {
+                        g.feat_weight[w] = noisy;
+                    }
+                    g.regime_weight[w / N_FEATURES][w % N_FEATURES] = noisy;
+                }
+                g.bias += ((float)(rand() % 2001 - 1000)) / 20000.0f * noise_scale;
+            }
             // Seed agent i with this genome
             agents[seeded].alive = true;
             agents[seeded].capital = 50.0f;
@@ -1118,7 +1147,7 @@ void room_market_stats(RoomState *state);
         for (int mt = 0; mt < NESTED_N_MARKETS; mt++) {
             g_nested_prediction[mt] = compute_nested_prediction(&tick, (MarketType)mt);
         }
-        state->nested_prediction = (float)g_nested_prediction[MARKET_CRYPTO];
+        state->nested_prediction = (float)g_nested_prediction[tick.market_type];
         // ── A42: Model checkpointing — save state snapshot every 1000 cycles ──
         if (state->cycle > 0 && state->cycle % 1000 == 0) {
             msync(state, sizeof(RoomState), MS_ASYNC);
@@ -1137,9 +1166,9 @@ void room_market_stats(RoomState *state);
         }
 
         if (state->cycle % 100 == 0 && g_nested) {
-            double signal = (g_nested_prediction[MARKET_CRYPTO] - 0.5) * 2.0;
+            double signal = (g_nested_prediction[tick.market_type] - 0.5) * 2.0;
             printf("[NESTED] cycle=%d pred=%.4f signal=%+.4f\n",
-                   state->cycle, g_nested_prediction[MARKET_CRYPTO], signal);
+                   state->cycle, g_nested_prediction[tick.market_type], signal);
         }
 
         // ── C25: Check panic stop before voting/trading ──
