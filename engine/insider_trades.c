@@ -277,28 +277,29 @@ static void cmd_fetch(void) {
     sqlite3 *db = open_db();
     if (!db) { fprintf(stderr, "DB error\n"); return; }
 
-    // Fetch last 3 months of Form 4 filings
+    // Fetch last 5 months of Form 4 filings (dynamic based on current date)
     printf("Fetching Form 4 insider trading filings...\n");
 
-    // Fetch month by month to stay within API limits
-    const char *months[][2] = {
-        {"2026-05-01", "2026-05-28"},
-        {"2026-04-01", "2026-04-30"},
-        {"2026-03-01", "2026-03-31"},
-        {"2026-02-01", "2026-02-28"},
-        {"2026-01-01", "2026-01-31"}
-    };
-    int n_months = sizeof(months) / sizeof(months[0]);
-    int total = 0;
-    for (int i = 0; i < n_months; i++) {
-        printf("  Month %s to %s...\n", months[i][0], months[i][1]);
-        int stored = fetch_and_store(db, months[i][0], months[i][1]);
-        total += stored;
+    time_t now = time(NULL);
+    struct tm *tm = gmtime(&now);
+    char end_date[16], start_date[16];
+
+    // Get end of current month, then work backwards
+    for (int i = 0; i < 5; i++) {
+        time_t month_start = now - (i + 1) * 30 * 86400;
+        time_t month_end = now - i * 30 * 86400;
+        struct tm *ms = gmtime(&month_start);
+        struct tm *me = gmtime(&month_end);
+        strftime(start_date, sizeof(start_date), "%Y-%m-%d", ms);
+        strftime(end_date, sizeof(end_date), "%Y-%m-%d", me);
+
+        printf("  Month %s to %s...\n", start_date, end_date);
+        int stored = fetch_and_store(db, start_date, end_date);
         struct timespec ts = {1, 0}; // 1s delay between months for rate limiting
         nanosleep(&ts, NULL);
     }
 
-    printf("Total stored this run: %d\n", total);
+    printf("Total months fetched: 5\n");
     write_features(db);
     sqlite3_close(db);
 }

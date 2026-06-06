@@ -170,6 +170,10 @@ earnings_calendar: earnings_calendar.c
 earnings_cal: earnings_cal.c
 	$(CC) -O3 -march=native -o $@ $< -ljansson -lm
 
+# ── SEC EDGAR 13F Holdings collector ──
+13f_holdings: 13f_holdings.c
+	$(CC) -O2 -o $@ $< -lcurl -ljansson -lsqlite3 -lm
+
 # ── Run test suite ──
 test: test_runner
 	@echo "--- checking for stale 0-byte binaries ---"; \
