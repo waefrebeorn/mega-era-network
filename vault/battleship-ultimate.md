@@ -17,7 +17,7 @@
 | R1 | PORTED | Reg disclaimer on index.html (root + docs/) | docs/index.html, index.html |
 | R2 | PORTED | Reg disclaimer on rooms.html (live engine stats) | docs/rooms.html |
 | R3 | PORTED | Reg disclaimer on paper/live/dashboard/pricing.html | docs/paper.html, live.html, dashboard.html, pricing.html |
-| R4 | REAL GAP | Pre-trade circuit breakers (drawdown/daily/consec) | engine/room_capital.c |
+| **R4** | **PORTED** | **5-layer circuit breaker: daily loss >10%, consecutive losses >6, drawdown >20%, max exposure %, directional exposure %, panic stop flag** | engine/room_capital.c:41-115, 315-322, 460-470, 720-750 |
 | R5 | REAL GAP | Privacy policy page content audit | docs/privacy.html |
 | R6 | REAL GAP | Terms of service content audit | docs/terms.html |
 | R7 | REAL GAP | SEC AI-washing language audit | docs/* |
@@ -61,4 +61,4 @@
 
 ---
 
-### PORTED COUNT: 74 | REAL GAP: 12 | PARTIAL: 18 | TOTAL: 86
+### PORTED COUNT: 75 | REAL GAP: 11 | PARTIAL: 18 | TOTAL: 86
