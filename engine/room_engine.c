@@ -268,7 +268,8 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                AgentState *agents,
                                int max_trades,
                                FeatureImportance *importance,
-                               float lr_decay);
+                               float lr_decay,
+                               RoomState *s);
 RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord *rec, const int *agent_market);
 RoomError room_darwin_compute_diversity(const AgentState *agents, int n, RoomStats *stats);
 RoomError room_darwin_save_elite(const AgentState *agents, int n, const int *agent_market);
@@ -1523,7 +1524,8 @@ void room_market_stats(RoomState *state);
                                      prev_close,
                                      state->agents, MAX_TRADE_HIST,
                                      &state->feat_importance,
-                                     lr_decay);
+                                     lr_decay,
+                                     state);  // R4: Pass RoomState for circuit breaker
             }
             // ── T20: P2P exit slippage — deduct from resolved winners ──
             if (prev_close > 0) {

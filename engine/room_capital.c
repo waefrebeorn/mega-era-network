@@ -31,6 +31,115 @@ static inline int64_t trade_key(int agent_id, int64_t window_ts, bool direction)
     return ((int64_t)agent_id << 33) | ((window_ts & 0xFFFFFFFFULL) << 1) | (direction ? 1ULL : 0ULL);
 }
 
+// ════════════════════════════════════════════════════════
+//  R4: CIRCUIT BREAKER — Pre-trade risk controls
+//  Trips on: daily loss > max_daily_loss_pct, consecutive losses > max_consecutive_losses,
+//            room drawdown > max_drawdown_pct, max exposure exceeded, panic stop
+// ════════════════════════════════════════════════════════
+static bool check_circuit_breaker_before_trade(RoomState *s, AgentState *agents, int n_agents, int64_t window_ts) {
+    // Panic stop — external halt (e.g., /tmp/money_room_panic file)
+    if (s->panic_stop) {
+        fprintf(stderr, "[R4] CIRCUIT BREAKER: Panic stop active — all trading halted\n");
+        return true;
+    }
+
+    // Initialize defaults if not set
+    if (s->max_daily_loss_pct == 0.0f) s->max_daily_loss_pct = 0.10f;  // 10% daily loss limit
+    if (s->max_drawdown_pct == 0.0f) s->max_drawdown_pct = 0.20f;       // 20% room drawdown limit
+    if (s->max_consecutive_losses == 0) s->max_consecutive_losses = 6;  // 6 consecutive losses
+    if (s->circuit_cooldown_cycles == 0) s->circuit_cooldown_cycles = 10; // 10-cycle cooldown
+
+    // Check if we're in cooldown period
+    if (s->circuit_breaker_cycles > 0) {
+        s->circuit_breaker_cycles--;
+        fprintf(stderr, "[R4] CIRCUIT BREAKER: Cooling down, %d cycles remaining\n", s->circuit_breaker_cycles);
+        return true;
+    }
+
+    // Reset daily PnL if new day
+    int current_day = (int)(window_ts / 86400LL);
+    if (s->last_daily_reset_day != current_day) {
+        s->daily_pnl = 0.0f;
+        s->daily_loss_streak = 0;
+        s->last_daily_reset_day = current_day;
+    }
+
+    // Calculate current room capital
+    float total_cap = 0.0f;
+    for (int i = 0; i < n_agents; i++) {
+        if (agents[i].alive && agents[i].capital > 0)
+            total_cap += agents[i].capital;
+    }
+
+    // 1. Daily loss limit check
+    if (total_cap > 0 && s->daily_pnl < -s->max_daily_loss_pct * total_cap) {
+        fprintf(stderr, "[R4] CIRCUIT BREAKER TRIPPED: Daily loss %.2f%% exceeds %.2f%%\n",
+                -s->daily_pnl / total_cap * 100, s->max_daily_loss_pct * 100);
+        s->circuit_breaker_cycles = s->circuit_cooldown_cycles;
+        s->circuit_breaker_count++;
+        s->circuit_breaker_ts = window_ts;
+        s->circuit_breaker_peak = total_cap;  // Reset peak at breaker
+        return true;
+    }
+
+    // 2. Consecutive room losses
+    if (s->consec_room_losses >= s->max_consecutive_losses) {
+        fprintf(stderr, "[R4] CIRCUIT BREAKER TRIPPED: %d consecutive room losses (max %d)\n",
+                s->consec_room_losses, s->max_consecutive_losses);
+        s->circuit_breaker_cycles = s->circuit_cooldown_cycles;
+        s->circuit_breaker_count++;
+        s->circuit_breaker_ts = window_ts;
+        s->circuit_breaker_peak = total_cap;
+        return true;
+    }
+
+    // 3. Room drawdown check
+    if (s->circuit_breaker_peak > 0 && total_cap > 0) {
+        float dd = (s->circuit_breaker_peak - total_cap) / s->circuit_breaker_peak;
+        if (dd > s->max_drawdown_pct) {
+            fprintf(stderr, "[R4] CIRCUIT BREAKER TRIPPED: Room drawdown %.2f%% exceeds %.2f%%\n",
+                    dd * 100, s->max_drawdown_pct * 100);
+            s->circuit_breaker_cycles = s->circuit_cooldown_cycles;
+            s->circuit_breaker_count++;
+            s->circuit_breaker_ts = window_ts;
+            s->circuit_breaker_peak = total_cap;
+            return true;
+        }
+        // Update peak if new high
+        if (total_cap > s->circuit_breaker_peak)
+            s->circuit_breaker_peak = total_cap;
+    }
+
+    // 4. Max total exposure check
+    if (s->max_total_exposure_pct > 0 && total_cap > 0) {
+        float exposure_pct = s->current_total_exposure / total_cap;
+        if (exposure_pct > s->max_total_exposure_pct) {
+            fprintf(stderr, "[R4] CIRCUIT BREAKER TRIPPED: Total exposure %.2f%% exceeds %.2f%%\n",
+                    exposure_pct * 100, s->max_total_exposure_pct * 100);
+            s->circuit_breaker_cycles = s->circuit_cooldown_cycles;
+            s->circuit_breaker_count++;
+            s->circuit_breaker_ts = window_ts;
+            return true;
+        }
+    }
+
+    // 5. Directional exposure check (C36)
+    if (s->max_direction_pct > 0 && total_cap > 0) {
+        float yes_pct = s->current_yes_exposure / total_cap;
+        float no_pct = s->current_no_exposure / total_cap;
+        if (yes_pct > s->max_direction_pct || no_pct > s->max_direction_pct) {
+            fprintf(stderr, "[R4] CIRCUIT BREAKER TRIPPED: Directional exposure YES=%.2f%% NO=%.2f%% exceeds max=%.2f%%\n",
+                    yes_pct * 100, no_pct * 100, s->max_direction_pct * 100);
+            s->circuit_breaker_cycles = s->circuit_cooldown_cycles;
+            s->circuit_breaker_count++;
+            s->circuit_breaker_ts = window_ts;
+            return true;
+        }
+    }
+
+    return false;  // OK to trade
+}
+
 // Check if this trade key exists in recent history (last 1024 trades)
 static bool is_duplicate_trade(RoomState *s, int64_t key) {
     for (int i = 0; i < 1024; i++) {
@@ -197,6 +306,13 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
     *new_count = 0;
     if (count < 2) return ERR_OK;
 
+    // ═══════════════════════════════════════════════════════
+    //  R4: CIRCUIT BREAKER — Check before any matching
+    // ═══════════════════════════════════════════════════════
+    if (check_circuit_breaker_before_trade(s, agents, MAX_AGENTS, window_ts)) {
+        return ERR_OK;  // Trading halted by circuit breaker
+    }
+
     int max_new = MAX_TRADE_HIST - start_offset;
     if (max_new <= 0) return ERR_OK;
 
@@ -341,6 +457,10 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         // ── C07: Update asset exposure ──
         update_asset_exposure(s, 0, true, matched_stake);
 
+        // ── R4: Track directional exposure for circuit breaker ──
+        s->current_total_exposure += matched_stake;
+        s->current_yes_exposure += matched_stake;
+
         trades[trade_idx].window_ts = window_ts;
         trades[trade_idx].agent_id = yes[i].agent_id;
         trades[trade_idx].direction = true;
@@ -369,6 +489,10 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         record_trade_key(s, trade_key(no[i].agent_id, window_ts, false));
         // ── C07: Update asset exposure ──
         update_asset_exposure(s, 0, false, matched_stake);
+
+        // ── R4: Track directional exposure for circuit breaker ──
+        s->current_total_exposure += matched_stake;
+        s->current_no_exposure += matched_stake;
 
         trades[trade_idx].window_ts = window_ts;
         trades[trade_idx].agent_id = no[i].agent_id;
@@ -402,7 +526,8 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                AgentState *agents,
                                int max_trades,
                                FeatureImportance *importance,
-                               float lr_decay) {
+                               float lr_decay,
+                               RoomState *s) {
     int n = *tcount < max_trades ? *tcount : max_trades;
     if (n == 0) return ERR_OK;
 
@@ -599,6 +724,36 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
             fclose(tlog);
         }
     }
+
+    // ═══════════════════════════════════════════════════════
+    //  R4: CIRCUIT BREAKER STATE UPDATE — Track daily PnL & consec losses
+    // ═══════════════════════════════════════════════════════
+    // Room-level PnL from this resolution batch
+    float room_pnl_this_batch = 0.0f;
+    for (int i = 0; i < n; i++) {
+        if (trades[i].resolved_at != 0 && trades[i].window_ts < resolution_tick->window_ts) {
+            room_pnl_this_batch += trades[i].pnl_pct * trades[i].position_size;
+        }
+    }
+    s->daily_pnl += room_pnl_this_batch;
+
+    // Track consecutive room losses (room trade won/lost)
+    if (yes_count + no_count > 0) {
+        if (yes_won) {
+            s->consec_room_losses = 0;
+            s->daily_loss_streak = 0;
+        } else {
+            s->consec_room_losses++;
+            s->daily_loss_streak++;
+            fprintf(stderr, "[R4] Room loss streak: %d/%d\n",
+                    s->consec_room_losses, s->max_consecutive_losses);
+        }
+    }
+
+    // Clear exposure tracking for resolved trades
+    s->current_total_exposure = 0.0f;
+    s->current_yes_exposure = 0.0f;
+    s->current_no_exposure = 0.0f;
 
     return ERR_OK;
 }
