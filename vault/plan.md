@@ -1,49 +1,60 @@
-# PLAN — Money Room Walkway
+# Plan — Money Room Walkway v5.6
+June 6, 2026 — Phase: FEATURE UNLOCKS + REVENUE READINESS
 
-## Current Focus
-Running perpetual gap-closing loop against vault/battleship-ultimate.md (365 cells).
+## Current Phase: FEATURE UNLOCKS + REVENUE PIPELINE
 
-## Completed
-1. ~~A01: No SGD weight update loop~~ — DONE: added BCE gradient descent to multi_market_trainer.c
-2. ~~A02: Darwin never fires in any room~~ — DONE: fixed infinite-dup-sleep loop (room_engine.c:701-708) + trade_count cross-cron persistence (room_engine.c:657)
-3. ~~A03: All 16 rooms identical binary~~ — DONE: confirmed by-design architecture, not a gap
-4. ~~A04: Rooms show fake 0.50 prices~~ — DONE: room_feed_gen pulls real Manifold binary probabilities from timeline.db (556 markets)
-5. ~~A05: BTC-clone in eco/macro~~ — DONE: FALSE CLAIM, feeds use sp500 correctly
-6. ~~A06: Feed generator may not work~~ — DONE: FALSE CLAIM, feed_gen runs correctly with valid output
-7. ~~A10: Trainer not wired into cron~~ — DONE: FALSE CLAIM, verified crontab daily+15min
-8. ~~A48: Darwin epoch=0 in snapshot~~ — DONE: resolved by A02 trade_count persistence
-9. ~~B01: N_FEATURES=18 ~10 populated~~ — DONE: FALSE CLAIM, all 18 computed
-10. ~~B03: phi features uninitialized~~ — DONE: FALSE CLAIM, compute_phi_features called
-11. ~~C03: Circuit breaker never triggered~~ — DONE: force-resolve room trades on dup-exit (room_engine.c:705-736)
-12. ~~B44: Feed staleness check~~ — DONE: tightened LIVE_MODE thresholds — WARN >5min, REJECT >1h (room_feeds.c:248-278)
-13. ~~D01: timeline.db only has 21-33 rows/ticker~~ — DONE: VERIFIED TRUE, addressed by D02 backfill
-14. ~~D02: No backfill capability~~ — DONE: added --backfill flag (v8 API, 1-year chunks, rate-limited)
-15. ~~D39: No data staleness flag~~ — DONE: FALSE CLAIM — handled by B44 (room_feeds.c:254-277)
-16. ~~A04: Real data for prediction rooms~~ — DONE: room_feed_gen pulls 556 Manifold binary markets
+### COMPLETED THIS SESSION
+- ✅ **R1-R3: Regulatory disclaimers** on ALL performance metric pages (7 pages)
+- ✅ **T441: SEC EDGAR 13F+Form 4 scraper** — 13f_holdings.c + insider_trades.c built, tested, cron'd daily
+- ✅ **Walkway files updated** — state.md, plan.md, prestige.md, battleship-ultimate.md, index.md, entry.md
 
-## Next Cell
-Pick next undone P1 from battleship.
+### SYSTEM STATE
+- timeline.db: 2.4GB, 2M+ rows (17 years: 2011-2028)
+- historical.db: 503 SP500, 2.5K daily, 50K multi-exch
+- Engine: 229K cycles, 218K trades, 2,500 agents, $124K cap
+- 80 features defined: ~28 work, ~52 need data wiring
+- Website live at waefrebeorn.github.io/money-room
+- Cost: $0/month (all free APIs)
+- STATE_VERSION=4, STATE_MAGIC=ROMB
 
-## Completed (batch 2)
-1. ~~B12: BTC-SP500 equity correlation feature~~ — DONE: F33, rolling Pearson, persistent SP500 history
-2. ~~room_bridge feat_names stale (18→33)~~ — DONE: was OOB on 33 features
-3. ~~test_regression N_FEATURES=80~~ — DONE: was stale, now 34
-4. ~~B23: VIX regime filter~~ — DONE: F34, continuous VIX<15→0, 15-25→0.5, >25→1
-5. ~~B04: tail_risk_score~~ — DONE: vaulted stale (fixed by B02)
-6. ~~A19: Mini-batch SGD~~ — DONE: batch size 8, persistent accumulators
+### 🔴 IMMEDIATE P0 (Next Session)
+**Priority order by impact/hour:**
 
-## Completed (batch 3)
-1. ~~F07: Resource monitoring~~ — DONE: resource_monitor.c /proc monitor (CPU/memory/disk/process)
-2. ~~C36: Directional exposure tracking~~ — DONE: YES/NO concentration capped at 15%/direction (ROM9)
+| # | Cell | Task | Est Time | Impact |
+|---|------|------|----------|--------|
+| 1 | R4-R8 | Pre-trade circuit breakers, privacy policy, ToS, GDPR/CCPA consent | 2h | 🔴 Legal risk |
+| 2 | T712 | LemonSqueezy integration + PayPal fallback | 4h | 🔴 First $ revenue |
+| 3 | T483-T490 | Kelly sizing + VaR + volatility sizing | 2h | ⏳ Build |
 
-## Completed (batch 4)
-1. ~~F05: Graceful shutdown~~ — DONE: SIGTERM/SIGINT handler in room_engine.c. Fluent msync on shutdown. P1: 99→98.
+### 🟡 P1 (After P0)
+| # | Cell | Task | Est Time | Status |
+|---|------|------|----------|--------|
+| 4 | T256 | Finnhub earnings calendar | 0.5h | ⏳ Needs API key |
+| 5 | T542 | Encrypted secrets vault (libsodium) | 1h | ⏳ Build |
+| 6 | T543 | Order management system | 2h | ⏳ Build |
+| 7 | T624-T632 | Monitoring dashboard + Telegram heartbeat | 2h | ⏳ Build |
+| 8 | T721-T730 | Open-Meteo weather (global) | 1h | ✅ Mostly done |
 
-## Completed (batch 5)
-1. ~~A57: Cycle count persistence~~ — DONE: prev_cycle saved before boot-time reset, restored after. P1: 98→97.
+### 🟢 P2 (After P1)
+| # | Cell | Task | Est Time |
+|---|------|------|----------|
+| 9 | T752-T770 | Test suite — unit tests for core engine | 3h |
+| 10 | T842-T876 | Agent architecture upgrades | 4h |
 
-## Completed (batch 6)
-1. ~~A58: Heartbeat timeout alert~~ — DONE: heartbeat.json/alert_timeout.json written by cycle_all_rooms on launch/completion/timeout. P1: 97→96.
+### REGULATORY FIXES (Interleaved with Tech)
+| # | Fix | Cell | When |
+|---|-----|------|------|
+| R4 | Add pre-trade circuit breakers | T480-T482 | Before real money |
+| R5 | Document scraping ToS per source | T1354 | Before any scraping |
+| R6 | Implement order audit trail | T569 | Before real money |
+| R7 | SEC AI-washing language audit | T724 | Before public launch |
+| R8 | GDPR/CCPA consent flow | T723 | Before user accounts |
 
-## Completed (batch 7)
-1. ~~B37: Feature staleness detection~~ — DONE: check_feature_staleness() in room_features.c checks mtime on 10 external feature files per cycle. [STALE] WARN/CRIT to stderr + report file. P1: 96→95.
+### RULES
+- All C. No Python. libcurl + jansson + sqlite3.
+- NO delegation (delegate_task banned permanently).
+- Read walkway → pick lowest undone cell → fix → update → push → loop.
+- Zero Telegram noise (all cron deliver=local).
+- Always show results after tool calls (no silent replies).
+- Update battleship after each cell closed.
+- Push after each batch (5-10 cells).
