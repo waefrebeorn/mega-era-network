@@ -1,13 +1,17 @@
-# Plan — Money Room Walkway v5.7
-June 6, 2026 — Phase: FEATURE UNLOCKS + REVENUE READINESS
+# Plan — Money Room Walkway v5.8
+June 6, 2026 — Phase: REVENUE READINESS (Regulatory Complete)
 
-## Current Phase: FEATURE UNLOCKS + REVENUE PIPELINE
+## Current Phase: REVENUE PIPELINE (Regulatory Complete ✅)
 
 ### COMPLETED THIS SESSION
 - ✅ **R1-R3: Regulatory disclaimers** on ALL performance metric pages (7 pages)
 - ✅ **T441: SEC EDGAR 13F+Form 4 scraper** — 13f_holdings.c + insider_trades.c built, tested, cron'd daily
 - ✅ **R4: 5-layer circuit breaker** — Pre-trade risk controls in room_capital.c
-- ✅ **Walkway files updated** — state.md, plan.md, prestige.md, battleship-ultimate.md, index.md, entry.md
+- ✅ **R5: Privacy Policy v2.0** — GDPR/CCPA: legal basis (Art. 6), retention, rights, SCCs, DPO
+- ✅ **R6: Terms v2.0** — GDPR/CCPA: IP rights, governing law, rights acknowledgment
+- ✅ **R8: Register consent flow** — 4 granular checkboxes, versioning, localStorage + server payload
+- ✅ **Cookie consent banner** on all main pages (GDPR Art. 7)
+- ✅ **Walkway files updated** — state.md, plan.md, prestige.md, battleship-ultimate.md
 
 ### SYSTEM STATE
 - timeline.db: 2.4GB, 2M+ rows (17 years: 2011-2028)
@@ -23,33 +27,34 @@ June 6, 2026 — Phase: FEATURE UNLOCKS + REVENUE READINESS
 
 | # | Cell | Task | Est Time | Impact |
 |---|------|------|----------|--------|
-| 1 | **R4** | **DONE** — 5-layer circuit breaker: daily loss, consecutive losses, drawdown, exposure, panic stop | — | ✅ Pre-trade risk controls implemented |
-| 2 | R5-R8 | Privacy policy, ToS, GDPR/CCPA consent, scraping ToS | 2h | 🔴 Legal risk |
-| 3 | T712 | LemonSqueezy integration + PayPal fallback | 4h | 🔴 First $ revenue |
-| 4 | T483-T490 | Kelly sizing + VaR + volatility sizing | 2h | ⏳ Build |
+| 1 | **R7** | SEC AI-washing language audit | 2h | 🔴 Legal risk |
+| 2 | **T712** | LemonSqueezy integration + PayPal fallback | 4h | 🔴 First $ revenue |
+| 3 | **T483-T490** | Kelly sizing + VaR + volatility sizing | 2h | ⏳ Build |
 
 ### 🟡 P1 (After P0)
 | # | Cell | Task | Est Time | Status |
 |---|------|------|----------|--------|
-| 5 | T256 | Finnhub earnings calendar | 0.5h | ⏳ Needs API key |
-| 6 | T542 | Encrypted secrets vault (libsodium) | 1h | ⏳ Build |
-| 7 | T543 | Order management system | 2h | ⏳ Build |
-| 8 | T624-T632 | Monitoring dashboard + Telegram heartbeat | 2h | ⏳ Build |
-| 9 | T721-T730 | Open-Meteo weather (global) | 1h | ✅ Mostly done |
+| 4 | **T256** | Finnhub earnings calendar | 0.5h | ⏳ Needs API key |
+| 5 | **T542** | Encrypted secrets vault (libsodium) | 1h | ⏳ Build |
+| 6 | **T543** | Order management system | 2h | ⏳ Build |
+| 7 | **T624-T632** | Monitoring dashboard + Telegram heartbeat | 2h | ⏳ Build |
+| 8 | **T721-T730** | Open-Meteo weather (global) | 1h | ✅ Mostly done |
 
 ### 🟢 P2 (After P1)
 | # | Cell | Task | Est Time |
 |---|------|------|----------|
-| 10 | T752-T770 | Test suite — unit tests for core engine | 3h |
-| 11 | T842-T876 | Agent architecture upgrades | 4h |
+| 9 | **T752-T770** | Test suite — unit tests for core engine | 3h |
+| 10 | **T842-T876** | Agent architecture upgrades | 4h |
 
-### REGULATORY FIXES (Interleaved with Tech)
-| # | Fix | Cell | When |
-|---|-----|------|------|
-| R5 | Document scraping ToS per source | T1354 | Before any scraping |
-| R6 | Implement order audit trail | T569 | Before real money |
-| R7 | SEC AI-washing language audit | T724 | Before public launch |
-| R8 | GDPR/CCPA consent flow | T723 | Before user accounts |
+### REGULATORY FIXES (Complete)
+| # | Fix | Status |
+|---|-----|--------|
+| R1-R3 | Disclaimers on all metrics | ✅ DONE |
+| R4 | Pre-trade circuit breakers | ✅ DONE |
+| R5 | Privacy Policy v2.0 (GDPR/CCPA) | ✅ DONE |
+| R6 | Terms v2.0 (GDPR/CCPA) | ✅ DONE |
+| R7 | SEC AI-washing audit | ❌ PENDING |
+| R8 | GDPR/CCPA consent flow | ✅ DONE |
 
 ### RULES
 - All C. No Python. libcurl + jansson + sqlite3.

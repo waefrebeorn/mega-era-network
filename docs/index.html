@@ -563,10 +563,48 @@ function loadDeploy(){
     .then(function(d){
       if(d.last_push){setEl('healthDeploy','⚡ Deployed: '+ago(d.last_push)+' ago');}
     }).catch(function(){});
+}).catch(function(){});}
+}).catch(function(){});
 }
 
-/* ── Data stream animation ── */
-function animateDataStream(){
+/* ── GDPR Cookie Consent ═══ */
+function initCookieConsent() {
+var dismissed = localStorage.getItem('cookieConsentDismissed');
+var accepted = localStorage.getItem('cookieConsentAccepted');
+if (dismissed || accepted) return;
+
+var banner = document.createElement('div');
+banner.id = 'cookieBanner';
+banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:var(--surface);border-top:1px solid var(--border);padding:16px 20px;font-size:13px;color:var(--text);box-shadow:0 -4px 24px rgba(0,0,0,0.3)';
+banner.innerHTML = '\
+<div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">\
+  <div style="display:flex;align-items:center;gap:10px;flex:1">\
+    <span style="font-size:18px">🍪</span>\
+    <span>We use cookies and similar technologies for essential functionality, security, analytics, and (with your consent) marketing. See our <a href="privacy.html" style="color:var(--accent);text-decoration:underline">Privacy Policy</a>.</span>\
+  </div>\
+  <div style="display:flex;gap:8px;flex-shrink:0">\
+    <button id="cookieAccept" style="padding:8px 16px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Accept All</button>\
+    <button id="cookieReject" style="padding:8px 16px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Reject Optional</button>\
+    <button id="cookieSettings" style="padding:8px 16px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Settings</button>\
+  </div>\
+</div>';
+document.body.appendChild(banner);
+
+document.getElementById('cookieAccept').onclick = function() {
+localStorage.setItem('cookieConsentAccepted', JSON.stringify({essential:true, security:true, marketing:true, analytics:true, timestamp:new Date().toISOString(), version:'2.0'}));
+banner.remove();
+};
+document.getElementById('cookieReject').onclick = function() {
+localStorage.setItem('cookieConsentAccepted', JSON.stringify({essential:true, security:true, marketing:false, analytics:false, timestamp:new Date().toISOString(), version:'2.0'}));
+banner.remove();
+};
+document.getElementById('cookieSettings').onclick = function() {
+window.location.href = 'register.html';
+};
+}
+
+/* ═══ Data stream animation ═══ */
+function animateDataStream() {
   var el=$('dataStream');if(!el)return;
   var chars='0123456789abcdef█▓▒░▄▅▆▇█▌▐▀▬';
   var line=el.textContent;
@@ -582,6 +620,7 @@ function animateDataStream(){
 
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded',function(){
+  initCookieConsent();  // GDPR cookie consent
   updateNav();
   // Load ticker with engine stats
   loadTicker();loadMarketPrices();loadStats();loadDeploy();animateDataStream();

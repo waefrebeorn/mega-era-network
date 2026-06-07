@@ -18,10 +18,10 @@
 | R2 | PORTED | Reg disclaimer on rooms.html (live engine stats) | docs/rooms.html |
 | R3 | PORTED | Reg disclaimer on paper/live/dashboard/pricing.html | docs/paper.html, live.html, dashboard.html, pricing.html |
 | **R4** | **PORTED** | **5-layer circuit breaker: daily loss >10%, consecutive losses >6, drawdown >20%, max exposure %, directional exposure %, panic stop flag** | engine/room_capital.c:41-115, 315-322, 460-470, 720-750 |
-| R5 | REAL GAP | Privacy policy page content audit | docs/privacy.html |
-| R6 | REAL GAP | Terms of service content audit | docs/terms.html |
+| **R5** | **PORTED** | **Privacy policy v2.0 — GDPR/CCPA compliant: legal basis (Art. 6), retention schedules, rights (access/erasure/portability), SCCs, DPO contact** | docs/privacy.html:1-89 |
+| **R6** | **PORTED** | **Terms of Service v2.0 — GDPR/CCPA: IP rights, governing law, rights acknowledgment (Arts. 15-22, §1798.100-199)** | docs/terms.html:1-14 |
 | R7 | REAL GAP | SEC AI-washing language audit | docs/* |
-| R8 | REAL GAP | GDPR/CCPA consent flow | register.html |
+| **R8** | **PORTED** | **Register.html — GDPR/CCPA consent flow: 4 granular checkboxes (essential/security/marketing/analytics), consent versioning, written to localStorage + server payload** | docs/register.html:106-140, 218-260 |
 
 ---
 
@@ -61,4 +61,4 @@
 
 ---
 
-### PORTED COUNT: 75 | REAL GAP: 11 | PARTIAL: 18 | TOTAL: 86
+### PORTED COUNT: 78 | REAL GAP: 8 | PARTIAL: 18 | TOTAL: 86

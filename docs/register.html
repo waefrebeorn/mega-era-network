@@ -106,6 +106,38 @@
         <label for="regName">Name (optional)</label>
         <input type="text" id="regName" placeholder="Your name" autocomplete="name">
       </div>
+
+      <!-- GDPR/CCPA Consent Flow -->
+      <div class="form-group" style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border-standard)">
+        <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px;font-weight:600">Data Processing Consent (GDPR/CCPA)</div>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-secondary);line-height:1.5;cursor:pointer">
+          <input type="checkbox" id="consentEssential" required style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent);flex-shrink:0">
+          <span><b>Essential:</b> Process email/name for account creation, API key generation, and service delivery (Art. 6(1)(b) GDPR). <span style="color:var(--accent)">Required</span></span>
+        </label>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-secondary);line-height:1.5;cursor:pointer;margin-top:8px">
+          <input type="checkbox" id="consentSecurity" required style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent);flex-shrink:0">
+          <span><b>Security & Fraud Prevention:</b> Process IP, device info, and API logs for rate limiting, abuse prevention, and security (Art. 6(1)(f) GDPR). <span style="color:var(--accent)">Required</span></span>
+        </label>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-secondary);line-height:1.5;cursor:pointer;margin-top:8px">
+          <input type="checkbox" id="consentMarketing" style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent);flex-shrink:0">
+          <span><b>Marketing Communications:</b> Receive product updates, security notices, and promotional emails. Opt-out anytime. <span style="color:var(--orange)">Optional</span></span>
+        </label>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-secondary);line-height:1.5;cursor:pointer;margin-top:8px">
+          <input type="checkbox" id="consentAnalytics" style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent);flex-shrink:0">
+          <span><b>Analytics & Improvement:</b> Allow anonymous usage analytics to improve the Service. <span style="color:var(--orange)">Optional</span></span>
+        </label>
+
+        <p style="font-size:11px;color:var(--text-quaternary);margin-top:12px">
+          By registering, you agree to our <a href="../terms.html" style="color:var(--accent)">Terms of Service</a> and <a href="../privacy.html" style="color:var(--accent)">Privacy Policy</a>.
+          You can withdraw consent or exercise your GDPR/CCPA rights anytime by emailing <a href="mailto:eman56447@gmail.com" style="color:var(--accent)">eman56447@gmail.com</a>.
+          California residents: <a href="../privacy.html#ccpa" style="color:var(--accent)">Do Not Sell My Personal Information</a>.
+        </p>
+      </div>
+
       <button class="btn-primary" id="regBtn" onclick="register()">🔑 Get Free API Key</button>
       <div class="status-msg" id="regStatus"></div>
 
@@ -186,6 +218,25 @@ function register() {
     return;
   }
 
+  // Validate required consent checkboxes
+  var consentEssential = $('consentEssential').checked;
+  var consentSecurity = $('consentSecurity').checked;
+  if (!consentEssential || !consentSecurity) {
+    status.className = 'status-msg error';
+    status.textContent = 'Please accept the required consent items (Essential + Security).';
+    return;
+  }
+
+  // Collect consent data
+  var consents = {
+    essential: $('consentEssential').checked,
+    security: $('consentSecurity').checked,
+    marketing: $('consentMarketing').checked,
+    analytics: $('consentAnalytics').checked,
+    timestamp: new Date().toISOString(),
+    version: '2.0'
+  };
+
   btn.disabled = true;
   btn.textContent = '⏳ Registering...';
   status.className = 'status-msg info';
@@ -196,7 +247,8 @@ function register() {
     email: email,
     name: name,
     tier: 'trial_1d',
-    expires_in: 24
+    expires_in: 24,
+    consents: consents
   });
 
   fetch(DATA_SERVER + '/register', {

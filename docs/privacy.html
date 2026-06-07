@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="description" content="Privacy policy for Money Room platform. Data handling and usage information.">
+<meta name="description" content="Privacy policy for Money Room platform. GDPR/CCPA compliant data handling and usage information.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy Policy — Money Room</title>
@@ -19,43 +19,89 @@
 
 <div class="legal-page container">
   <h1>🔒 Privacy Policy</h1>
-  <p><em>Last updated: May 30, 2026</em></p>
+  <p><em>Last updated: June 6, 2026 — Version 2.0 (GDPR/CCPA Updated)</em></p>
+
+  <div class="reg-disclaimer" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;line-height:1.6">
+    <strong>GDPR/CCPA Notice:</strong> This policy complies with the EU General Data Protection Regulation (GDPR) and California Consumer Privacy Act (CCPA). You have the right to access, rectify, erase, restrict processing, data portability, and object to processing of your personal data. California residents have the right to know, delete, and opt-out of sale of personal information.
+  </div>
 
   <h2>1. Information We Collect</h2>
   <p>We collect minimal information necessary to provide our services:</p>
   <ul>
-    <li><b>Account Data:</b> Email address and payment information (processed through LemonSqueezy, we never store payment details).</li>
-    <li><b>Usage Data:</b> API request logs (endpoint, timestamp, response size) for rate limiting and abuse prevention.</li>
-    <li><b>Wallet Addresses:</b> Optional donation wallet addresses you provide for receiving payments.</li>
+    <li><b>Account Data:</b> Email address, name (optional), and payment information (processed through LemonSqueezy — we never store payment details).</li>
+    <li><b>Usage Data:</b> API request logs (endpoint, timestamp, response size, IP address) for rate limiting, abuse prevention, and security monitoring.</li>
+    <li><b>Technical Data:</b> Browser type, operating system, device information, and referral source for analytics and debugging.</li>
+    <li><b>Wallet Addresses:</b> Optional cryptocurrency wallet addresses you provide for receiving payments or donations.</li>
+    <li><b>Correspondence:</b> Communications you send to us (support tickets, feedback, inquiries).</li>
   </ul>
 
-  <h2>2. How We Use Your Data</h2>
+  <h2>2. Legal Basis for Processing (GDPR Article 6)</h2>
+  <p>We process your personal data on the following lawful bases:</p>
   <ul>
-    <li>To provide and maintain our services</li>
-    <li>To enforce rate limits and prevent abuse</li>
+    <li><b>Contract Performance (Art. 6(1)(b)):</b> To provide API access, dashboard, and subscription services you requested.</li>
+    <li><b>Legitimate Interest (Art. 6(1)(f)):</b> Security monitoring, fraud prevention, service improvement, and analytics.</li>
+    <li><b>Legal Obligation (Art. 6(1)(c)):</b> KYC/AML compliance, tax reporting, and regulatory requirements.</li>
+    <li><b>Consent (Art. 6(1)(a)):</b> Marketing communications (opt-in only), analytics cookies (where applicable).</li>
+  </ul>
+
+  <h2>3. How We Use Your Data</h2>
+  <ul>
+    <li>To provide and maintain our services (API access, dashboard, predictions)</li>
+    <li>To enforce rate limits, prevent abuse, and ensure security</li>
     <li>To comply with legal obligations (KYC/AML where applicable)</li>
+    <li>To process payments and manage subscriptions via LemonSqueezy</li>
+    <li>To communicate service updates, security notices, and account changes</li>
     <li>We do NOT sell your personal data to third parties</li>
-    <li>We do NOT use your data for advertising</li>
+    <li>We do NOT use your data for advertising or behavioral profiling</li>
   </ul>
 
-  <h2>3. Data Storage & Security</h2>
-  <p>Account data is stored encrypted at rest. API keys are stored using environment variables with file permissions restricted to the running user (chmod 600). We use industry-standard security practices.</p>
+  <h2>4. Data Storage & Security</h2>
+  <p>Account data is stored encrypted at rest using AES-256-GCM. API keys are stored using environment variables with file permissions restricted to the running user (chmod 600). Access logs are retained for 90 days. We use industry-standard security practices including TLS 1.3 for data in transit.</p>
+  <p><b>Data Location:</b> Primary infrastructure hosted in the US (GitHub Pages, Vercel). By using our service, you consent to transfer of your data to the US.</p>
 
-  <h2>4. Third-Party Services</h2>
+  <h2>5. Third-Party Services</h2>
   <ul>
-    <li><b>LemonSqueezy:</b> Payment processing and subscription management</li>
-    <li><b>GitHub:</b> Source code hosting</li>
-    <li><b>NousResearch:</b> LLM API provider for agent reasoning</li>
+    <li><b>LemonSqueezy:</b> Payment processing, subscription management, tax compliance (Merchant of Record). Privacy Policy: <a href="https://www.lemonsqueezy.com/privacy" target="_blank" rel="noopener">lemonsqueezy.com/privacy</a></li>
+    <li><b>GitHub:</b> Source code hosting, issue tracking. Privacy Policy: <a href="https://docs.github.com/en/site-policy/privacy-policies" target="_blank" rel="noopener">github.com/about/privacy</a></li>
+    <li><b>NousResearch:</b> LLM API provider for agent reasoning (agent output only, no user data). Privacy Policy: <a href="https://nousresearch.com/privacy" target="_blank" rel="noopener">nousresearch.com/privacy</a></li>
   </ul>
 
-  <h2>5. Data Retention</h2>
-  <p>We retain usage logs for 90 days. Account data is retained until account deletion. You may request deletion of your data at any time by contacting us.</p>
+  <h2>6. Data Retention</h2>
+  <ul>
+    <li>Usage logs (API requests, IP): 90 days</li>
+    <li>Account data (email, name, preferences): Until account deletion + 30 days</li>
+    <li>Payment records (via LemonSqueezy): Per LemonSqueezy's retention policy (typically 7 years for tax)</li>
+    <li>Security logs: 1 year</li>
+    <li>Correspondence: 2 years</li>
+  </ul>
 
-  <h2>6. Your Rights</h2>
-  <p>You have the right to access, correct, or delete your personal data. Contact us at eman56447@gmail.com for any privacy-related requests.</p>
+  <h2>7. Your Rights</h2>
+  <p>You have the following rights under GDPR and CCPA:</p>
+  <ul>
+    <li><b>Access:</b> Request a copy of your personal data</li>
+    <li><b>Rectification:</b> Correct inaccurate or incomplete data</li>
+    <li><b>Erasure ("Right to be Forgotten"):</b> Request deletion of your data</li>
+    <li><b>Restriction:</b> Limit how we process your data</li>
+    <li><b>Portability:</b> Receive your data in a structured, machine-readable format</li>
+    <li><b>Objection:</b> Object to processing based on legitimate interest</li>
+    <li><b>CCPA Opt-Out:</b> Opt-out of "sale" of personal information (we don't sell, but you can opt-out of sharing)</li>
+    <li><b>Withdraw Consent:</b> Where processing is based on consent, withdraw at any time</li>
+  </ul>
+  <p>To exercise any right, email <b>eman56447@gmail.com</b> with subject "Data Rights Request". We respond within 30 days (GDPR) or 45 days (CCPA).</p>
 
-  <h2>7. Contact</h2>
-  <p>Email: eman56447@gmail.com</p>
+  <h2>8. Children's Privacy</h2>
+  <p>Our service is not intended for individuals under 16 (GDPR) or 13 (CCPA). We do not knowingly collect data from children. If you believe we have collected data from a minor, contact us immediately.</p>
+
+  <h2>9. International Transfers</h2>
+  <p>Your data may be processed in the US. The EU has not issued an adequacy decision for the US. We rely on Standard Contractual Clauses (SCCs) and your explicit consent for transfers. By using our service, you consent to this transfer.</p>
+
+  <h2>10. Changes to This Policy</h2>
+  <p>We will notify registered users of material changes via email and update the "Last updated" date above. Continued use after changes constitutes acceptance.</p>
+
+  <h2>11. Contact</h2>
+  <p><b>Data Controller:</b> Money Room (eman56447@gmail.com)</p>
+  <p><b>Data Protection Officer:</b> eman56447@gmail.com</p>
+  <p><b>EU Representative:</b> Not appointed (service targets US primarily; contact us for EU inquiries)</p>
 </div>
 
 <footer class="footer">
