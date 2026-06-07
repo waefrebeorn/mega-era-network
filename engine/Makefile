@@ -175,7 +175,7 @@ earnings_cal: earnings_cal.c
 	$(CC) -O2 -o $@ $< -lcurl -ljansson -lsqlite3 -lm
 
 # ── Run test suite ──
-test: test_runner
+test:
 	@echo "--- checking for stale 0-byte binaries ---"; \
 	STALE=""; \
 	for b in health_check withdrawal_scheduler data_server test_runner; do \
@@ -186,7 +186,7 @@ test: test_runner
 		echo "Run 'rm -f$$STALE && make $$STALE' to rebuild"; \
 		exit 1; \
 	fi
-	@./test_runner
+	@cd /home/wubu2/money-room/engine && ./test_runner
 
 # ── Regime detection (reads BTC 1-min CSV, writes docs/data/regime.json) ──
 regime_json: regime_detect
