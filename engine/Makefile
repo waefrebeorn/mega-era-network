@@ -25,7 +25,7 @@ MKT_TARGET = room_engine_market
 # Tools: shell-to-C conversions
 TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all
 TOOL_SRCS = $(addsuffix .c, $(TOOLS))
-TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check data_quality_scorer trade_history_db state_rollback
+TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check data_quality_scorer trade_history_db state_rollback room_darwin room_features
 
 market: CFLAGS += -DMARKET_MODE
 market: $(MKT_TARGET)
@@ -52,7 +52,7 @@ paper_feature_bridge.o: paper_feature_bridge.c paper_feature_bridge.h types.h
 	$(CC) $(CFLAGS) -c paper_feature_bridge.c -o paper_feature_bridge.o
 
 clean:
-	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor coingecko_fallback timeline_sync
+	rm -f $(OBJS) $(PAPER_OBJS) $(TARGET) $(TARGET)_paper exchange_api.o exchange_api_test room_feed_bridge $(TOOL_BINS) congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat earnings_calendar earnings_cal resource_monitor coingecko_fallback timeline_sync room_darwin room_features
 
 # ── Shell-to-C conversions ──
 tools: cycle_all_rooms cycle_all_rooms_parallel room_feed_bridge paper_train collector_runner refresh_all cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal resource_monitor
@@ -199,9 +199,19 @@ risk_json: risk_report
 	./risk_report
 
 # ── Stress test (runs crash scenarios against current room state) ──
+stress_test: stress_test.c
+	$(CC) -O2 -o $@ $< -lsqlite3 -lm
 stress_json: stress_test
 	./stress_test /home/wubu2/.hermes/pm_logs/c_room/room_state.bin > ../docs/data/stress_test_result.txt 2>&1
 	@echo "Stress test result written to docs/data/stress_test_result.txt"
+
+# ── room_darwin (Darwin evolution module test) ──
+room_darwin: room_darwin_test.c room_darwin.c
+	$(CC) -O2 -o $@ $^ -lm
+
+# ── room_features (Feature computation module test) ──
+room_features: room_features_test.c room_features.c
+	$(CC) -O2 -o $@ $^ -lm
 
 # ── Survival stats (agent age, generation, survival rate) ──
 survival_stats: survival_stats.c types.h
