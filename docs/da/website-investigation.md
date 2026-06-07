@@ -3,7 +3,7 @@
 
 ## Phase 1: CLAIMS
 
-The website at https://waefrebeorn.github.io/money-room/ claims:
+The website at http://localhost:9091/ claims:
 
 | # | Claim | Source |
 |---|-------|--------|
