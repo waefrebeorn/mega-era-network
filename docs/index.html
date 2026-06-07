@@ -241,6 +241,78 @@
   <a href="demos/" style="padding:8px 20px;background:var(--orange);color:var(--bg-deep);border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;transition:all 0.2s">View Demo →</a>
 </div>
 
+<!-- LIVE SERVER IFRAME / PROMO -->
+<section class="section" id="liveServerFrame" style="border-top:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle);background:var(--bg-panel)">
+  <div class="container">
+    <div class="section-title">
+      <h2>Live <span>Server Access</span></h2>
+      <p>Real-time dashboard served from the laptop engine (C data_server + nginx, auth + rate-limited).</p>
+    </div>
+    <div id="serverFrameWrapper">
+      <!-- Config: set TUNNEL_URL to your Cloudflare tunnel URL (e.g. https://moneyroom.waefrebeorn.com or https://xxx.trycloudflare.com) -->
+      <div id="serverFrameContent" style="display:none">
+        <iframe id="liveServerIframe" src="" style="width:100%;height:700px;border:none;border-radius:12px;background:#0a0a0f" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </div>
+      <div id="serverPromoCard" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;background:linear-gradient(135deg,rgba(15,23,42,0.9),rgba(30,41,59,0.9));border:1px solid var(--border-subtle);border-radius:12px;padding:48px 32px;text-align:center;gap:20px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">
+          <span style="background:rgba(52,211,153,0.15);color:#34d399;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600">🔐 Secured</span>
+          <span style="background:rgba(255,159,67,0.15);color:var(--orange);padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600">📊 Live Data</span>
+          <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600">⚡ Real-time</span>
+        </div>
+        <h3 style="font-size:1.75rem;margin:0;color:var(--text-primary)">Money Room Live Dashboard</h3>
+        <p style="max-width:600px;margin:0;color:var(--text-tertiary);line-height:1.6">The full engine UI with live agent rankings, market prices, pipeline health, cycle metrics, and API key management — served from the laptop via secure nginx reverse proxy with basic auth and strict rate limiting.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px">
+          <button id="loadServerBtn" class="btn-primary" style="padding:12px 28px;font-size:1rem" onclick="loadLiveServer()">🚀 Load Live Server</button>
+          <a href="demos/" class="btn-secondary" style="padding:12px 28px;font-size:1rem">🆓 Try Free Demo</a>
+        </div>
+        <details style="margin-top:16px;text-align:left;max-width:600px;color:var(--text-quaternary);font-size:13px">
+          <summary style="cursor:pointer;color:var(--text-tertiary)">How to access directly</summary>
+          <div style="margin-top:12px;padding:16px;background:rgba(0,0,0,0.3);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8">
+            <div># Quick tunnel (no account)</div>
+            <div style="color:var(--green)">cloudflared tunnel --url https://localhost:8443</div>
+            <div style="margin-top:8px"># Named tunnel (production)</div>
+            <div style="color:var(--green)">cloudflared tunnel run --token &lt;TOKEN&gt; moneyroom</div>
+            <div style="margin-top:8px"># Then update TUNNEL_URL in this page</div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // CONFIG: Set your Cloudflare tunnel URL here
+  // Options:
+  //   - Quick tunnel: 'https://random-name.trycloudflare.com' (changes on restart)
+  //   - Named tunnel: 'https://moneyroom.yourdomain.com' (stable)
+  //   - Local only:   'https://localhost:8443' (won't work on GitHub Pages)
+  const TUNNEL_URL = 'https://moneyroom.trycloudflare.com'; // <-- UPDATE THIS
+
+  function loadLiveServer() {
+    const wrapper = document.getElementById('serverFrameWrapper');
+    const promo = document.getElementById('serverPromoCard');
+    const frame = document.getElementById('serverFrameContent');
+    const iframe = document.getElementById('liveServerIframe');
+
+    // Build URL with basic auth if available
+    const apiKey = localStorage.getItem('mr_api_key');
+    let url = TUNNEL_URL || 'https://moneyroom.trycloudflare.com';
+    
+    iframe.src = url;
+    promo.style.display = 'none';
+    frame.style.display = 'block';
+    window.scrollTo({ top: frame.offsetTop - 80, behavior: 'smooth' });
+  }
+
+  // Auto-load if TUNNEL_URL is configured and not placeholder
+  window.addEventListener('DOMContentLoaded', function() {
+    const configured = TUNNEL_URL && TUNNEL_URL !== 'https://moneyroom.trycloudflare.com';
+    if (configured) {
+      loadLiveServer();
+    }
+  });
+</script>
+
 <section class="stats-bar" id="engineStats">
   <div class="container">
     <div class="grid" id="metricGrid">
