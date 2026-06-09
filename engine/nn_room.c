@@ -19,7 +19,7 @@
 #define N_HIDDEN    16
 #define N_OUTPUTS   1
 #define INIT_CAP    50.0f
-#define TAKER_FEE   0.001f
+#define TAKER_FEE   0.0026f
 #define LEARN_RATE  0.001f
 #define WARMUP_CYCLES 100  // Need 50+ for feature warmup
 #define MAX_CANDLES 100000

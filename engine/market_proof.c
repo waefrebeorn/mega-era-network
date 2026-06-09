@@ -25,7 +25,7 @@
 #define PERIODS_PER_YEAR  35040.0f
 
 // Fee
-#define TAKER  0.001f  // 0.1% taker
+#define TAKER  0.0026f  // Kraken taker fee
 
 // ── Agent state (simplified — tracks all 8 criteria) ──
 typedef struct {

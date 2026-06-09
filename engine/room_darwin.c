@@ -105,34 +105,20 @@ static float edge_zscore(const AgentState *a) {
 
 static float agent_fitness(const AgentState *a) {
     if (!a->alive || a->trades <= 0) return 0.0f;
-    // Bayesian-adjusted win rate: pulls toward 0.5 for agents with few trades
-    float confidence = (float)a->trades / (float)(a->trades + MIN_TRADES_FOR_RANKING);
-    float wr_score = a->win_rate_ema * confidence + 0.5f * (1.0f - confidence);
-
-    // ── A40: Multi-objective evolution — combine WR + PnL + drawdown + trade frequency ──
-    // PnL score: total_pnl normalized by starting capital (range roughly -1 to +1)
-    float pnl_score = 0.0f;
-    if (a->starting_capital > 0.0f) {
-        pnl_score = a->total_pnl / a->starting_capital;
-        // Normalize to [0,1] range: clamp to [-1,1] then scale
-        if (pnl_score > 1.0f) pnl_score = 1.0f;
-        if (pnl_score < -1.0f) pnl_score = -1.0f;
-        pnl_score = (pnl_score + 1.0f) * 0.5f;
-    }
-    // Drawdown penalty: lower is better, max_drawdown is 0-1
-    float dd_score = 1.0f - a->max_drawdown; // 1.0 = no drawdown, 0.0 = total loss
-    if (dd_score < 0.0f) dd_score = 0.0f;
-    // Trade frequency bonus: agents that trade more get slight boost (0 to 0.2)
-    float freq_score = fminf((float)a->trades / 200.0f, 1.0f) * 0.2f;
-
-    // Weighted combination: WR 40% + PnL 30% + Drawdown 20% + Frequency 10%
-    // ── C31: Penalize agents without statistically significant edge ──
-    float base_fitness = wr_score * 0.40f + pnl_score * 0.30f + dd_score * 0.20f + freq_score * 0.10f;
+    // ── DA Fix: fitness = WR × √trades × log(1+capital) ──
+    // Replaces multi-objective with mathematically grounded edge metric
+    float trades_factor = sqrtf((float)a->trades);
+    float capital_factor = logf(1.0f + a->capital);
+    if (capital_factor < 0.0f) capital_factor = 0.0f;
+    float fitness = a->win_rate_ema * trades_factor * capital_factor;
+    
+    // Penalize agents without statistically significant edge after 100 trades
     float z = edge_zscore(a);
-    if (z < 1.96f && a->trades >= 100) base_fitness *= 0.8f;  // No significant edge after 100 trades → 20% penalty
-    // ── C30: Penalize volatile WR — high variance means unreliable edge ──
-    if (a->win_rate_var > 0.10f) base_fitness *= 0.85f;  // Var > 0.10 → 15% penalty
-    return base_fitness;
+    if (z < 1.96f && a->trades >= 100) fitness *= 0.8f;
+    // Penalize volatile WR
+    if (a->win_rate_var > 0.10f) fitness *= 0.85f;
+    
+    return fitness;
 }
  static int cmp_agents_desc(const void *a, const void *b) {
     const AgentState *aa = (const AgentState *)a;
@@ -156,7 +142,7 @@ RoomError room_darwin_evolve(AgentState *agents, int n, int cycle, DarwinRecord 
     if (n < 100) return ERR_NO_AGENTS;
 
     rec->epoch = cycle / 100; // Every 100 trades = 1 epoch
-    rec->mutation_rate = fmaxf(0.05f, 0.3f - rec->epoch * 0.01f); // Decays
+    rec->mutation_rate = fmaxf(0.10f, 0.3f - rec->epoch * 0.01f); // Decays, floor at 10%
     rec->culled = 0;
     rec->cloned = 0;
 

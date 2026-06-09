@@ -18,7 +18,7 @@
 #define N_HIDDEN_2  16  // Second hidden layer
 #define N_OUTPUTS   1
 #define INIT_CAP    50.0f
-#define TAKER_FEE   0.001f
+#define TAKER_FEE   0.0026f
 #define LEARN_RATE  0.002f
 #define WARMUP      50
 #define MAX_DAYS    10000

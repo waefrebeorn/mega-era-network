@@ -78,7 +78,7 @@ static int test_constants_stable(void) {
     ASSERT_EQ(N_FEATURES, 34, "N_FEATURES = 34 (VIX regime F34 added)");
 
     /* Foundation fees */
-    ASSERT_NEAR(TAKER_FEE, 0.001f, 0.0001f, "Taker fee 0.1%");
+    ASSERT_NEAR(TAKER_FEE, 0.0026f, 0.0001f, "Taker fee 0.26%");
     ASSERT_NEAR(MATCH_FEE, 0.002f, 0.0001f, "Match fee 0.2%");
 
     return 0;

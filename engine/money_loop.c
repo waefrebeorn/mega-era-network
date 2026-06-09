@@ -38,8 +38,8 @@
 /* ─── Constants ─── */
 #define N_GENOMES       10000
 #define N_PARAMS        11
-#define SEED_CAPITAL    1000.0
-#define FEE_RATE        0.001
+#define SEED_CAPITAL    50.0  // Paper trading seed: $50 reality
+#define FEE_RATE        0.0026  // Kraken taker fee
 #define TRADE_RESOLVE_SECS 60
 #define MAX_TRADES_PER_AGENT 5
 #define VALHALLA_THRESHOLD 3000.0

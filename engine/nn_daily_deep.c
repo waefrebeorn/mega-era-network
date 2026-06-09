@@ -20,7 +20,7 @@
 #define D_H2         16      // Hidden layer 2
 #define D_OUT         1      // Output
 #define INIT_CAP     50.0f
-#define TAKER_FEE    0.001f
+#define TAKER_FEE    0.0026f
 #define BASE_LR      0.002f
 #define MOMENTUM     0.9f
 #define WARMUP       50

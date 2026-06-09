@@ -137,9 +137,9 @@ static int test_capital_matching(void) {
 
 static int test_fee_deduction(void) {
     float stake = 100.0f;
-    float fee_rate = 0.001f;
+    float fee_rate = 0.0026f;  // Kraken
     float fee = stake * fee_rate;
-    ASSERT_NEAR(fee, 0.10f, 0.001f, "Taker fee = 0.1% of stake");
+    ASSERT_NEAR(fee, 0.26f, 0.001f, "Taker fee = 0.26% of stake");
 
     /* Winner gets: stake back + (loser_pool / winner_count) * their_stake - fee */
     float yes_stake = 100.0f, no_stake = 100.0f;

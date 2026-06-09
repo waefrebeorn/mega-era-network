@@ -30,7 +30,7 @@
 #include "world_types.h"
 
 // ── Constants ──
-#define TAKER_FEE       0.00095f   // 0.095% per side (agent-visible)
+#define TAKER_FEE       0.0026f   // Kraken taker fee (agent-visible)
 #define BASIN_FEE       0.00005f   // 0.005% hidden padding → fund basin
 #define SLIPPAGE_BPS    4.75f      // 4.75bps agent-visible (was 5bps)
 #define BASIN_SLIPPAGE_BPS 0.25f   // 0.25bps hidden padding

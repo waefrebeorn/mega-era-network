@@ -45,7 +45,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define STATE_VERSION     4           // Current struct layout version
 
 // Fee constants (shared across modules)
-#define TAKER_FEE    0.001f   // Kraken spot taker 0.1% (paper)
+#define TAKER_FEE    0.0026f  // Kraken spot taker fee
 #define GAS_FEE_EST  2.50f    // C14: Avg on-chain gas cost USD (L2 ~$0.50, L1 ~$5.00)
 #define MATCH_FEE    0.002f   // Match fee on loser pool (0.2%)
 // ── T97/C15: Minimum trade size (raised to $5 for Polymarket 5-share minimum) ──
@@ -57,7 +57,7 @@ extern const char *MARKET_TYPE_NAMES[];
 #define CORRELATION_THRESHOLD        0.80f  // C07: Assets with |corr| > 0.80 are "correlated"
 
 // ── D44: Exchange fee table defaults ──
-#define DEFAULT_EXCHANGE_FEE  0.001f  // 0.1% default taker fee
+#define DEFAULT_EXCHANGE_FEE  0.0026f  // Default to Kraken
 #define DEFAULT_MIN_ORDER     1.0f    // $1 minimum order size
 
 // ── A19: Mini-batch SGD batch size ──
@@ -70,7 +70,9 @@ extern const char *MARKET_TYPE_NAMES[];
 
 // Market direction mode fees (for P2P ensemble paper proof)
 #ifdef MARKET_MODE
-#define MARKET_TAKER_FEE 0.001f  // 0.1% taker fee
+#define MARKET_TAKER_FEE 0.0026f  // Default to Kraken
+#define COINBASE_TAKER_FEE 0.0060f  // Coinbase 0.60%
+#define COINBASE_MIN_FEE 0.99f       // Coinbase $0.99 minimum
 #define MARKET_MAKER_FEE 0.000f  // 0% maker fee (limit orders)
 #endif
 
@@ -198,6 +200,8 @@ typedef struct {
     float    conviction;        // 0–1 sigmoid activation
     float    position_size;     // Fraction of capital risked
     float    pnl;               // PnL from this trade (0 if not resolved yet)
+    float    predicted_prob;    // A006: predicted probability for accuracy scoring
+    int      regime;            // A006: regime at time of prediction
 } VoteRecord;
 
 // ── Agent state (persistent across cycles) ──
@@ -430,7 +434,8 @@ typedef struct {
     int      cross_room_ret_len[MAX_ASSETS];                 // Length per asset
 
     // ── D44: Exchange fee table (per-asset fee lookup) ──
-    float    exchange_fees[MAX_ASSETS];      // Fee rate per asset (0.001 = 0.1%)
+    float    exchange_fees[MAX_ASSETS];      // Fee rate per asset (0.0026 = 0.26% Kraken)
+    float    exchange_min_fees[MAX_ASSETS];  // Min fee per asset (e.g., Coinbase $0.99)
     float    exchange_min_orders[MAX_ASSETS]; // Min order size per asset ($)
 } RoomState;
 
@@ -443,6 +448,7 @@ typedef enum {
     ERR_NO_AGENTS = -4,
     ERR_CAPITAL_EXHAUSTED = -5,
     ERR_MAX_TRADES = -6,
+    ERR_DATA_EXHAUSTED = -7,  // PAPER_MODE: historical data exhausted / max cycles reached
 } RoomError;
 
 #endif // ROOM_TYPES_H

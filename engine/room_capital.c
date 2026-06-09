@@ -17,12 +17,41 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <sqlite3.h>
 #include "types.h"
+
+// A006: Log prediction to outcomes.db for accuracy scoring
+static void log_prediction_to_outcomes(int agent_id, int64_t window_ts, const char *asset,
+                                       int direction, float predicted_prob, int regime) {
+    sqlite3 *db = NULL;
+    const char *db_path = "/home/wubu2/money-room/data/outcomes.db";
+    if (sqlite3_open(db_path, &db) != SQLITE_OK) {
+        return;  // Silently fail - don't disrupt trading
+    }
+    const char *sql = "INSERT INTO predictions (agent_id, window_ts, asset, probability, direction, conviction, regime, outcome, resolved_at, created_at) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)";
+    sqlite3_stmt *stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, agent_id);
+        sqlite3_bind_int64(stmt, 2, window_ts);
+        sqlite3_bind_text(stmt, 3, asset, -1, SQLITE_STATIC);
+        sqlite3_bind_double(stmt, 4, predicted_prob);
+        sqlite3_bind_int(stmt, 5, direction);
+        sqlite3_bind_double(stmt, 6, predicted_prob);  // conviction = predicted_prob
+        sqlite3_bind_int(stmt, 7, regime);
+        sqlite3_bind_int64(stmt, 8, (sqlite3_int64)time(NULL));
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+    }
+    sqlite3_close(db);
+}
 
 typedef struct {
     int agent_id;
     float stake;
     float conviction;
+    float predicted_prob;  // A006: predicted probability for accuracy scoring
+    int regime;            // A006: regime at time of prediction
 } Staker;
 
 // ── C23: Duplicate trade detection ──
@@ -204,6 +233,16 @@ static float get_exchange_fee(RoomState *s, int asset_id) {
     return TAKER_FEE;  // default
 }
 
+// Return the actual fee for a trade: max(rate * amount, min_fee)
+static float get_exchange_fee_with_min(RoomState *s, int asset_id, float amount) {
+    float rate = get_exchange_fee(s, asset_id);
+    float fee = rate * amount;
+    if (asset_id >= 0 && asset_id < MAX_ASSETS && s->exchange_min_fees[asset_id] > 0.0f) {
+        if (fee < s->exchange_min_fees[asset_id]) fee = s->exchange_min_fees[asset_id];
+    }
+    return fee;
+}
+
 // Return the minimum order size for a given asset
 static float get_min_order(RoomState *s, int asset_id) {
     if (asset_id >= 0 && asset_id < MAX_ASSETS && s->exchange_min_orders[asset_id] > 0.0f) {
@@ -335,18 +374,18 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
 
         float stake = votes[i].position_size * a->capital;
         // ── A37: Kelly criterion cap — prevent over-betting when WR is low ──
-        // For even-money P2P bets: Kelly f* = win_rate - (1-win_rate) = 2*WR - 1
-        // Use fractional Kelly (half-Kelly for safety): min(genome_size, max(0, WR-0.5))
+        // For even-money P2P bets: Kelly f* = p - q = win_rate - (1-win_rate) = 2*WR - 1
+        // Use fractional Kelly (half-Kelly for safety): min(genome_size, max(0, 2*WR - 1)/2)
         if (a->trades >= 20) {
-            float kelly_f = a->win_rate_ema - 0.5f;  // Kelly fraction for even-money
+            float kelly_f = 2.0f * a->win_rate_ema - 1.0f;  // Correct Kelly for even-money
             if (kelly_f > 0.0f) {
-                float kelly_stake = kelly_f * a->capital;
+                float kelly_stake = (kelly_f * 0.5f) * a->capital;  // Half-Kelly
                 if (stake > kelly_stake) {
                     stake = kelly_stake;  // Kelly caps the genome-evolved size
                 }
             } else {
-                // WR below 50% — Kelly says don't bet at all. Use 1/4 genome size.
-                stake *= 0.25f;
+                // WR <= 50% — Kelly says no edge. Use 1/16 genome size (minimal exploration).
+                stake *= 0.0625f;
             }
         }
         // ── A14: Reduce position sizing in volatile regime ──
@@ -394,7 +433,9 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         // ── T96: PDT (Pattern Day Trader) enforcement ──
         // SEC Rule: accounts under $25K limited to 3 day trades per rolling 5-day window.
         // All agent trades resolve within 1 cycle → every trade is a day trade.
-        if (a->capital < 25000.0f) {
+        // DISABLED for paper mode: paper agents have $50 capital which triggers this incorrectly.
+        // Only enforce PDT for live accounts with >$25K capital AND real SEC compliance needed.
+        if (s && s->room_capital > 25000.0f && a->capital < 25000.0f) {
             int64_t now = window_ts;
             if (a->day_trade_roll_ts > 0 &&
                 (now - a->day_trade_roll_ts) >= 5 * 86400LL) {
@@ -416,12 +457,16 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
             yes[ny].agent_id = aid;
             yes[ny].stake = stake;
             yes[ny].conviction = votes[i].conviction;
+            yes[ny].predicted_prob = votes[i].predicted_prob;
+            yes[ny].regime = votes[i].regime;
             yes_total += stake;
             ny++;
         } else {
             no[nn].agent_id = aid;
             no[nn].stake = stake;
             no[nn].conviction = votes[i].conviction;
+            no[nn].predicted_prob = votes[i].predicted_prob;
+            no[nn].regime = votes[i].regime;
             no_total += stake;
             nn++;
         }
@@ -471,6 +516,9 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         trades[trade_idx].won = false;
         trades[trade_idx].resolved_at = 0;
         strncpy(trades[trade_idx].asset, "ROOM", 7);
+        // A006: Log prediction to outcomes.db for accuracy scoring
+        log_prediction_to_outcomes(yes[i].agent_id, window_ts, "ROOM", 1,
+                                   yes[i].predicted_prob, yes[i].regime);
         trade_idx++;
     }
 
@@ -504,6 +552,9 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         trades[trade_idx].won = false;
         trades[trade_idx].resolved_at = 0;
         strncpy(trades[trade_idx].asset, "ROOM", 7);
+        // A006: Log prediction to outcomes.db for accuracy scoring
+        log_prediction_to_outcomes(no[i].agent_id, window_ts, "ROOM", 0,
+                                   no[i].predicted_prob, no[i].regime);
         trade_idx++;
     }
 
@@ -670,6 +721,18 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                     for (int fi = 0; fi < N_FEATURES; fi++) {
                         agents[aid].genome.regime_weight[sgd_regime][fi]
                             -= l2_lambda * agents[aid].genome.regime_weight[sgd_regime][fi];
+                    }
+                }
+            }
+            
+            // ── A16: Feature pruning — zero out dead features after 100 trades ──
+            // If a feature's regime_weight is consistently near-zero or negative importance,
+            // it's not contributing useful signal. Prune to reduce noise.
+            if (agents[aid].trades >= 100) {
+                for (int fi = 0; fi < N_FEATURES; fi++) {
+                    float w = agents[aid].genome.regime_weight[sgd_regime][fi];
+                    if (fabsf(w) < 0.01f) {
+                        agents[aid].genome.regime_weight[sgd_regime][fi] = 0.0f;
                     }
                 }
             }
