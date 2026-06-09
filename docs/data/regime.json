@@ -1,0 +1,11 @@
+{
+  "regime": 0,
+  "label": "RANGE",
+  "adx": 13.52,
+  "atr_pct": 0.04,
+  "bb_width": 0.08,
+  "price_position": 0.318,
+  "volatility_annual": 0.6,
+  "candles": 100000,
+  "window": 20
+}

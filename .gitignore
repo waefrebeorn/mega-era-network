@@ -1,0 +1,19 @@
+# Data backups — DB state files, not for git
+data/backups/
+data/multi_market/weather_data.json
+data/multi_market/sports_training_features.json
+
+# Runtime / external data roots (externalized under /mnt/c/money-room-data)
+/mnt/c/money-room-data/
+
+# Built binaries
+engine/room_engine
+engine/room_engine_paper
+engine/room_engine_market
+engine/db_backup
+
+# Runtime state files
+*.o
+*.db
+*.db.bak.*
+*.db.corrupted.*

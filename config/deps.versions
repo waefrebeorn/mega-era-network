@@ -1,0 +1,11 @@
+# F21: Dependency versions — track for security/compat updates
+# Format: package=version (auto-detected)
+
+libcurl=8.18.0
+libjansson=2.14
+libsqlite3=3.46.1
+gcc=15.2.0
+valgrind=3.26.0
+libc=glibc_2.41
+
+# Vulnerability scan: run `config/check_deps.sh` periodically

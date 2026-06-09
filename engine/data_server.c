@@ -1,0 +1,398 @@
+/**
+ * data_server.c — Money Room static file server
+ * Serves docs/data/ JSON files on port 9090 for the website dashboard.
+ * No auth. CORS-enabled. Fork-per-connection.
+ *
+ * Build: gcc -O2 -o data_server data_server.c
+ * Usage: ./data_server [port] [data_dir]
+ *        Default port: 9090
+ *        Default dir:  docs/data/ relative to CWD
+ */
+
+#define _POSIX_C_SOURCE 200809L
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <time.h>
+#include <errno.h>
+#include <libgen.h>
+
+#define PORT 9090
+#define MAX_BUF 65536
+#define MAX_CONN 16
+#define DATA_DIR "docs/data/"
+
+/* Helper: suppress unused-result warning */
+static void write_all(int fd, const char *buf, size_t len) {
+    while (len > 0) {
+        ssize_t n = write(fd, buf, len);
+        if (n <= 0) break;
+        buf += n;
+        len -= (size_t)n;
+    }
+}
+
+/* MIME type by file extension */
+static const char *mime_type(const char *path) {
+    const char *dot = strrchr(path, '.');
+    if (!dot) return "application/octet-stream";
+    if (strcmp(dot, ".json") == 0) return "application/json";
+    if (strcmp(dot, ".html") == 0) return "text/html; charset=utf-8";
+    if (strcmp(dot, ".js") == 0)   return "text/javascript; charset=utf-8";
+    if (strcmp(dot, ".css") == 0)  return "text/css; charset=utf-8";
+    if (strcmp(dot, ".svg") == 0)  return "image/svg+xml";
+    if (strcmp(dot, ".png") == 0)  return "image/png";
+    if (strcmp(dot, ".txt") == 0)  return "text/plain; charset=utf-8";
+    if (strcmp(dot, ".csv") == 0)  return "text/csv; charset=utf-8";
+    if (strcmp(dot, ".bin") == 0)  return "application/octet-stream";
+    return "application/octet-stream";
+}
+
+/* Read entire file into malloc'd buffer */
+static char *read_file(const char *path, size_t *out_len) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    rewind(f);
+    if (sz <= 0) { fclose(f); return NULL; }
+    char *buf = malloc((size_t)sz + 1);
+    if (!buf) { fclose(f); return NULL; }
+    size_t n = fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    buf[n] = 0;
+    if (out_len) *out_len = n;
+    return buf;
+}
+
+/* Simple path sanitizer — reject '..', absolute paths, and embedded nulls */
+static int safe_path(const char *path) {
+    if (!path || path[0] != '/') return 0;  /* must start with / */
+    if (strstr(path, "..")) return 0;
+    if (strchr(path, '~')) return 0;
+    /* Check for embedded nulls (null injection attack) */
+    size_t len = strlen(path);
+    if (len != strnlen(path, 2048)) return 0;
+    return 1;
+}
+
+/* Handle one HTTP connection */
+static void handle_client(int client_fd, const char *data_root) {
+    char buf[MAX_BUF];
+    int n = (int)read(client_fd, buf, sizeof(buf) - 1);
+    if (n <= 0) { close(client_fd); return; }
+    buf[n] = 0;
+
+    /* Parse request line */
+    char method[16] = {0}, path[1024] = {0};
+    if (sscanf(buf, "%15s %1023s", method, path) < 2) {
+        close(client_fd); return;
+    }
+
+    /* POST /register — accept new registrations */
+    if (strcmp(method, "POST") == 0 && strcmp(path, "/register") == 0) {
+        /* Extract body after headers */
+        const char *body_start = strstr(buf, "\r\n\r\n");
+        if (!body_start) {
+            const char *resp = "{\"error\":\"bad_request\"}";
+            char hdr[512]; int hlen = snprintf(hdr,sizeof(hdr),
+                "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: %zu\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",strlen(resp));
+            write_all(client_fd,hdr,(size_t)hlen); write_all(client_fd,resp,strlen(resp));
+            close(client_fd); return;
+        }
+        body_start += 4; /* skip \r\n\r\n */
+
+        /* Parse JSON body */
+        /* Expected: {"email":"...","name":"...","key":"...","tier":"...","expires_in":N} */
+        /* Extract fields with simple string search (no jansson dep) */
+        char email[256]={0}, name[256]={0}, ckey[256]={0}, tier[64]={0};
+        int expires_in = 24;
+
+        const char *p;
+        if ((p = strstr(body_start,"\"email\""))) {
+            p = strchr(p,':'); if(p){ while(*p=='"'||*p==' '||*p==':')p++;
+            const char *e = strchr(p,'"'); if(e){ size_t l=(size_t)(e-p); if(l>255)l=255; memcpy(email,p,l); }}
+        }
+        if ((p = strstr(body_start,"\"name\""))) {
+            p = strchr(p,':'); if(p){ while(*p=='"'||*p==' '||*p==':')p++;
+            const char *e = strchr(p,'"'); if(e){ size_t l=(size_t)(e-p); if(l>255)l=255; memcpy(name,p,l); }}
+        }
+        if ((p = strstr(body_start,"\"key\""))) {
+            p = strchr(p,':'); if(p){ while(*p=='"'||*p==' '||*p==':')p++;
+            const char *e = strchr(p,'"'); if(e){ size_t l=(size_t)(e-p); if(l>255)l=255; memcpy(ckey,p,l); }}
+        }
+        if ((p = strstr(body_start,"\"tier\""))) {
+            p = strchr(p,':'); if(p){ while(*p=='"'||*p==' '||*p==':')p++;
+            const char *e = strchr(p,'"'); if(e){ size_t l=(size_t)(e-p); if(l>63)l=63; memcpy(tier,p,l); }}
+        }
+        if ((p = strstr(body_start,"\"expires_in\""))) {
+            p = strchr(p,':'); if(p){ p++; while(*p==' ')p++; expires_in = atoi(p); if(expires_in<1)expires_in=24; }
+        }
+
+        /* Generate key if not provided */
+        if (strlen(ckey) == 0) {
+            static const char hex[] = "0123456789abcdef";
+            ckey[0]='m'; ckey[1]='r'; ckey[2]='_';
+            for (int i=3; i<35; i++) ckey[i] = hex[rand() % 16];
+            ckey[35]=0;
+        }
+
+        time_t now = time(NULL);
+        time_t expires_at = now + (time_t)expires_in * 3600;
+
+        /* Build registration record */
+        char line[2048];
+        int llen = snprintf(line, sizeof(line),
+            "{\"email\":\"%s\",\"name\":\"%s\",\"key\":\"%s\",\"tier\":\"%s\","
+            "\"expires_in\":%d,\"expires_at\":%ld,\"registered_at\":%ld}\n",
+            email, name, ckey, tier, expires_in, (long)expires_at, (long)now);
+
+        /* Append to registrations.json */
+        char reg_path[2048];
+        snprintf(reg_path, sizeof(reg_path), "%s/registrations.json", data_root);
+        FILE *rf = fopen(reg_path, "a");
+        if (rf) {
+            fwrite(line, 1, (size_t)llen, rf);
+            fclose(rf);
+        }
+
+        /* Build response */
+        char resp_body[1024];
+        int rlen = snprintf(resp_body, sizeof(resp_body),
+            "{\"success\":true,\"key\":\"%s\",\"tier\":\"%s\",\"expires_in\":%d}",
+            ckey, strlen(tier)?tier:"trial_1d", expires_in);
+        char hdr[512];
+        int hlen = snprintf(hdr, sizeof(hdr),
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: %d\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
+            "Access-Control-Allow-Headers: Content-Type\r\n"
+            "Connection: close\r\n\r\n", rlen);
+        write_all(client_fd, hdr, (size_t)hlen);
+        write_all(client_fd, resp_body, (size_t)rlen);
+        close(client_fd);
+        printf("[REG] Registered: %s (%s) key=%s\n", email, tier, ckey);
+        return;
+    }
+
+    /* OPTIONS /register — CORS preflight */
+    if (strcmp(method, "OPTIONS") == 0 && strcmp(path, "/register") == 0) {
+        const char *hdr = "HTTP/1.1 204 No Content\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
+            "Access-Control-Allow-Headers: Content-Type\r\n"
+            "Access-Control-Max-Age: 86400\r\n"
+            "Connection: close\r\n\r\n";
+        write_all(client_fd, hdr, strlen(hdr));
+        close(client_fd);
+        return;
+    }
+
+    /* Only GET */
+
+    /* Validate path */
+    if (!safe_path(path)) {
+        const char *body = "{\"error\":\"bad_request\"}";
+        char hdr[512];
+        int hlen = snprintf(hdr, sizeof(hdr),
+            "HTTP/1.1 400 Bad Request\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: %zu\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n\r\n", strlen(body));
+        write_all(client_fd, hdr, (size_t)hlen);
+        write_all(client_fd, body, strlen(body));
+        close(client_fd);
+        return;
+    }
+
+    /* Build filesystem path:
+       /data/file.json -> $data_root/data/file.json
+       /index.html -> $data_root/index.html
+       /               -> index (list available files) */
+    int is_root = (strcmp(path, "/") == 0);
+    char fpath[2048];
+    if (is_root) {
+        char cmd[4096];
+        n = snprintf(cmd, sizeof(cmd), "ls -1 '%s' 2>/dev/null", data_root);
+        (void)n;
+        FILE *ls = popen(cmd, "r");
+        if (!ls) {
+            const char *body = "{\"error\":\"internal_error\"}";
+            char hdr[512];
+            int hlen = snprintf(hdr, sizeof(hdr),
+                "HTTP/1.1 500 Internal Server Error\r\n"
+                "Content-Type: application/json\r\n"
+                "Content-Length: %zu\r\n"
+                "Access-Control-Allow-Origin: *\r\n"
+                "Connection: close\r\n\r\n", strlen(body));
+            write_all(client_fd, hdr, (size_t)hlen);
+            write_all(client_fd, body, strlen(body));
+            close(client_fd);
+            return;
+        }
+        /* Build JSON array of filenames */
+        char *list = NULL;
+        size_t list_len = 0;
+        FILE *mf = open_memstream(&list, &list_len);
+        if (mf) {
+            fprintf(mf, "[");
+            char line[256];
+            int first = 1;
+            while (fgets(line, sizeof(line), ls)) {
+                size_t l = strlen(line);
+                if (l > 0 && line[l-1] == '\n') line[l-1] = 0;
+                if (strlen(line) == 0) continue;
+                if (!first) fprintf(mf, ",\n");
+                else first = 0;
+                fprintf(mf, "  \"%s\"", line);
+            }
+            fprintf(mf, "\n]");
+            fclose(mf);
+        }
+        pclose(ls);
+
+        if (!list) {
+            const char *body = "{\"error\":\"no_files\"}";
+            char hdr[512];
+            int hlen = snprintf(hdr, sizeof(hdr),
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: application/json\r\n"
+                "Content-Length: %zu\r\n"
+                "Access-Control-Allow-Origin: *\r\n"
+                "Connection: close\r\n\r\n", strlen(body));
+            write_all(client_fd, hdr, (size_t)hlen);
+            write_all(client_fd, body, strlen(body));
+        } else {
+            char hdr[512];
+            int hlen = snprintf(hdr, sizeof(hdr),
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: application/json\r\n"
+                "Content-Length: %zu\r\n"
+                "Access-Control-Allow-Origin: *\r\n"
+                "Connection: close\r\n\r\n", list_len);
+            write_all(client_fd, hdr, (size_t)hlen);
+            write_all(client_fd, list, list_len);
+            free(list);
+        }
+        close(client_fd);
+        return;
+    }
+
+    /* Normal file: /<path> -> $data_root/<path> */
+    snprintf(fpath, sizeof(fpath), "%s%s", data_root, path);
+
+    size_t file_len;
+    char *content = read_file(fpath, &file_len);
+    if (!content) {
+        char body[512];
+        int blen = snprintf(body, sizeof(body),
+            "{\"error\":\"not_found\",\"path\":\"%s\"}", path);
+        char hdr[512];
+        int hlen = snprintf(hdr, sizeof(hdr),
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: %d\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n\r\n", blen);
+        write_all(client_fd, hdr, (size_t)hlen);
+        write_all(client_fd, body, (size_t)blen);
+        close(client_fd);
+        return;
+    }
+
+    /* Send file */
+    const char *mime = mime_type(fpath);
+    char hdr[512];
+    int hlen = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %zu\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Cache-Control: no-cache, no-store, must-revalidate\r\n"
+        "Connection: close\r\n\r\n", mime, file_len);
+    write_all(client_fd, hdr, (size_t)hlen);
+    write_all(client_fd, content, file_len);
+    free(content);
+    close(client_fd);
+}
+
+int main(int argc, char **argv) {
+    int port = PORT;
+    if (argc > 1) {
+        int p = atoi(argv[1]);
+        if (p > 0 && p <= 65535) port = p;
+    }
+
+    const char *data_root = DATA_DIR;
+    if (argc > 2) data_root = argv[2];
+
+    /* Resolve data_root to absolute path for child forks */
+    char abs_root[4096];
+    if (data_root[0] == '/') {
+        snprintf(abs_root, sizeof(abs_root), "%s", data_root);
+    } else {
+        char cwd[2048];
+        if (!getcwd(cwd, sizeof(cwd))) {
+            perror("getcwd");
+            return 1;
+        }
+        snprintf(abs_root, sizeof(abs_root), "%s/%s", cwd, data_root);
+    }
+
+    signal(SIGCHLD, SIG_IGN);
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) { perror("socket"); return 1; }
+
+    int opt = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    struct sockaddr_in addr = {0};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons((uint16_t)port);
+
+    if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        close(sock);
+        return 1;
+    }
+    if (listen(sock, MAX_CONN) < 0) {
+        perror("listen");
+        close(sock);
+        return 1;
+    }
+
+    printf("[DATA] Money Room data server on port %d\n", port);
+    printf("[DATA] Serving: %s/\n", abs_root);
+    printf("[DATA] GET  /, /<file>, /data/<file>  — static file serving\n");
+    printf("[DATA] POST /register                  — API key registration\n");
+    printf("[DATA] No auth required. CORS enabled.\n");
+
+    while (1) {
+        struct sockaddr_in client;
+        socklen_t client_len = sizeof(client);
+        int client_fd = accept(sock, (struct sockaddr*)&client, &client_len);
+        if (client_fd < 0) { perror("accept"); continue; }
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            close(sock);
+            handle_client(client_fd, abs_root);
+            _exit(0);
+        }
+        close(client_fd);
+    }
+
+    close(sock);
+    return 0;
+}

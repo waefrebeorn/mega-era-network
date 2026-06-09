@@ -1,0 +1,8 @@
+{
+  "alert": "state_corruption",
+  "magic": "0x524F4D42",
+  "state_crc": "0x923D23B2",
+  "cycle": 49781,
+  "trade_count": 0,
+  "action": "state_reinitialized"
+}

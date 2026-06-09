@@ -1,0 +1,118 @@
+{
+  "binaries": [
+    {
+      "exists": true,
+      "name": "room_engine_v3",
+      "status": "ok"
+    },
+    {
+      "exists": false,
+      "name": "room_engine_paper",
+      "status": "fail"
+    },
+    {
+      "exists": true,
+      "name": "cycle_all_rooms",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "collector_runner",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "pipeline_monitor",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "data_quality",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "multi_market_trainer",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "weather_collector",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "sports_collector",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "polymarket_collector",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "finnhub_collector",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "btc_csv_refresher",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "kraken_collector",
+      "status": "ok"
+    },
+    {
+      "exists": true,
+      "name": "paper_live_bridge",
+      "status": "ok"
+    }
+  ],
+  "checks_fail": 1,
+  "checks_ok": 15,
+  "checks_warn": 4,
+  "data_files": [
+    {
+      "age_sec": 5880,
+      "exists": true,
+      "name": "pipeline_status",
+      "stale": true,
+      "status": "warn"
+    },
+    {
+      "age_sec": 5880,
+      "exists": true,
+      "name": "data_quality",
+      "stale": true,
+      "status": "warn"
+    },
+    {
+      "age_sec": 2821,
+      "exists": true,
+      "name": "market_summary",
+      "stale": false,
+      "status": "ok"
+    },
+    {
+      "age_sec": 13646,
+      "exists": true,
+      "name": "weather_data",
+      "stale": false,
+      "status": "ok"
+    },
+    {
+      "age_sec": -1,
+      "exists": false,
+      "name": "paper_state",
+      "status": "warn"
+    }
+  ],
+  "engine_running": false,
+  "engine_status": "warn",
+  "issues": "MISSING BIN: room_engine_paper\nSTALE DATA: pipeline_status (5880s > 600s max)\nSTALE DATA: data_quality (5880s > 600s max)\nENGINE NOT RUNNING: room_engine\n",
+  "overall_status": "degraded",
+  "timestamp": 1780904881
+}

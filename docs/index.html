@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Money Room — Market Prediction Engine</title>
+<meta name="description" content="Open-source algorithmic market prediction engine. 10,000 agent genomes, 200+ C collectors, 16 strategy rooms. Live paper trading on multi-market data.">
+<meta property="og:title" content="Money Room — Market Prediction Engine">
+<meta property="og:description" content="10,000-agent evolutionary trading engine. All C, zero Python. Live paper trading.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="http://localhost:9091/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Money Room — Market Prediction Engine">
+<meta name="twitter:description" content="10,000-agent evolutionary trading engine. All C, zero Python.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="alternate icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="." class="logo"><span class="dot"></span> Money <span>Room</span></a>
+    <div class="nav-links" id="navLinks">
+      <a href="." id="navLive" class="active">Live</a>
+      <a href="live.html" id="navDashboard">Dashboard</a>
+      <a href="dashboard.html" style="color:var(--orange);font-weight:500">Pipeline</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="demos/" style="color:var(--orange);font-weight:600">Free&nbsp;Demo</a>
+      <a href="data-sources.html" style="color:var(--green);font-weight:500">Data</a>
+      <a href="research.html" style="color:var(--purple);font-weight:500">Research</a>
+      <a href="paper.html" style="color:var(--green);font-weight:500">📊 Paper</a>
+      <a href="register.html" id="navRegister" class="nav-cta" style="background:transparent;color:var(--accent);border:1px solid var(--accent);box-shadow:none">Get&nbsp;Key</a>
+      <a href="https://github.com/waefrebeorn/money-room" target="_blank">GitHub</a>
+      <a href="register.html" id="navAuth" class="nav-cta">Get API Key</a>
+    </div>
+  </div>
+</nav>
+
+<div class="live-banner" id="liveBanner">
+  <div class="live-banner-inner">
+    <div class="live-banner-item">
+      <span class="live-banner-status"><span class="live-banner-dot"></span>LIVE</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">BTC</span>
+      <span class="live-banner-price" id="tickerBtc"><span class="loading-pulse">—</span></span>
+      <span class="live-banner-chg" id="tickerBtcChg"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">ETH</span>
+      <span class="live-banner-price" id="tickerEth">—</span>
+      <span class="live-banner-chg" id="tickerEthChg"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">SOL</span>
+      <span class="live-banner-price" id="tickerSol">—</span>
+      <span class="live-banner-chg" id="tickerSolChg"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-status" id="tickerTime"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">S&P 500</span>
+      <span class="live-banner-price" id="tickerSp500">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">GOLD</span>
+      <span class="live-banner-price" id="tickerGold">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">DXY</span>
+      <span class="live-banner-price" id="tickerDxy">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item" id="tickerEngineStats">
+      <span class="live-banner-status">⚡ CYCLE</span>
+      <span class="live-banner-price" id="tickerCycle">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-status">📈 WR</span>
+      <span class="live-banner-price" id="tickerWr">—</span>
+    </div>
+    <!-- Duplicate for seamless scroll loop -->
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-status"><span class="live-banner-dot"></span>LIVE</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">BTC</span>
+      <span class="live-banner-price" id="tickerBtc2">—</span>
+      <span class="live-banner-chg" id="tickerBtcChg2"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">ETH</span>
+      <span class="live-banner-price" id="tickerEth2">—</span>
+      <span class="live-banner-chg" id="tickerEthChg2"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">SOL</span>
+      <span class="live-banner-price" id="tickerSol2">—</span>
+      <span class="live-banner-chg" id="tickerSolChg2"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-status" id="tickerTime2"></span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">S&P 500</span>
+      <span class="live-banner-price" id="tickerSp500b">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-banner-symbol">GOLD</span>
+      <span class="live-banner-price" id="tickerGoldb">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item" id="tickerEngineStats2">
+      <span class="live-banner-status">⚡ CYCLE</span>
+      <span class="live-banner-price" id="tickerCycle2">—</span>
+    </div>
+    <div class="live-banner-divider"></div>
+    <div class="live-banner-item">
+      <span class="live-label">price</span>
+      <span class="live-value" id="priceDisplay">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">agents</span>
+      <span class="live-value" id="agentCount">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">trades</span>
+      <span class="live-value" id="tradeCount">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">win rate</span>
+      <span class="live-value" id="winRateDisplay">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">capital</span>
+      <span class="live-value" id="capitalDisplay">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">features</span>
+      <span class="live-value" id="featureCount">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">cycle</span>
+      <span class="live-value" id="cycleCount">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">sharpe</span>
+      <span class="live-value" id="sharpeDisplay">--</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">collectors</span>
+      <span class="live-value">68</span>
+    </div>
+    <div class="live-banner-item">
+      <span class="live-label">regime</span>
+      <span class="live-value" id="regimeDisplay">--</span>
+    </div>
+  </div>
+</div>
+
+<style>
+.engine-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+.engine-stat-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+}
+.engine-stat-card .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.engine-stat-card .label {
+  color: #94a3b8;
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
+.stat-agent { color: #22d3ee; }
+.stat-trade { color: #34d399; }
+.stat-capital { color: #fbbf24; }
+.stat-wr { color: #a78bfa; }
+.stat-cycle { color: #fb7185; }
+.stat-features { color: #f59e0b; }
+.stat-risk { color: #f97316; }
+</style>
+
+  <div class="container">
+    <div class="hero-data-line" id="dataStream">BTC:73119 SPY:7586 VIX:12.8 █ RSI:54.2 EMA_CROSS:BULL BOLLINGER:WIDE █ VOLUME_SURGE:+22% ORDER_IMBALANCE:0.032 FUNDING:0.007% █ FEATURE_VECTOR[115] █ 10K_AGENTS █ CYCLE:142K</div>
+    <h1>Algorithmic <span>Market Prediction</span> Engine</h1>
+    <p class="subtitle">10,000 agent genomes trading live multi-market data. Genetic tournament selection. 115-dim feature space. Realistic paper trading with Kraken fee models (0.26% taker).</p>
+    <div class="cta">
+      <a href="live.html" class="primary" id="heroCta">📊 Live Dashboard</a>
+      <a href="pricing.html" class="secondary">💰 Pricing</a>
+      <a href="https://github.com/waefrebeorn/money-room" class="secondary" target="_blank">⭐ GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- REGULATORY DISCLAIMER — Prominent on all performance metric pages -->
+<div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
+  <div class="reg-disclaimer" style="background:rgba(255,159,67,0.08);border:1px solid rgba(255,159,67,0.25);border-radius:10px;padding:14px 18px;margin:16px 0 8px;display:flex;align-items:flex-start;gap:12px;font-size:13px;line-height:1.6;color:var(--text-tertiary)">
+    <span style="font-size:18px;flex-shrink:0;margin-top:2px">⚠️</span>
+    <div>
+      <strong style="color:var(--orange);text-transform:uppercase;letter-spacing:0.04em">Not Financial Advice</strong> — Money Room is an open-source algorithmic research project. All metrics (win rate, capital, PnL, Sharpe, drawdown, cycle counts) are from <strong>simulated paper trading</strong> with real Kraken fee assumptions (0.26% taker + slippage). Nothing herein constitutes financial advice, investment advice, or a solicitation to trade. Past simulated performance does not guarantee future results. Cryptocurrency and prediction market trading carries substantial risk of loss. You alone are responsible for your trading decisions.
+    </div>
+  </div>
+</div>
+
+<div class="demo-callout" style="background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;padding:14px 22px;margin:0 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;backdrop-filter:blur(12px);position:relative;z-index:1;max-width:1200px;margin-left:auto;margin-right:auto">
+  <span style="background:rgba(255,159,67,0.15);color:var(--orange);padding:4px 12px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Free</span>
+  <span style="color:var(--text-tertiary);flex:1">Try the engine now — no sign-in required. View yesterday's cycle-by-cycle performance, feature importance, and market sentiment.</span>
+  <a href="demos/" style="padding:8px 20px;background:var(--orange);color:var(--bg-deep);border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;transition:all 0.2s">View Demo →</a>
+</div>
+
+<!-- LIVE SERVER IFRAME / PROMO -->
+<section class="section" id="liveServerFrame" style="border-top:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle);background:var(--bg-panel)">
+  <div class="container">
+    <div class="section-title">
+      <h2>Live <span>Server Access</span></h2>
+      <p>Real-time dashboard served from the laptop engine (C data_server + nginx, auth + rate-limited).</p>
+    </div>
+    <div id="serverFrameWrapper">
+      <!-- Config: set TUNNEL_URL to your Cloudflare tunnel URL (e.g. https://moneyroom.waefrebeorn.com or https://xxx.trycloudflare.com) -->
+      <div id="serverFrameContent" style="display:none">
+        <iframe id="liveServerIframe" src="" style="width:100%;height:700px;border:none;border-radius:12px;background:#0a0a0f" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </div>
+      <div id="serverPromoCard" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;background:linear-gradient(135deg,rgba(15,23,42,0.9),rgba(30,41,59,0.9));border:1px solid var(--border-subtle);border-radius:12px;padding:48px 32px;text-align:center;gap:20px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">
+          <span style="background:rgba(52,211,153,0.15);color:#34d399;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600">🔐 Secured</span>
+          <span style="background:rgba(255,159,67,0.15);color:var(--orange);padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600">📊 Live Data</span>
+          <span style="background:rgba(99,102,241,0.15);color:#a5b4fc;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600">⚡ Real-time</span>
+        </div>
+        <h3 style="font-size:1.75rem;margin:0;color:var(--text-primary)">Money Room Live Dashboard</h3>
+        <p style="max-width:600px;margin:0;color:var(--text-tertiary);line-height:1.6">The full engine UI with live agent rankings, market prices, pipeline health, cycle metrics, and API key management — served from the laptop via secure nginx reverse proxy with basic auth and strict rate limiting.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px">
+          <button id="loadServerBtn" class="btn-primary" style="padding:12px 28px;font-size:1rem" onclick="loadLiveServer()">🚀 Load Live Server</button>
+          <a href="demos/" class="btn-secondary" style="padding:12px 28px;font-size:1rem">🆓 Try Free Demo</a>
+        </div>
+        <details style="margin-top:16px;text-align:left;max-width:600px;color:var(--text-quaternary);font-size:13px">
+          <summary style="cursor:pointer;color:var(--text-tertiary)">How to access directly</summary>
+          <div style="margin-top:12px;padding:16px;background:rgba(0,0,0,0.3);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8">
+            <div># Quick tunnel (no account)</div>
+            <div style="color:var(--green)">cloudflared tunnel --url https://localhost:8443</div>
+            <div style="margin-top:8px"># Named tunnel (production)</div>
+            <div style="color:var(--green)">cloudflared tunnel run --token &lt;TOKEN&gt; moneyroom</div>
+            <div style="margin-top:8px"># Then update TUNNEL_URL in this page</div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // CONFIG: Set your Cloudflare tunnel URL here
+  // Options:
+  //   - Quick tunnel: 'https://random-name.trycloudflare.com' (changes on restart)
+  //   - Named tunnel: 'https://moneyroom.yourdomain.com' (stable)
+  //   - Local only:   'https://localhost:8443' (won't work on GitHub Pages)
+  const TUNNEL_URL = 'https://moneyroom.trycloudflare.com'; // <-- UPDATE THIS
+
+  function loadLiveServer() {
+    const wrapper = document.getElementById('serverFrameWrapper');
+    const promo = document.getElementById('serverPromoCard');
+    const frame = document.getElementById('serverFrameContent');
+    const iframe = document.getElementById('liveServerIframe');
+
+    // Build URL with basic auth if available
+    const apiKey = localStorage.getItem('mr_api_key');
+    let url = TUNNEL_URL || 'https://moneyroom.trycloudflare.com';
+    
+    iframe.src = url;
+    promo.style.display = 'none';
+    frame.style.display = 'block';
+    window.scrollTo({ top: frame.offsetTop - 80, behavior: 'smooth' });
+  }
+
+  // Auto-load if TUNNEL_URL is configured and not placeholder
+  window.addEventListener('DOMContentLoaded', function() {
+    const configured = TUNNEL_URL && TUNNEL_URL !== 'https://moneyroom.trycloudflare.com';
+    if (configured) {
+      loadLiveServer();
+    }
+  });
+</script>
+
+<section class="stats-bar" id="engineStats">
+  <div class="container">
+    <div class="grid" id="metricGrid">
+      <div class="stat-block"><div class="metric-value loading" id="statCycles">—</div><div class="metric-label">Cycles Run</div></div>
+      <div class="stat-block"><div class="metric-value loading" id="statAgents">—</div><div class="metric-label">Active Agents</div></div>
+      <div class="stat-block"><div class="metric-value loading" id="statWinRate">—</div><div class="metric-label">Win Rate</div></div>
+      <div class="stat-block"><div class="metric-value loading" id="statCapital">—</div><div class="metric-label">Paper Capital</div></div>
+      <div class="stat-block"><div class="metric-value loading" id="statCycleTime">—</div><div class="metric-label">Cycle Time</div></div>
+      <div class="stat-block"><div class="metric-value loading" id="statFeatures">—</div><div class="metric-label">Active Features</div></div>
+    </div>
+    <div class="live-row" id="healthRow">
+      <span id="healthEngine"><span class="dot green"></span>Engine Live</span>
+      <span id="healthPaper"><span class="dot orange"></span>Paper: —</span>
+      <span id="healthDeploy">⚡ Deployed: —</span>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-title">
+      <h2>Core <span>Capabilities</span></h2>
+      <p>Multi-source data pipeline feeding a real-time genetic evolution engine.</p>
+    </div>
+    <div class="card-grid">
+      <div class="card animate-in"><span class="feature-icon">🧬</span><h3>Genetic Architecture</h3><p>10,000 agent genomes with crossover, mutation, and tournament selection. Genomes are initialized with Xavier weights — evolution kicks in as training cycles accumulate.</p><span class="badge blue">10K Agents</span></div>
+      <div class="card animate-in"><span class="feature-icon">📡</span><h3>Multi-Source Data</h3><p>Data sources across crypto, equities, forex, on-chain metrics, sentiment (GDELT), prediction markets, and economic indicators — all in C.</p><span class="badge blue">12+ Sources</span></div>
+      <div class="card animate-in"><span class="feature-icon">🎯</span><h3>Multi-Market Training</h3><p>Cross-asset training across crypto, equities, forex, commodities, and prediction markets with 16 differentiated room strategies.</p><span class="badge orange">16 Rooms</span></div>
+      <div class="card animate-in"><span class="feature-icon">⚡</span><h3>Real-Time Inference</h3><p>Sub-millisecond inference per agent. Feature extraction, signal generation, and capital allocation all in C with zero Python overhead.</p><span class="badge green">~5ms/cycle</span></div>
+      <div class="card animate-in"><span class="feature-icon">🔬</span><h3>Feature Engineering</h3><p>Volume profile, order book imbalance, options flow, funding rates, liquidation clusters, correlation regimes, and volatility surface.</p><span class="badge blue">80+ Features</span></div>
+      <div class="card animate-in"><span class="feature-icon">📊</span><h3>Paper Trading</h3><p>Realistic simulation with Kraken spot fee model (0.26% taker), slippage, and liquidity constraints. No real capital at risk.</p><span class="badge green">Live</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="border-top:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle)">
+  <div class="container">
+    <div class="section-title">
+      <h2>Live <span>Market Data</span></h2>
+      <p>Real-time prices from our C collector pipeline.</p>
+    </div>
+    <div class="live-grid" id="marketGrid">
+      <div class="live-card"><div class="top"><span class="label">BTC/USD</span><span class="status-badge" id="mktBtcBadge">—</span></div><div class="val" id="mktBtcPrice">—</div><div class="sub" id="mktBtcDetail">Loading...</div></div>
+      <div class="live-card"><div class="top"><span class="label">ETH/USD</span><span class="status-badge" id="mktEthBadge">—</span></div><div class="val" id="mktEthPrice">—</div><div class="sub" id="mktEthDetail">Loading...</div></div>
+      <div class="live-card"><div class="top"><span class="label">SOL/USD</span><span class="status-badge" id="mktSolBadge">—</span></div><div class="val" id="mktSolPrice">—</div><div class="sub" id="mktSolDetail">Loading...</div></div>
+    </div>
+
+    <div class="live-row-grid" style="margin-top:24px">
+      <div class="live-table">
+        <h3>Engine Metrics</h3>
+        <table id="engineMetrics">
+          <tr><td>Cycle Time</td><td id="emCycleTime">—</td></tr>
+          <tr><td>Votes Cast</td><td id="emVotes">—</td></tr>
+          <tr><td>Top Agent PnL</td><td id="emTopPnl">—</td></tr>
+          <tr><td>Sharpe (avg)</td><td id="emSharpe">—</td></tr>
+          <tr><td>Max Drawdown</td><td id="emDd">—</td></tr>
+          <tr><td>Paper Age</td><td id="emPaperAge">—</td></tr>
+        </table>
+      </div>
+      <div class="live-table">
+        <h3>System Health</h3>
+        <table id="sysHealth">
+          <tr><td>Disk</td><td id="shDisk">—</td></tr>
+          <tr><td>Memory</td><td id="shMem">—</td></tr>
+          <tr><td>Uptime</td><td id="shUptime">—</td></tr>
+          <tr><td>Active Crons</td><td id="shCrons">—</td></tr>
+          <tr><td>Failed Crons</td><td id="shErrors">—</td></tr>
+          <tr><td>Deployed</td><td id="shDeployed">—</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <h2>🔑 Sign In</h2>
+    <p>Enter your API key to access the live dashboard. No account? <a href="register.html">Get a free trial</a>.</p>
+    <input type="password" id="apiKeyInput" placeholder="Your API key (e.g. mr_...)" autocomplete="off">
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeLogin()">Cancel</button>
+      <button class="btn-primary" onclick="login()">Sign In</button>
+    </div>
+    <div class="status" id="loginStatus"></div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <div class="grid">
+      <div class="brand"><div class="logo">Money <span>Room</span></div><p>Open-source algorithmic market prediction engine running 10,000 agent genomes on live multi-market data.</p></div>
+      <div><h4>Product</h4><a href="live.html">Dashboard</a><br><a href="demos/">Demo</a><br><a href="pricing.html">Pricing</a><br><a href="https://github.com/waefrebeorn/money-room">GitHub</a></div>
+      <div><h4>Legal</h4><a href="terms.html">Terms</a><br><a href="privacy.html">Privacy</a></div>
+      <div><h4>Network</h4><a href="https://github.com/waefrebeorn/money-room">Source Code</a><br><span style="color:var(--text-quaternary);font-size:13px;">⚡ BTC: 15wLLZxFzNesJKEXo6E9NMVhpZWEUcAC4R</span></div>
+    </div>
+    <div class="disclaimer"><p><b>⚠️ NOT FINANCIAL ADVICE</b> — Money Room is an open-source algorithmic research project. All data, predictions, and analysis are provided for <b>educational and research purposes only</b>. Nothing on this website constitutes financial advice, investment advice, or trading advice. Past performance does not guarantee future results. All metrics are from simulated paper trading with real exchange fee assumptions.</p></div>
+    <div class="bottom"><span>© 2026 Money Room</span> · <a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/waefrebeorn/money-room">GitHub</a></div>
+  </div>
+</footer>
+
+<!-- Cookie notice -->
+<div id="cookieNotice" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;z-index:9999;font-size:12px;color:var(--text-tertiary);text-align:center">No tracking cookies used. Data from simulated paper trading only. <a href="privacy.html" style="color:var(--accent)">Privacy</a> <span onclick="this.parentElement.style.display='none'" style="cursor:pointer;color:var(--accent);margin-left:12px;font-weight:600">Dismiss</span></div>
+<script>
+if(!localStorage.getItem('cookieDismissed')){document.getElementById('cookieNotice').style.display='block';}
+</script>
+<script src="data_fetcher.js"></script>
+<script>
+/* ═══════════════════════════════════════════
+ * Money Room — Client Engine
+ * ═══════════════════════════════════════════ */
+
+var DF = window.DATA_FETCHER;
+
+function fmt(n,d) { if(n===undefined||n===null)return'—';if(typeof n==='string')n=parseFloat(n);if(isNaN(n))return'—';return n.toLocaleString(undefined,{minimumFractionDigits:d||0,maximumFractionDigits:d||2}); }
+function pct(n) { if(n===undefined||n===null)return'—';n=typeof n==='string'?parseFloat(n):n;return (n*100).toFixed(1)+'%'; }
+function ago(ts) { var d=Math.floor(Date.now()/1000-ts);if(d<60)return d+'s';if(d<3600)return Math.floor(d/60)+'m';return Math.floor(d/3600)+'h'; }
+function $(id){return document.getElementById(id);}
+function setEl(id,v){var e=$(id);if(e)e.textContent=v;}
+var BASE_URL = window.location.pathname.startsWith('/money-room') ? '/money-room' : '';
+function fetchData(path){ return fetch(BASE_URL+'/'+path,{cache:'no-store'}); }
+
+/* ── Auth ── */
+function getApiKey(){return localStorage.getItem('mr_api_key');}
+function setApiKey(k,t,e){localStorage.setItem('mr_api_key',k);if(t)localStorage.setItem('mr_tier',t);if(e)localStorage.setItem('mr_expires',e);}
+function getTier(){return localStorage.getItem('mr_tier')||'user';}
+function clearApiKey(){localStorage.removeItem('mr_api_key');localStorage.removeItem('mr_tier');localStorage.removeItem('mr_expires');updateNav();}
+function isLoggedIn(){return!!getApiKey();}
+function openLogin(){$('loginModal').classList.add('active');$('apiKeyInput').value='';$('loginStatus').textContent='';$('apiKeyInput').focus();}
+function closeLogin(){$('loginModal').classList.remove('active');}
+
+/* Check if a hash matches any key in .auth.json (supports old string[] and new object[] format) */
+function checkKeyInAuth(ad, hash) {
+    if (!ad.keys || !Array.isArray(ad.keys)) return null;
+    for (var i = 0; i < ad.keys.length; i++) {
+        var entry = ad.keys[i];
+        if (typeof entry === 'string') {
+            if (entry === hash) return {tier: 'premium', expires: null};
+        } else if (typeof entry === 'object' && entry.hash === hash) {
+            /* Check expiration */
+            if (entry.expires && entry.expires < Math.floor(Date.now()/1000)) {
+                return {tier: 'expired', expires: entry.expires};
+            }
+            return {tier: entry.tier || 'user', expires: entry.expires || null};
+        }
+    }
+    return null;
+}
+
+function login(){
+  var k=$('apiKeyInput').value.trim();
+  if(!k){$('loginStatus').textContent='Enter an API key.';$('loginStatus').className='status error';return;}
+  $('loginStatus').textContent='Validating...';$('loginStatus').className='status';
+  var hash = btoa(k);
+
+  /* Try local C server first */
+  fetch(BASE_URL+'/.auth?key='+encodeURIComponent(k),{cache:'no-store'})
+    .then(function(r){
+      if(r.ok){ r.json().then(function(j){setApiKey(k,j.tier||'user',null);closeLogin();updateNav();window.location.href='live.html';}); }
+      else {
+        /* Fallback to client-side auth.json check */
+        fetch(BASE_URL+'/.auth.json',{cache:'no-store'}).then(function(ar){
+          if(!ar.ok)throw Error();
+          ar.json().then(function(ad){
+            var info = checkKeyInAuth(ad, hash);
+            if (info && info.tier !== 'expired') {
+              setApiKey(k, info.tier, info.expires);
+              closeLogin(); updateNav();
+              window.location.href='live.html';
+            } else if (info && info.tier === 'expired') {
+              $('loginStatus').textContent='⚠️ Key expired. Get a new free trial on the register page.';
+              $('loginStatus').className='status error';
+            } else {
+              $('loginStatus').textContent='Invalid key. Try again or get a free trial.';
+              $('loginStatus').className='status error';
+            }
+          });
+        }).catch(function(){ $('loginStatus').textContent='Auth unavailable.';$('loginStatus').className='status error'; });
+      }
+    })
+    .catch(function(){
+      /* Offline fallback */
+      fetch(BASE_URL+'/.auth.json',{cache:'no-store'}).then(function(ar){
+        if(!ar.ok)throw Error();
+        ar.json().then(function(ad){
+          var info = checkKeyInAuth(ad, hash);
+          if (info && info.tier !== 'expired') {
+            setApiKey(k, info.tier, info.expires);
+            closeLogin(); updateNav();
+            window.location.href='live.html';
+          } else {
+            $('loginStatus').textContent='Invalid key.';
+            $('loginStatus').className='status error';
+          }
+        });
+      }).catch(function(){ setApiKey(k,'local');closeLogin();updateNav();$('loginStatus').textContent='Offline — local access only';$('loginStatus').className='status';setTimeout(function(){window.location.href='live.html';},500); });
+    });
+}
+function logout(){clearApiKey();updateNav();$('navDashboard').style.display='none';}
+
+function updateNav(){
+  var loggedIn=isLoggedIn();
+  $('navAuth').textContent=loggedIn?'Sign Out':'Sign In';
+  $('navAuth').href=loggedIn?'#':'#';
+  $('navAuth').onclick=loggedIn?function(e){e.preventDefault();logout();}:function(e){e.preventDefault();openLogin();};
+  $('navDashboard').style.display=loggedIn?'inline':'none';
+  $('heroCta').href=loggedIn?'live.html':'#';
+  $('heroCta').onclick=loggedIn?null:function(e){e.preventDefault();openLogin();};
+}
+
+/* ── Ticker (CoinGecko + Engine) ── */
+function updateTickerDuplicates(){
+  // Sync duplicate ticker items for seamless scroll
+  ['Btc','Eth','Sol'].forEach(function(s){
+    var p=$('ticker'+s); var p2=$('ticker'+s+'2');
+    if(p&&p2&&p.textContent&&p2.textContent==='—')p2.textContent=p.textContent;
+    var c=$('ticker'+s+'Chg'); var c2=$('ticker'+s+'Chg2');
+    if(c&&c2){c2.textContent=c.textContent;c2.className=c.className;}
+  });
+  ['Time','Cycle','Wr'].forEach(function(s){
+    var p=$('ticker'+s); var p2=$('ticker'+s+'2');
+    if(p&&p2)p2.textContent=p.textContent;
+  });
+}
+
+async function loadTicker() {
+  DF.fetchStats(function(err, s){
+    if (s) {
+      setEl("capitalDisplay", "$" + Math.round(s.capital || 0).toLocaleString());
+      setEl("cycleCount", s.cycle ? DF.fmt(s.cycle,0) : '--');
+      setEl("agentCount", s.agents ? DF.fmt(s.agents,0) : '--');
+      setEl("tradeCount", s.trades_total ? DF.fmt(s.trades_total,0) : '--');
+    }
+  });
+
+  // Original ticker loading follows
+  try {
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true',{cache:'no-store'})
+    .then(function(r){return r.ok?r.json():Promise.reject();})
+    .then(function(d){
+      [['bitcoin','Btc'],['ethereum','Eth'],['solana','Sol']].forEach(function(pair){
+        var id=pair[0],s=pair[1],c=d[id];if(!c)return;
+        setEl('ticker'+s,'$'+fmt(c.usd,0));
+        if(c.usd_24h_change!==undefined){
+          var ch=c.usd_24h_change;
+          setEl('ticker'+s+'Chg',(ch>=0?'+':'')+ch.toFixed(1)+'%');
+          var ce=$('ticker'+s+'Chg');if(ce)ce.className='live-banner-chg '+(ch>=0?'up':'down');
+        }
+      });
+      setEl('tickerTime',new Date().toLocaleTimeString());
+      updateTickerDuplicates();
+    }).catch(function(){});
+}
+
+/* ── Market Prices ── */
+function loadMarketPrices(){
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true',{cache:'no-store'})
+    .then(function(r){return r.ok?r.json():Promise.reject();})
+    .then(function(d){
+      function setMkt(id,pEl,vEl,bEl){
+        var c=d[id];if(!c)return;
+        if(pEl)pEl.textContent='$'+fmt(c.usd,0);
+        if(vEl&&c.usd_24h_vol)vEl.textContent='Vol: $'+fmt(c.usd_24h_vol,0);
+        if(bEl&&c.usd_24h_change!==undefined){
+          var ch=c.usd_24h_change;
+          bEl.textContent=(ch>=0?'+':'')+ch.toFixed(1)+'%';
+          bEl.className='status-badge '+(ch>=0?'bullish':'bearish');
+        }
+      }
+      setMkt('bitcoin',$('mktBtcPrice'),$('mktBtcDetail'),$('mktBtcBadge'));
+      setMkt('ethereum',$('mktEthPrice'),$('mktEthDetail'),$('mktEthBadge'));
+      setMkt('solana',$('mktSolPrice'),$('mktSolDetail'),$('mktSolBadge'));
+    }).catch(function(){});
+}
+
+/* ── Engine Stats from deployed data ── */
+function loadStats(){
+  DF.fetchStats(function(err, s){
+    if (err || !s) return;
+    function setStat(id,val,color){
+      var el=$(id);if(!el)return;
+      el.textContent=val; el.className='metric-value live';
+      if(color)el.style.color=color;
+    }
+    setStat('statCycles',DF.fmt(s.cycle,0));
+    setStat('statAgents',DF.fmt(s.agents,0));
+    setStat('statWinRate',DF.pct(s.win_rate),s.win_rate>0.5?'var(--bullish)':s.win_rate>0.45?'var(--text-primary)':'var(--bearish)');
+    setStat('statCapital',s.capital?'$'+DF.fmt(s.capital,0):'—');
+    setStat('statCycleTime',s.cycle_time?s.cycle_time.toFixed(1)+'ms':'—');
+
+    setEl('emCycleTime',s.cycle_time?s.cycle_time.toFixed(1)+'ms':'—');
+    setEl('emVotes',DF.fmt(s.votes,0));
+    setEl('emTopPnl',s.trades_total?'$'+DF.fmt(s.trades_total,0):'—');
+    setEl('emSharpe',s.sharpe?s.sharpe.toFixed(2):'—');
+    setEl('emDd',s.drawdown?DF.pct(s.drawdown):'—');
+    var paperAge=s.paper_age?DF.ago(Date.now()/1000-s.paper_age):null;
+    setEl('emPaperAge',paperAge||'—');
+
+    // Ticker integration
+    setEl('tickerCycle',DF.fmt(s.cycle,0));
+    setEl('tickerWr',DF.pct(s.win_rate));
+    setEl('agentCount',s.agents?DF.fmt(s.agents,0):'--');
+    setEl('tradeCount',s.trades_total?DF.fmt(s.trades_total,0):'--');
+    setEl('winRateDisplay',DF.pct(s.win_rate));
+    setEl('capitalDisplay',s.capital?'$'+DF.fmt(s.capital,0):'--');
+    setEl('cycleCount',s.cycle?DF.fmt(s.cycle,0):'--');
+    setEl('sharpeDisplay',s.sharpe?s.sharpe.toFixed(2):'--');
+    updateTickerDuplicates();
+
+    if(s.timestamp){
+      $('healthRow').innerHTML='<span class="dot green"></span>Cycle '+DF.fmt(s.cycle,0)+' · WR '+DF.pct(s.win_rate)+' · $'+DF.fmt(s.capital,0);
+      setEl('shDeployed',DF.ago(s.timestamp)+' ago');
+    }
+  });
+}
+
+function loadDeploy(){
+  fetch(BASE_URL+'/.deploy_status.json',{cache:'no-store'})
+    .then(function(r){return r.ok?r.json():Promise.reject();})
+    .then(function(d){
+      if(d.last_push){setEl('healthDeploy','⚡ Deployed: '+ago(d.last_push)+' ago');}
+    }).catch(function(){});
+}).catch(function(){});}
+}).catch(function(){});
+}
+
+/* ── GDPR Cookie Consent ═══ */
+function initCookieConsent() {
+var dismissed = localStorage.getItem('cookieConsentDismissed');
+var accepted = localStorage.getItem('cookieConsentAccepted');
+if (dismissed || accepted) return;
+
+var banner = document.createElement('div');
+banner.id = 'cookieBanner';
+banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:var(--surface);border-top:1px solid var(--border);padding:16px 20px;font-size:13px;color:var(--text);box-shadow:0 -4px 24px rgba(0,0,0,0.3)';
+banner.innerHTML = '\
+<div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">\
+  <div style="display:flex;align-items:center;gap:10px;flex:1">\
+    <span style="font-size:18px">🍪</span>\
+    <span>We use cookies and similar technologies for essential functionality, security, analytics, and (with your consent) marketing. See our <a href="privacy.html" style="color:var(--accent);text-decoration:underline">Privacy Policy</a>.</span>\
+  </div>\
+  <div style="display:flex;gap:8px;flex-shrink:0">\
+    <button id="cookieAccept" style="padding:8px 16px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Accept All</button>\
+    <button id="cookieReject" style="padding:8px 16px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Reject Optional</button>\
+    <button id="cookieSettings" style="padding:8px 16px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Settings</button>\
+  </div>\
+</div>';
+document.body.appendChild(banner);
+
+document.getElementById('cookieAccept').onclick = function() {
+localStorage.setItem('cookieConsentAccepted', JSON.stringify({essential:true, security:true, marketing:true, analytics:true, timestamp:new Date().toISOString(), version:'2.0'}));
+banner.remove();
+};
+document.getElementById('cookieReject').onclick = function() {
+localStorage.setItem('cookieConsentAccepted', JSON.stringify({essential:true, security:true, marketing:false, analytics:false, timestamp:new Date().toISOString(), version:'2.0'}));
+banner.remove();
+};
+document.getElementById('cookieSettings').onclick = function() {
+window.location.href = 'register.html';
+};
+}
+
+/* ═══ Data stream animation ═══ */
+function animateDataStream() {
+  var el=$('dataStream');if(!el)return;
+  var chars='0123456789abcdef█▓▒░▄▅▆▇█▌▐▀▬';
+  var line=el.textContent;
+  setInterval(function(){
+    // Scramble 20% of char positions randomly
+    var arr=line.split('');
+    for(var i=0;i<arr.length;i++){
+      if(Math.random()<0.2)arr[i]=chars[Math.floor(Math.random()*chars.length)];
+    }
+    el.textContent=arr.join('');
+  },200);
+}
+
+/* ═══ INIT ═══ */
+document.addEventListener('DOMContentLoaded',function(){
+  initCookieConsent();  // GDPR cookie consent
+  updateNav();
+  // Load ticker with engine stats
+  loadTicker();loadMarketPrices();loadStats();loadDeploy();animateDataStream();
+  setInterval(loadTicker,30000);
+  setInterval(loadMarketPrices,60000);
+  setInterval(loadStats,15000);
+  setInterval(loadDeploy,60000);
+  $('loginModal').onclick=function(e){if(e.target===this)closeLogin();};
+  $('apiKeyInput').onkeydown=function(e){if(e.key==='Enter')login();};
+});
+</script>
+</body>
+</html>

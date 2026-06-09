@@ -1,0 +1,76 @@
+{
+  "agents": [
+    {
+      "capital": 50.0,
+      "id": 0,
+      "rank": 1,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 1,
+      "rank": 2,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 2,
+      "rank": 3,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 3,
+      "rank": 4,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 4,
+      "rank": 5,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 5,
+      "rank": 6,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 6,
+      "rank": 7,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 7,
+      "rank": 8,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 8,
+      "rank": 9,
+      "trades": 0,
+      "win_rate": 0.5
+    },
+    {
+      "capital": 50.0,
+      "id": 9,
+      "rank": 10,
+      "trades": 0,
+      "win_rate": 0.5
+    }
+  ],
+  "count": 10,
+  "timestamp": 1780953030
+}
