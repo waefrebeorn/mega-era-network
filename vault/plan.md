@@ -1,60 +1,75 @@
-# Plan — Money Room Walkway v5.8
-June 6, 2026 — Phase: REVENUE READINESS (Regulatory Complete)
+# Plan — Money Room Walkway v6.0
+June 8, 2026 — Phase: CRITICAL GAP CLOSURE (405 gaps, 38 critical)
 
-## Current Phase: REVENUE PIPELINE (Regulatory Complete ✅)
+## Current Phase: CRITICAL GAP CLOSURE
 
 ### COMPLETED THIS SESSION
-- ✅ **R1-R3: Regulatory disclaimers** on ALL performance metric pages (7 pages)
-- ✅ **T441: SEC EDGAR 13F+Form 4 scraper** — 13f_holdings.c + insider_trades.c built, tested, cron'd daily
-- ✅ **R4: 5-layer circuit breaker** — Pre-trade risk controls in room_capital.c
-- ✅ **R5: Privacy Policy v2.0** — GDPR/CCPA: legal basis (Art. 6), retention, rights, SCCs, DPO
-- ✅ **R6: Terms v2.0** — GDPR/CCPA: IP rights, governing law, rights acknowledgment
-- ✅ **R8: Register consent flow** — 4 granular checkboxes, versioning, localStorage + server payload
-- ✅ **Cookie consent banner** on all main pages (GDPR Art. 7)
-- ✅ **Walkway files updated** — state.md, plan.md, prestige.md, battleship-ultimate.md
+- ✅ **Telegram spam fix** — All 108 crons audited, 22 paused, all delivery→local
+- ✅ **DA Pass 1-9** — Fee realism, seed capital, epsilon, regime, darwin, pruning
+- ✅ **A01: SGD batch 8→64** — Faster convergence
+- ✅ **A22: Max 3 open positions/agent** — Risk control + STATE_V5 migration
+- ✅ **A14/A15: Checkpointing** — Verified (every 1000 cycles)
+- ✅ **C03-C06: Circuit breaker** — Verified (5-layer pre-trade)
+- ✅ **C17-C19: Auto-kill** — Verified (6-loss, WR<30%, capital<$1)
+- ✅ **500 gap registry** — 405 gaps in 9 domains
+- ✅ **Walkway files updated** — state.md, plan.md, prestige.md
 
 ### SYSTEM STATE
-- timeline.db: 2.4GB, 2M+ rows (17 years: 2011-2028)
-- historical.db: 503 SP500, 2.5K daily, 50K multi-exch
-- Engine: 229K cycles, 218K trades, 2,500 agents, $124K cap
-- 80 features defined: ~28 work, ~52 need data wiring
-- Website live at waefrebeorn.github.io/money-room
-- Cost: $0/month (all free APIs)
-- STATE_VERSION=4, STATE_MAGIC=ROMB
+- Engine: 2.8M+ cycles, 83K+ trades, 2,500 agents, 50.8% WR
+- STATE_VERSION=5, STATE_MAGIC=ROMB
+- 34 features (17 near-zero, need pruning)
+- 60+ C collector binaries
+- 86 active cron jobs (22 paused, all silent)
+- Third-party: libcurl, jansson, sqlite3 only
 
-### 🔴 IMMEDIATE P0 (Next Session)
-**Priority order by impact/hour:**
+### 🔴 CRITICAL GAPS (38 total, 5 done, 33 remaining)
 
-| # | Cell | Task | Est Time | Impact |
-|---|------|------|----------|--------|
-| 1 | **R7** | SEC AI-washing language audit | 2h | 🔴 Legal risk |
-| 2 | **T712** | LemonSqueezy integration + PayPal fallback | 4h | 🔴 First $ revenue |
-| 3 | **T483-T490** | Kelly sizing + VaR + volatility sizing | 2h | ⏳ Build |
+**Training Engine (7 remaining):**
+- A04/A05: Walk-forward validation
+- A10: Cross-room ensemble
+- A59: Feed freshness check
 
-### 🟡 P1 (After P0)
-| # | Cell | Task | Est Time | Status |
-|---|------|------|----------|--------|
-| 4 | **T256** | Finnhub earnings calendar | 0.5h | ⏳ Needs API key |
-| 5 | **T542** | Encrypted secrets vault (libsodium) | 1h | ⏳ Build |
-| 6 | **T543** | Order management system | 2h | ⏳ Build |
-| 7 | **T624-T632** | Monitoring dashboard + Telegram heartbeat | 2h | ⏳ Build |
-| 8 | **T721-T730** | Open-Meteo weather (global) | 1h | ✅ Mostly done |
+**Features (5 remaining):**
+- B01: Prune dead features
+- B02/B03: Populate DFT + phi features
+- B37: Feature staleness detection
+- B44: Reject stale feed
 
-### 🟢 P2 (After P1)
-| # | Cell | Task | Est Time |
-|---|------|------|----------|
-| 9 | **T752-T770** | Test suite — unit tests for core engine | 3h |
-| 10 | **T842-T876** | Agent architecture upgrades | 4h |
+**Risk (6 remaining):**
+- C01: Runtime VaR
+- C04: Max drawdown enforcement (per-agent)
+- C05: Daily loss limit (per-agent)
+- C06: Max concentration check (per-agent)
+- C31: T-tested edge verification
 
-### REGULATORY FIXES (Complete)
-| # | Fix | Status |
-|---|-----|--------|
-| R1-R3 | Disclaimers on all metrics | ✅ DONE |
-| R4 | Pre-trade circuit breakers | ✅ DONE |
-| R5 | Privacy Policy v2.0 (GDPR/CCPA) | ✅ DONE |
-| R6 | Terms v2.0 (GDPR/CCPA) | ✅ DONE |
-| R7 | SEC AI-washing audit | ❌ PENDING |
-| R8 | GDPR/CCPA consent flow | ✅ DONE |
+**Data (4 remaining):**
+- D01: Backfill capability
+- D03: Real-time BTC verification
+- D32: Data freshness dashboard
+- D37: Feed age check in engine
+
+**Execution (1 remaining):**
+- E01: Live exchange API bridge
+
+**Infrastructure (5 remaining):**
+- F02: CI/CD pipeline
+- F07: Fix resource_monitor.sh
+- F09: Database backup
+- F10: State corruption recovery
+- F19: Automated test suite
+
+**Security (4 remaining):**
+- G01: Encrypt key storage
+- G05: Prompt injection guard
+- G06: DA guard on wallets
+- G14: State file integrity
+
+**Website (2 remaining):**
+- H21: Terms of Service
+- H22: Privacy Policy
+
+**Monetization (1 remaining):**
+- I01: Payment processor (LemonSqueezy)
 
 ### RULES
 - All C. No Python. libcurl + jansson + sqlite3.
@@ -64,3 +79,4 @@ June 6, 2026 — Phase: REVENUE READINESS (Regulatory Complete)
 - Always show results after tool calls (no silent replies).
 - Update battleship after each cell closed.
 - Push after each batch (5-10 cells).
+- NAME PARITY: New A01-I30 IDs supersede old T### IDs. Old battleship archived.

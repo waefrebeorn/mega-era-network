@@ -1,38 +1,42 @@
-# STATE — Money Room Walkway v5.8
-June 6, 2026 — Session: R5-R8 regulatory (GDPR/CCPA) + R4 circuit breaker + R1-R3 + T441
+# STATE — Money Room Walkway v6.0
+June 8, 2026 — Session: Triple DA sweep + 500 gap registry + cron spam fix
 
-## Status: ✅ 78 PORTED / 8 REAL GAP remaining in battleship
+## Status: 405 gaps cataloged (38 critical 🔴), 5 critical fixed, 33 remaining
 
 ### Completed This Session
 | Task | Status | Details |
 |------|--------|---------|
-| **R1-R3: Regulatory disclaimers** | ✅ DONE | Added to 7 pages: index.html (root+docs/), rooms.html, paper.html, live.html, dashboard.html, pricing.html |
-| **T441a: 13f_holdings.c** | ✅ DONE | SEC EDGAR 13F-HR scraper → inst_filing_density (F63), inst_filing_trend (F64) |
-| **T441b: insider_trades.c** | ✅ DONE | SEC EDGAR Form 4 scraper → insider_density_norm, insider_trend_norm, filing_volume_norm |
-| **R4: Circuit breaker** | ✅ DONE | 5-layer pre-trade risk controls in room_capital.c |
-| **R5: Privacy Policy v2.0** | ✅ DONE | GDPR/CCPA: legal basis (Art. 6), retention, rights, SCCs, DPO |
-| **R6: Terms v2.0** | ✅ DONE | GDPR/CCPA: IP rights, governing law, rights acknowledgment |
-| **R8: Register consent flow** | ✅ DONE | 4 granular checkboxes, versioning, localStorage + server payload |
-| Cron integration | ✅ DONE | All cron'd daily at 08:00 + cookie consent on all pages |
+| **Telegram spam fix** | ✅ DONE | All 108 crons audited, 22 paused, all delivery→local |
+| **DA Pass 1-9** | ✅ DONE | Fee realism, seed capital, epsilon, regime, darwin, pruning |
+| **A01: SGD batch** | ✅ DONE | 8→64 for faster convergence |
+| **A22: Position limits** | ✅ DONE | Max 3 open positions/agent |
+| **A14/A15: Checkpointing** | ✅ VERIFIED | Already implemented (every 1000 cycles) |
+| **C03-C06: Circuit breaker** | ✅ VERIFIED | 5-layer pre-trade risk controls |
+| **C17-C19: Auto-kill** | ✅ VERIFIED | 6-loss, WR<30%, capital<$1 |
+| **500 gap registry** | ✅ DONE | 405 gaps in 9 domains |
+| **Walkway update** | ✅ DONE | prestige.md, state.md updated |
 
 ### Active Systems
 | System | Status | Notes |
 |--------|--------|-------|
-| **FRED Data** | ✅ 87 series, 2.4GB timeline.db | Free CSV gateway |
-| **Blockchain data** | ✅ 15 on-chain charts | Free blockchain.info API |
-| **Exchange data** | ✅ 7 exchanges, 11 endpoints | All public REST APIs |
-| **Market microstructure** | ✅ 18 analysis dimensions | One C binary |
-| **SEC EDGAR 13F/Form 4** | ✅ 2 collectors built, tested, cron'd | 13f_holdings.c + insider_trades.c |
-| **R4: Circuit breaker** | ✅ 5-layer pre-trade risk controls | room_capital.c: check_circuit_breaker_before_trade() |
-| **R5: Privacy Policy v2.0** | ✅ GDPR/CCPA compliant | docs/privacy.html |
-| **R6: Terms v2.0** | ✅ GDPR/CCPA compliant | docs/terms.html |
-| **R8: Register consent flow** | ✅ 4 checkboxes + cookie banner | docs/register.html + all pages |
-| **Paper trainer** | 🔄 RUNNING | 722K BTC candles, 5ms/cycle |
-| **Engine (LIVE)** | ✅ 16 rooms deployed | Real fees + no noise |
-| **Darwin evolution** | 🟡 Epoch 0 → stacking | Paper training will boost |
+| **Engine (LIVE)** | ✅ Running | STATE_V5, 2.8M+ cycles, 83K+ trades |
+| **Darwin evolution** | ✅ Active | Epoch 6,410 |
+| **Collectors** | ✅ 60+ C binaries | All delivering data |
+| **Cron jobs** | ✅ 86 active, 22 paused | No more Telegram spam |
+| **Paper trainer** | ✅ Daily cron | multi_train_daily.sh at 03:00 |
 
 ### Key Metrics
-- 229K engine cycles, 218K trades, 2,500 agents
-- 78 PORTED / 8 REAL GAP in battleship
-- 722K BTC candles for paper training
-- STATE_VERSION=4, STATE_MAGIC=ROMB
+- 2.8M+ engine cycles, 83K+ trades, 2,500 agents
+- 50.8% WR, Sharpe -82.56 (BUG: ring buffer not sliding)
+- STATE_VERSION=5, STATE_MAGIC=ROMB
+- 405 gaps: 38 critical, 197 important, 114 nice-to-have
+
+### DA Findings (Stale Claims Corrected)
+| Old Claim | Reality | Action |
+|-----------|---------|--------|
+| 78 PORTED / 8 REAL GAP | 405 gaps in 9 domains | New registry created |
+| STATE_VERSION=4 | STATE_VERSION=5 | Bumped for A22 |
+| Darwin epoch 0 | Epoch 6,410 | Already active |
+| 229K cycles | 2.8M+ cycles | Updated |
+| No position limits | Max 3/agent | A22 fixed |
+| TAKER_FEE 0.1% | 0.26% (Kraken) | 14 files fixed |
