@@ -1,12 +1,12 @@
 /**
- * cycle_all_rooms.c — Cycle ALL rooms in C (replaces shell wrapper)
+ * cycle_all_rooms_parallel.c — Cycle ALL rooms in C with pthread parallelization
  *
- * Phase 1: Per-room feed generation (differentiated feeds by domain)
- * Phase 2: c_room multi-market engine (main)
- * Phase 3: All 16 room engines with ROOM_DIR (sequential)
+ * Phase 1: Per-room feed generation (differentiated feeds by domain) - SEQUENTIAL
+ * Phase 2: c_room multi-market engine (main) - SEQUENTIAL
+ * Phase 3: All 16 room engines with ROOM_DIR - PARALLEL (pthread)
  *
- * Compile: gcc -O2 -o cycle_all_rooms cycle_all_rooms.c
- * Usage:   ./cycle_all_rooms
+ * Compile: gcc -O2 -pthread -o cycle_all_rooms_parallel cycle_all_rooms_parallel.c
+ * Usage:   ./cycle_all_rooms_parallel [max_threads]
  */
 #define _POSIX_C_SOURCE 199309L
 #define _GNU_SOURCE
@@ -19,6 +19,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 #define C_ENG    "/home/wubu2/.hermes/pm_logs/c_room/room_engine"
 #define ROOMS_DIR "/home/wubu2/.hermes/pm_logs/rooms"
@@ -87,12 +88,31 @@ static int run_cmd(const char *bin, const char *room_dir, int timeout_sec) {
     return -3;
 }
 
-int main(void) {
-    printf("[ROOMS] Cycling all engines...\n");
+typedef struct {
+    const char *eng_path;
+    const char *room_dir;
+    int timeout_sec;
+    int *result;
+} thread_arg_t;
+
+static void *run_room_engine(void *arg) {
+    thread_arg_t *t = (thread_arg_t *)arg;
+    *(t->result) = run_cmd(t->eng_path, t->room_dir, t->timeout_sec);
+    return NULL;
+}
+
+int main(int argc, char **argv) {
+    int max_threads = 8;
+    if (argc > 1) max_threads = atoi(argv[1]);
+    if (max_threads < 1) max_threads = 1;
+    if (max_threads > 16) max_threads = 16;
+
+    printf("[ROOMS_PARALLEL] Cycling all engines (max_threads=%d)...\n", max_threads);
     int total = 0, ok = 0;
 
     write_heartbeat(HEARTBEAT_FILE, 0, 0, "starting");
 
+    // Phase 1: Feed generation (sequential - they're fast)
     if (stat(FEED_GEN, &(struct stat){0}) == 0) {
         for (int i = 0; ROOMS[i]; i++) {
             char room_dir[256];
@@ -106,40 +126,102 @@ int main(void) {
             if (rc == 0 || rc == -1) ok++;
         }
     }
-    printf("[ROOMS] Phase 1: %d/%d room feeds generated\n", ok, total);
+    printf("[ROOMS_PARALLEL] Phase 1: %d/%d room feeds generated\n", ok, total);
 
+    // Phase 2: Main c_room engine (sequential)
     if (stat(C_ENG, &(struct stat){0}) == 0) {
-        int rc = run_cmd(C_ENG, NULL, 30);  // Increased to 30s for live waiting
-        printf("[ROOMS] Phase 2: main engine %s\n",
+        int rc = run_cmd(C_ENG, NULL, 30);
+        printf("[ROOMS_PARALLEL] Phase 2: main engine %s\n",
                rc == 0 ? "OK" : (rc == -2 ? "TIMEOUT" : "FAILED"));
         if (rc == -2) write_alert("main_engine_timeout");
         else if (rc != 0) write_alert("main_engine_failed");
     }
 
+    // Phase 3: Room engines in PARALLEL
     total = 0; ok = 0;
     int timeouts = 0, failures = 0;
+
+    // Count valid rooms first
+    int room_count = 0;
     for (int i = 0; ROOMS[i]; i++) {
         char eng_path[256], room_dir[256];
         snprintf(eng_path, sizeof(eng_path), "%s/%s/room_engine", ROOMS_DIR, ROOMS[i]);
         snprintf(room_dir, sizeof(room_dir), "%s/%s", ROOMS_DIR, ROOMS[i]);
-
         struct stat rd;
         if (stat(room_dir, &rd) != 0 || !S_ISDIR(rd.st_mode)) continue;
-
-        int rc = run_cmd(eng_path, room_dir, 30);  // Increased to 30s for live waiting
-        total++;
-        if (rc == 0 || rc == -1) ok++;
-        else if (rc == -2) timeouts++;
-        else failures++;
+        struct stat es;
+        if (stat(eng_path, &es) != 0 || !(es.st_mode & S_IXUSR)) continue;
+        room_count++;
     }
-    printf("[ROOMS] Phase 3: %d/%d rooms cycled (%d timeout, %d failed)\n",
+
+    if (room_count > 0) {
+        // Allocate arrays
+        pthread_t *threads = malloc(room_count * sizeof(pthread_t));
+        thread_arg_t *args = malloc(room_count * sizeof(thread_arg_t));
+        int *results = malloc(room_count * sizeof(int));
+        if (!threads || !args || !results) {
+            perror("malloc");
+            free(threads); free(args); free(results);
+            return 1;
+        }
+
+        int idx = 0;
+        for (int i = 0; ROOMS[i]; i++) {
+            char eng_path[256], room_dir[256];
+            snprintf(eng_path, sizeof(eng_path), "%s/%s/room_engine", ROOMS_DIR, ROOMS[i]);
+            snprintf(room_dir, sizeof(room_dir), "%s/%s", ROOMS_DIR, ROOMS[i]);
+
+            struct stat rd;
+            if (stat(room_dir, &rd) != 0 || !S_ISDIR(rd.st_mode)) continue;
+            struct stat es;
+            if (stat(eng_path, &es) != 0 || !(es.st_mode & S_IXUSR)) continue;
+
+            args[idx].eng_path = strdup(eng_path);
+            args[idx].room_dir = strdup(room_dir);
+            args[idx].timeout_sec = 30;
+            args[idx].result = &results[idx];
+            pthread_create(&threads[idx], NULL, run_room_engine, &args[idx]);
+            idx++;
+        }
+
+        // Wait for all threads, but limit concurrency
+        // Simple approach: batch by max_threads
+        int completed = 0;
+        while (completed < room_count) {
+            int batch_start = completed;
+            int batch_end = batch_start + max_threads;
+            if (batch_end > room_count) batch_end = room_count;
+
+            for (int j = batch_start; j < batch_end; j++) {
+                pthread_join(threads[j], NULL);
+            }
+            completed = batch_end;
+        }
+
+        // Collect results
+        for (int j = 0; j < room_count; j++) {
+            int rc = results[j];
+            total++;
+            if (rc == 0 || rc == -1) ok++;
+            else if (rc == -2) timeouts++;
+            else failures++;
+            free((void*)args[j].eng_path);
+            free((void*)args[j].room_dir);
+        }
+
+        free(threads);
+        free(args);
+        free(results);
+    }
+
+    printf("[ROOMS_PARALLEL] Phase 3: %d/%d rooms cycled (%d timeout, %d failed)\n",
            ok, total, timeouts, failures);
     if (timeouts > 0) write_alert("room_engine_timeout");
     if (failures > 0) write_alert("room_engine_failed");
 
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
-    printf("[ROOMS] %02d:%02d: All engines cycled\n", tm->tm_hour, tm->tm_min);
+    printf("[ROOMS_PARALLEL] %02d:%02d: All engines cycled\n", tm->tm_hour, tm->tm_min);
 
     const char *status = (timeouts > 0 || failures > 0) ? "degraded" : "ok";
     write_heartbeat(HEARTBEAT_FILE, ok, total, status);

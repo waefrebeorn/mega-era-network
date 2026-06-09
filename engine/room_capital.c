@@ -492,6 +492,11 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         // NO surplus return — unmatched portion was never deducted
 
         AgentState *a = &agents[yes[i].agent_id];
+        // ── A22: Max open positions enforcement ──
+        if (a->n_open_positions >= MAX_OPEN_POSITIONS) {
+            continue;  // Agent at max positions — skip this trade entirely
+        }
+        a->n_open_positions++;  // Track new open position
         a->capital -= (matched_stake + fee);
         if (a->capital < 0) a->capital = 0;  // C1: capital floor
         a->trades++;
@@ -528,6 +533,11 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         float fee = matched_stake * get_exchange_fee(s, 0);
 
         AgentState *a = &agents[no[i].agent_id];
+        // ── A22: Max open positions enforcement ──
+        if (a->n_open_positions >= MAX_OPEN_POSITIONS) {
+            continue;  // Agent at max positions — skip this trade entirely
+        }
+        a->n_open_positions++;  // Track new open position
         a->capital -= (matched_stake + fee);
         if (a->capital < 0) a->capital = 0;  // C1: capital floor
         a->trades++;

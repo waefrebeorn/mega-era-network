@@ -778,7 +778,7 @@ static int write_feed(void) {
     json_t *feed = json_object();
 
     time_t now = time(NULL);
-    long window_ts = (long)now - ((long)now % 60);
+    long window_ts = (long)now;  // Use second-precision for live streaming
 
     if (!candle.found || candle.close <= 0.0) {
         /* Fallback — use exchange ticker price when candle is missing or stale */
@@ -799,7 +799,7 @@ static int write_feed(void) {
         json_object_set_new(feed, "vix", json_real(18.0));
     } else {
         json_object_set_new(feed, "asset", json_string("BTC"));
-        json_object_set_new(feed, "window_ts", json_integer(candle.ts));
+        json_object_set_new(feed, "window_ts", json_integer(window_ts));
         json_object_set_new(feed, "open", json_real(candle.open));
         json_object_set_new(feed, "high", json_real(candle.high));
         json_object_set_new(feed, "low", json_real(candle.low));
@@ -1742,7 +1742,7 @@ static int write_feed(void) {
     rename(FEED_TMP, MARKET_FEED);
 
     printf("[feed] wrote feed: BTC ts=%ld close=%.2f pump=%.3f score=%d\n",
-           candle.found ? candle.ts : window_ts,
+           window_ts,
            candle.found ? candle.close : 0.0,
            pump,
            candle.found ? 100 : 0);

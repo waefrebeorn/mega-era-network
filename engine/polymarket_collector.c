@@ -47,6 +47,26 @@ int main(void) {
         fprintf(stderr, "Cannot open DB: %s\n", sqlite3_errmsg(db));
         return 1;
     }
+    // Also open main timeline.db for mirror writes
+    sqlite3 *tl_db;
+    const char *TL_DB = "/home/wubu2/.hermes/pm_logs/timeline.db";
+    if (sqlite3_open(TL_DB, &tl_db) != SQLITE_OK) {
+        fprintf(stderr, "Cannot open timeline DB: %s\n", sqlite3_errmsg(tl_db));
+        sqlite3_close(db);
+        return 1;
+    }
+    // Ensure timeline table exists (it should already)
+    sqlite3_exec(tl_db,
+        "CREATE TABLE IF NOT EXISTS timeline("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "ts INTEGER NOT NULL,"
+        "source TEXT NOT NULL,"
+        "category TEXT NOT NULL,"
+        "data TEXT NOT NULL,"
+        "collected_at INTEGER DEFAULT(strftime('%s','now')))", NULL, NULL, NULL);
+    sqlite3_exec(tl_db, "CREATE INDEX IF NOT EXISTS i_ts ON timeline(ts)", NULL, NULL, NULL);
+    sqlite3_exec(tl_db, "CREATE INDEX IF NOT EXISTS i_src ON timeline(source)", NULL, NULL, NULL);
+    
     curl_global_init(CURL_GLOBAL_ALL);
 
     int total = 0, inserted = 0;
@@ -138,6 +158,22 @@ int main(void) {
 
             if (sqlite3_step(ins) == SQLITE_DONE) inserted++;
             sqlite3_finalize(ins);
+            
+            // Also write to main timeline.db
+            sqlite3_stmt *tl_ins;
+            sqlite3_prepare_v2(tl_db,
+                "INSERT INTO timeline(ts, source, category, data) VALUES(?1,?2,?3,?4)",
+                -1, &tl_ins, NULL);
+            sqlite3_bind_int64(tl_ins, 1, ts);
+            sqlite3_bind_text(tl_ins, 2, "polymarket", -1, SQLITE_STATIC);
+            sqlite3_bind_text(tl_ins, 3, cat, -1, SQLITE_STATIC);
+            // Store full event as JSON in data field
+            char *event_json = json_dumps(ev, 0);
+            sqlite3_bind_text(tl_ins, 4, event_json, -1, SQLITE_TRANSIENT);
+            sqlite3_step(tl_ins);
+            sqlite3_finalize(tl_ins);
+            free(event_json);
+            
             total++;
         }
         json_decref(events);
@@ -148,6 +184,7 @@ int main(void) {
 
     sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
     sqlite3_close(db);
+    sqlite3_close(tl_db);
     curl_global_cleanup();
 
     printf("[PM] DONE: %d new events, %d total processed\n", inserted, total);

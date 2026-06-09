@@ -12,7 +12,7 @@ cross_source_check: cross_source_check.c
 
 # All source files
 SRCS = room_engine.c room_feeds.c room_features.c room_vote.c room_capital.c room_darwin.c room_bridge.c
-PAPER_SRCS = $(SRCS) paper_feature_bridge.c
+PAPER_SRCS = room_engine.c paper_feeds.c room_features.c room_vote.c room_capital.c room_darwin.c room_bridge.c paper_feature_bridge.c
 MKT_SRCS = room_engine.c room_feeds.c room_features.c room_vote.c room_capital.c room_market.c room_darwin.c room_bridge.c
 EXCH_SRCS = exchange_api.c
 OBJS = $(SRCS:.c=.o)
@@ -23,7 +23,7 @@ MKT_TARGET = room_engine_market
 .PHONY: all clean run paper market feed_bridge exchange_test tools test memcheck
 
 # Tools: shell-to-C conversions
-TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all
+TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all paper_orchestrator
 TOOL_SRCS = $(addsuffix .c, $(TOOLS))
 TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check data_quality_scorer trade_history_db state_rollback room_darwin room_features
 
@@ -63,6 +63,9 @@ cycle_all_rooms: cycle_all_rooms.c
 cycle_all_rooms_parallel: cycle_all_rooms_parallel.c
 	$(CC) -O2 -pthread -o $@ $<
 
+paper_orchestrator: paper_orchestrator.c
+	$(CC) -O2 -o $@ $<
+
 # ── T11: Exchange API module ──
 exchange_api.o: exchange_api.c exchange_api.h
 	$(CC) $(CFLAGS) -c exchange_api.c -o exchange_api.o
@@ -73,6 +76,15 @@ exchange_api_test: exchange_api_test.c exchange_api.o
 # ── T12: Feed bridge with exchange API + WebSocket read ──
 feed_bridge: exchange_api.o
 	$(CC) -O3 -D_GNU_SOURCE -o room_feed_bridge room_feed_bridge.c exchange_api.o -lcurl -ljansson -lsqlite3 -lm
+
+room_feed_gen: room_feed_gen.c
+	$(CC) -O2 -o room_feed_gen room_feed_gen.c -ljansson -lsqlite3 -lm
+
+feed_daemon: feed_daemon.c
+	$(CC) -O2 -o feed_daemon feed_daemon.c
+
+refresh_all: refresh_all.c
+	$(CC) -O2 -o $@ $< -lsqlite3 -lm
 
 # ── Multi-market trainer + collectors ──
 multi_market_trainer: multi_market_trainer.c types.h

@@ -260,7 +260,11 @@ static void prune_dead_features(AgentState *agents, int n, FeatureImportance *im
 // ── Forward decls ──
 RoomError room_feeds_load(MarketTick *tick);
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s);
-RoomError room_vote_run(AgentState *agents, int n, const FeatureVector *fv, VoteRecord *votes, int *count, float epsilon);
+RoomError room_vote_run(AgentState *agents, int n,
+                        const FeatureVector *fv,
+                        const FeatureImportance *imp,
+                        const int *agent_market,
+                        VoteRecord *votes, int *count, float epsilon);
 RoomError room_capital_apply(VoteRecord *votes, int count, AgentState *agents, int n, TradeRecord *trades, int start_offset, int *new_count, int64_t window_ts, int predicted_regime, RoomState *s);
 RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                                const MarketTick *resolution_tick,
@@ -802,6 +806,12 @@ static RoomError load_or_init_state(void) {
             state->room_take_profit_pct = 0.20f;
             state->room_take_profit_triggered = 0;
         }
+        if (state->state_version < 5) {
+            // A22: v4→v5 — zero out new per-agent position counters
+            for (int i = 0; i < MAX_AGENTS; i++) {
+                state->agents[i].n_open_positions = 0;
+            }
+        }
         state->state_version = STATE_VERSION;
         state_compute_crc(state);
         crc_good = true;
@@ -921,7 +931,7 @@ static RoomError load_or_init_state(void) {
         state->current_no_exposure = 0.0f;
         state->peak_total_exposure = 0.0f;
         // ── T19: Trade rate limit defaults ──
-        state->max_trades_per_cycle = 5000;      // Max 5000 new trades per cycle
+        state->max_trades_per_cycle = 0;      // 0 = unlimited
         state->trades_deferred = 0;
         state->total_trades_deferred = 0;
         // ── T20: Slippage tracking defaults ──
@@ -1045,6 +1055,11 @@ int main(void) {
         MarketTick tick;
         err = room_feeds_load(&tick);
         if (err != ERR_OK) {
+            // Check for graceful data exhaustion (PAPER_MODE max cycles)
+            if (err == ERR_DATA_EXHAUSTED) {
+                printf("[ROOM] Paper mode: reached cycle %d. Shutting down gracefully.\n", state->cycle);
+                break;
+            }
             // Retry once immediately — feed bridge may be mid-write
             struct timespec retry_ts = { .tv_sec = 0, .tv_nsec = 100000000 }; // 100ms
             nanosleep(&retry_ts, NULL);
@@ -1075,51 +1090,19 @@ int main(void) {
         // Skip if we already processed this window
         if (tick.window_ts == state->stats.last_window_ts) {
             dup_cycles++;
-            // A02: LIVE_MODE static feed exhaust — after 3 consecutive duplicates, exit
-            // (3 skips × 1s sleep = 3s, fits within cycle_all_rooms 5s timeout)
-            // PAPER_MODE: keep looping — historical data replay doesn't advance the feed
-#ifndef PAPER_MODE
-            if (dup_cycles >= 3) {
-                printf("[ROOM] Feed exhausted (%d duplicate timestamps). Shutting down.\n", dup_cycles);
-                // C03: Force-resolve any open room trade before exit
-                // (room trades never resolve when feed is static — only 1 unique timestamp per run)
-                if (state->room_trade.resolved_at == 0 && state->room_trade.stake > 0 && prev_close > 0) {
-                    bool up = state->room_trade.majority_up;
-                    float exit_px = state->current_market.close;
-                    bool room_won = (exit_px >= prev_close) == up;
-                    if (room_won) {
-                        float profit = state->room_trade.stake * (1.0f - TAKER_FEE);
-                        float gross_ret = state->room_trade.stake + profit;
-                        state->room_capital += gross_ret;
-                        state->room_wins++;
-                        state->room_trade.won = true;
-                        state->room_trade.pnl = profit;
-                        state->daily_pnl += state->room_trade.pnl;
-                        state->consec_room_losses = 0;
-                    } else {
-                        state->room_losses++;
-                        state->room_trade.won = false;
-                        state->room_trade.pnl = -(state->room_trade.stake * (1.0f + TAKER_FEE));
-                        state->room_capital += state->room_trade.pnl;
-                        state->daily_pnl += state->room_trade.pnl;
-                        state->consec_room_losses++;
-                    }
-                    state->room_trade.exit_price = exit_px;
-                    state->room_trade.resolved_at = state->current_market.window_ts;
-                    printf("[ROOM] Force-resolved open trade: %s PnL=$%.4f consec_losses=%d\\n",
-                           room_won ? "WIN" : "LOSS", state->room_trade.pnl, state->consec_room_losses);
-                    if (state->room_capital > state->room_capital_peak)
-                        state->room_capital_peak = state->room_capital;
-                }
-                break;
+            // LIVE_MODE: wait for new data instead of exiting
+            // Feed bridge updates market_feed.json periodically (every 10-60s via cron)
+            // Sleep and retry instead of exiting after 3 duplicates
+            // Room will process new data when feed_bridge writes fresh timestamp
+            if (dup_cycles % 10 == 0) {
+                printf("[ROOM] Waiting for new feed data (dup_cycles=%d)...\n", dup_cycles);
             }
-#endif
-            struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };
+            // Sleep longer in live mode to avoid busy loop
+            struct timespec ts = { .tv_sec = 2, .tv_nsec = 0 };
             nanosleep(&ts, NULL);
             continue;
         }
         dup_cycles = 0;  // Reset on new unique timestamp
-
     #ifdef MARKET_MODE
 RoomError room_market_apply(VoteRecord *votes, int count,
                             AgentState *agents, int n,
@@ -1185,6 +1168,7 @@ void room_market_stats(RoomState *state);
         // ── L3: Run vote ──
         int vote_count = 0;
         err = room_vote_run(state->agents, MAX_AGENTS, &state->features,
+                            &state->feat_importance, g_agent_market,
                             state->votes, &vote_count, state->epsilon);
         state->vote_count = vote_count;
 
@@ -1277,28 +1261,32 @@ void room_market_stats(RoomState *state);
             }
         }
 
-        // Check drawdown: if room capital dropped > max_drawdown_pct from peak
-        if (state->room_capital > state->circuit_breaker_peak) {
-            state->circuit_breaker_peak = state->room_capital;
+        // Check drawdown: if TOTAL AGENT capital dropped > max_drawdown_pct from peak
+        float total_agent_cap = 0.0f;
+        for (int i = 0; i < MAX_AGENTS; i++) {
+            if (state->agents[i].alive && state->agents[i].capital > 0)
+                total_agent_cap += state->agents[i].capital;
+        }
+        if (total_agent_cap > state->circuit_breaker_peak) {
+            state->circuit_breaker_peak = total_agent_cap;
         }
         float drawdown = state->circuit_breaker_peak > 0
-            ? (state->circuit_breaker_peak - state->room_capital) / state->circuit_breaker_peak
+            ? (state->circuit_breaker_peak - total_agent_cap) / state->circuit_breaker_peak
             : 0.0f;
         if (drawdown > state->max_drawdown_pct && state->circuit_breaker_cycles == 0) {
             state->circuit_breaker_cycles = state->circuit_cooldown_cycles;
             state->circuit_breaker_count++;
             state->circuit_breaker_ts = tick.window_ts;
-            // ── F17: Structured JSON log for circuit breaker ──
+            // F17: Structured JSON log for circuit breaker
             { FILE *jl = fopen(g_json_log_path, "a");
               if (jl) { fprintf(jl, "{\"ts\":%ld,\"event\":\"circuit_breaker\",\"dd_pct\":%.1f,\"cap\":%.2f,\"peak\":%.2f}\n",
-                         (long)tick.window_ts, drawdown*100, state->room_capital, state->circuit_breaker_peak);
+                         (long)tick.window_ts, drawdown*100, total_agent_cap, state->circuit_breaker_peak);
                 fclose(jl); } }
-            printf("[CB] TRIGGERED! Drawdown=%.1f%% max=%.1f%%. "
-                   "Room cap $%.2f from peak $%.2f. Cooldown=%d cycles.\n",
+            printf("[CB] TRIGGERED! Drawdown=%.1f%% max=%.1f%%. Agent cap $%.2f from peak $%.2f. Cooldown=%d cycles.\n",
                    drawdown * 100, state->max_drawdown_pct * 100,
-                   state->room_capital, state->circuit_breaker_peak,
+                   total_agent_cap, state->circuit_breaker_peak,
                    state->circuit_cooldown_cycles);
-            // ── C33: Log unwind priority for open positions ──
+            // C33: Log unwind priority for open positions
             { float best_pri = 1e9f; int best_idx = -1;
               for (int ui = 0; ui < state->trade_count && ui < MAX_TRADE_HIST; ui++) {
                   float pri = unwind_priority(&state->trades[ui], tick.window_ts);
@@ -1312,13 +1300,18 @@ void room_market_stats(RoomState *state);
             goto skip_trading;
         }
 
-        // ── C05: Daily loss limit ──
-        if (state->daily_pnl < 0 && state->circuit_breaker_cycles == 0) {
-            float daily_loss_pct = -state->daily_pnl / (state->room_capital_peak > 0 ? state->room_capital_peak : 1.0f);
+        // C05: Daily loss limit — use total agent capital as baseline
+        float total_agent_cap_dd = 0.0f;
+        for (int i = 0; i < MAX_AGENTS; i++) {
+            if (state->agents[i].alive && state->agents[i].capital > 0)
+                total_agent_cap_dd += state->agents[i].capital;
+        }
+        if (state->daily_pnl < 0 && state->circuit_breaker_cycles == 0 && total_agent_cap_dd > 0) {
+            float daily_loss_pct = -state->daily_pnl / total_agent_cap_dd;
             if (daily_loss_pct > state->max_daily_loss_pct) {
                 state->circuit_breaker_cycles = state->circuit_cooldown_cycles;
                 state->circuit_breaker_count++;
-                printf("[CB] TRIGGERED! Daily loss $%.2f (%.1f%% of peak). "
+                printf("[CB] TRIGGERED! Daily loss $%.2f (%.1f%% of agent cap). "
                        "Max daily loss=%.0f%%. Cooldown=%d cycles.\n",
                        state->daily_pnl, daily_loss_pct * 100,
                        state->max_daily_loss_pct * 100,
@@ -1882,7 +1875,7 @@ skip_trading:
 
 
         // ── Pace: faster for paper mode ──
-        int64_t sleep_ns = PAPER_PACE_NS - elapsed;
+        int64_t sleep_ns = is_paper_mode() ? (PAPER_PACE_NS - elapsed) : (LIVE_PACE_NS - elapsed);
         if (sleep_ns < 0) sleep_ns = 0;
         if (sleep_ns > 0) {
             struct timespec ts = {

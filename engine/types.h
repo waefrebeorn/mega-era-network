@@ -41,8 +41,8 @@ extern const char *MARKET_TYPE_NAMES[];
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D42  // "ROMB" — STATE_VERSION=4 for walkway v5.6 + PDT + loss feedback loop + hot-reload fix
-#define STATE_VERSION     4           // Current struct layout version
+#define STATE_MAGIC       0x524F4D42  // ROMB — STATE_VERSION=5 for A22 position tracking
+#define STATE_VERSION     5           // Current struct layout version (A22: +n_open_positions)
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.0026f  // Kraken spot taker fee
@@ -61,7 +61,9 @@ extern const char *MARKET_TYPE_NAMES[];
 #define DEFAULT_MIN_ORDER     1.0f    // $1 minimum order size
 
 // ── A19: Mini-batch SGD batch size ──
-#define SGD_BATCH_SIZE    8       // Trades per mini-batch gradient update
+#define SGD_BATCH_SIZE    64      // Trades per mini-batch gradient update (A01: was 8, too sparse)
+// ── A22: Max open positions per agent ──
+#define MAX_OPEN_POSITIONS 3      // Max concurrent positions per $50 agent
 // ── T20: Slippage model ──
 #define SLIPPAGE_BPS          5.0f    // 5 bps = 0.05% baseline slippage
 #define SLIPPAGE_VOL_SCALE   5.0f    // Additional bps per $100 of position (market impact)
@@ -237,6 +239,8 @@ typedef struct {
     // ── T96: PDT (Pattern Day Trader) enforcement ──
     int      day_trades_5d;       // Day trades in rolling 5-business-day window
     int64_t  day_trade_roll_ts;   // Start of rolling 5-day window (timestamp)
+    // ── A22: Per-agent open position tracking ──
+    int      n_open_positions;    // Number of currently open positions
 } AgentState;
 
 // ── Trade record (for post-hoc analysis) ──

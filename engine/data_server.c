@@ -215,12 +215,12 @@ static void handle_client(int client_fd, const char *data_root) {
     }
 
     /* Build filesystem path:
-       /data/file.json -> $data_root/file.json
+       /data/file.json -> $data_root/data/file.json
+       /index.html -> $data_root/index.html
        /               -> index (list available files) */
     int is_root = (strcmp(path, "/") == 0);
     char fpath[2048];
     if (is_root) {
-        /* For /, show directory listing as JSON */
         char cmd[4096];
         n = snprintf(cmd, sizeof(cmd), "ls -1 '%s' 2>/dev/null", data_root);
         (void)n;
@@ -287,16 +287,8 @@ static void handle_client(int client_fd, const char *data_root) {
         return;
     }
 
-    /* Normal file: /data/filename -> $data_root/filename */
-    const char *fname = path;
-    if (strncmp(fname, "/data/", 6) == 0) {
-        fname += 6;
-    } else {
-        fname++;  /* skip leading / */
-    }
-
-    n = snprintf(fpath, sizeof(fpath), "%s/%s", data_root, fname);
-    (void)n;
+    /* Normal file: /<path> -> $data_root/<path> */
+    snprintf(fpath, sizeof(fpath), "%s%s", data_root, path);
 
     size_t file_len;
     char *content = read_file(fpath, &file_len);

@@ -170,19 +170,19 @@ int main(int argc, char **argv) {
     }
     json_object_set_new(root, "data_files", data_arr);
 
-    /* Process check */
-    int engine_running = proc_running("room_engine");
-    json_object_set_new(root, "engine_running", json_boolean(engine_running));
-    if (!engine_running) {
-        json_object_set_new(root, "engine_status", json_string("warn"));
-        int n = snprintf(issues + issues_off, sizeof(issues) - issues_off,
-                         "ENGINE NOT RUNNING: room_engine\n");
-        if (n > 0) issues_off += n;
-        n_warn++;
-    } else {
-        json_object_set_new(root, "engine_status", json_string("ok"));
-        n_ok++;
-    }
+    // Process check - check for any room_engine variant
+        int engine_running = proc_running("room_engine") || proc_running("room_engine_paper") || proc_running("room_engine_market");
+        json_object_set_new(root, "engine_running", json_boolean(engine_running));
+        if (!engine_running) {
+            json_object_set_new(root, "engine_status", json_string("warn"));
+            int n = snprintf(issues + issues_off, sizeof(issues) - issues_off,
+                             "ENGINE NOT RUNNING: room_engine (or _paper/_market)\\n");
+            if (n > 0) issues_off += n;
+            n_warn++;
+        } else {
+            json_object_set_new(root, "engine_status", json_string("ok"));
+            n_ok++;
+        }
 
     /* Summary */
     json_object_set_new(root, "overall_status",
