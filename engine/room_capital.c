@@ -60,6 +60,87 @@ static inline int64_t trade_key(int agent_id, int64_t window_ts, bool direction)
     return ((int64_t)agent_id << 33) | ((window_ts & 0xFFFFFFFFULL) << 1) | (direction ? 1ULL : 0ULL);
 }
 
+// ── C01: Runtime VaR from cycle returns ring buffer ──
+// Computes historical VaR at the given confidence level (e.g. 0.95)
+// using the room's cycle_returns[128] ring buffer.
+// Returns the loss value at the confidence percentile (positive = loss).
+static float compute_runtime_var(RoomStats *stats, float confidence) {
+    if (stats->return_count < 10) return 0.0f;  // Need minimum samples
+
+    int n = stats->return_count < 128 ? stats->return_count : 128;
+    float sorted[128];
+
+    // Copy ring buffer into linear array
+    for (int i = 0; i < n; i++) {
+        int idx = (stats->return_idx - n + i + 128) % 128;
+        sorted[i] = stats->cycle_returns[idx];
+    }
+
+    // Insertion sort (n ≤ 128, so O(n²) is fine)
+    for (int i = 1; i < n; i++) {
+        float key = sorted[i];
+        int j = i - 1;
+        while (j >= 0 && sorted[j] > key) { sorted[j + 1] = sorted[j]; j--; }
+        sorted[j + 1] = key;
+    }
+
+    // Index for (1-confidence) percentile
+    int idx = (int)((1.0f - confidence) * n);
+    if (idx < 0) idx = 0;
+    if (idx >= n) idx = n - 1;
+
+    return -sorted[idx];  // Positive = loss amount
+}
+
+// ── C01/C32: VaR-based position cap ──
+// Limits position size so that stake ≤ (var_budget_pct * room_capital) / var_95
+// Ensures no single trade can exceed the VaR budget.
+static float var_position_cap(float var_95, float room_capital, float var_budget_pct) {
+    if (var_95 <= 0.001f) return room_capital;  // VaR too small → no cap
+    float max_loss = var_budget_pct * room_capital;
+    return max_loss / var_95;  // Max stake given VaR per unit
+}
+
+// ── A25: Realized volatility from cycle returns ring buffer ──
+// Computes rolling realized volatility (stddev of returns).
+// Returns annualized vol (scaled by sqrt(252) for daily-like cycles).
+static float compute_realized_vol(RoomStats *stats) {
+    if (stats->return_count < 10) return 0.0f;
+
+    int n = stats->return_count < 128 ? stats->return_count : 128;
+    float sum = 0, sumsq = 0;
+
+    for (int i = 0; i < n; i++) {
+        int idx = (stats->return_idx - n + i + 128) % 128;
+        float r = stats->cycle_returns[idx];
+        sum += r;
+        sumsq += r * r;
+    }
+
+    float mean = sum / n;
+    float var = sumsq / n - mean * mean;
+    if (var < 0) var = 0;
+    return sqrtf(var);  // Per-cycle vol (not annualized — used for relative scaling)
+}
+
+// ── A25/T490: Volatility-targeting position sizing ──
+// Targets a fixed volatility (e.g. 15% annualized).
+// stake *= target_vol / realized_vol  (clamped to [0.25, 1.5])
+// High vol → smaller positions, low vol → larger (but capped).
+static float vol_scaling_factor(RoomStats *stats, float target_vol_annual) {
+    float realized_vol = compute_realized_vol(stats);
+    if (realized_vol < 0.001f) return 1.0f;  // No data yet → no scaling
+
+    // Convert annual target to per-cycle (assuming ~252 cycles/day equivalent)
+    float target_per_cycle = target_vol_annual / sqrtf(252.0f);
+    float scale = target_per_cycle / realized_vol;
+
+    // Clamp: never reduce below 25% or increase above 150%
+    if (scale < 0.25f) scale = 0.25f;
+    if (scale > 1.50f) scale = 1.50f;
+    return scale;
+}
+
 // ════════════════════════════════════════════════════════
 //  R4: CIRCUIT BREAKER — Pre-trade risk controls
 //  Trips on: daily loss > max_daily_loss_pct, consecutive losses > max_consecutive_losses,
@@ -398,6 +479,27 @@ RoomError room_capital_apply(VoteRecord *votes, int count,
         // ── C11: Max exposure — no single position > 10% of total room capital ──
         { float max_exp = total_room_cap * MAX_EXPOSURE_PCT;
           if (max_exp > 0 && stake > max_exp) stake = max_exp; }
+
+        // ── C01/T483: Runtime VaR-based position cap ──
+        // Compute 95% VaR from cycle returns ring buffer.
+        // Cap stake so that no single trade exceeds 25% of VaR budget.
+        {
+            float var_95 = compute_runtime_var(&s->stats, 0.95f);
+            if (var_95 > 0.0f && s->stats.return_count >= 10) {
+                float var_cap = var_position_cap(var_95, total_room_cap, 0.25f);
+                if (stake > var_cap) {
+                    stake = var_cap;
+                }
+            }
+        }
+
+        // ── A25/T490: Volatility-targeting position sizing ──
+        // Scale positions inversely with realized volatility (target 15% annualized).
+        {
+            float vol_scale = vol_scaling_factor(&s->stats, 0.15f);
+            stake *= vol_scale;
+        }
+
         if (stake < MIN_TRADE_STAKE) continue;  // T97/C15: skip tiny trades (min $5 for Polymarket)
         // ── C14: Gas fee check — skip if gas would eat >50% of stake ──
         if (GAS_FEE_EST > stake * 0.5f) continue;
