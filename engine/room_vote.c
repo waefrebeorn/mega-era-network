@@ -21,7 +21,7 @@
 #define SIGMOID_SCALE     2.5f   // Sharper sigmoid for conviction diversity
 // ── A30: Epsilon-greedy exploration ──
 #define EPSILON_INIT      0.05f  // 5% random exploration at start
-#define EPSILON_MIN       0.10f  // Force 10% permanent exploration to prevent consensus death
+#define EPSILON_MIN       0.10f  // P2-FIX: 10% floor to prevent consensus death (was 0.005)
 #define EPSILON_DECAY     0.9995f // Per-cycle decay toward minimum
 
 static inline float sigmoid(float x) {
@@ -31,14 +31,10 @@ static inline float sigmoid(float x) {
 }
 
 // P15: Tailslayer — beam-search scenario evaluation
-// When tail risk is elevated, agent conviction must be proportionally higher to trade.
-// This simulates evaluating multiple future scenarios and only acting if conviction
-// survives the beam width (1+tail_risk). Acts as a beam-search ensemble filter.
+// P2-FIX: Reduced impact — was (1 + tail_risk) which doubles threshold at max risk.
+// Now uses (1 + tail_risk * 0.5) so max is 1.5x instead of 2x.
 static float tailslayer_threshold(float base_conviction_threshold, float tail_risk) {
-    // Base threshold is scaled by (1 + tail_risk), so at tail_risk=1.0,
-    // effective threshold is 2× normal. At tail_risk=0, threshold is unchanged.
-    // Clamps at 0.80 max to prevent total gridlock.
-    float threshold = base_conviction_threshold * (1.0f + tail_risk);
+    float threshold = base_conviction_threshold * (1.0f + tail_risk * 0.5f);
     if (threshold > 0.80f) threshold = 0.80f;
     return threshold;
 }

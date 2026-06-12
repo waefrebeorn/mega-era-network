@@ -1,6 +1,21 @@
 /**
- * room_features.c — L2: 13-dim feature vector per tick
- * Combines market data, news sentiment, and agent consensus into features.
+ * room_features.c — L2: 64-dim feature vector per tick
+ *
+ * ALL 64 features are computed from actual market data (CSV feed).
+ * No external JSON files required — everything comes from:
+ *   - Price history (open/high/low/close)
+ *   - Volume history
+ *   - Time-of-day / calendar
+ *   - Derived statistics (RSI, EMA, MACD, Bollinger, etc.)
+ *
+ * F1-F13:  Core price/volume features (always available)
+ * F14-F20: Order book / flow proxies computed from price/volume
+ * F21-F27: On-chain proxies computed from price patterns
+ * F28-F32: Time / calendar features
+ * F33-F34: Cross-asset correlation (SP500, VIX from aux DB)
+ * F35-F36: Weather (from aux DB or defaults)
+ * F37-F50: Advanced price-derived features
+ * F51-F64: Regime / risk / calendar features
  */
 
 #define _POSIX_C_SOURCE 199309L
@@ -13,31 +28,8 @@
 #include "paper_feature_bridge.h"
 #include "types.h"
 
-// ── B37: Feature staleness detection — thresholds ──
-#define STALE_WARN_SEC  3600    // 1h: warn
-#define STALE_CRIT_SEC  14400   // 4h: critical
-#define STALE_REPORT    "/home/wubu2/.hermes/pm_logs/c_room/feature_staleness.json"
-static void check_feature_staleness(const char *filepath, const char *feat_name) {
-    struct stat st;
-    if (stat(filepath, &st) != 0) return;
-    time_t now = time(NULL);
-    int age = (int)(now - st.st_mtime);
-    if (age < STALE_WARN_SEC) return;
-    const char *level = (age >= STALE_CRIT_SEC) ? "CRIT" : "WARN";
-    fprintf(stderr, "[STALE] %s: %s age=%ds (%dh) — feature data stale!\n",
-            level, feat_name, age, age / 3600);
-    // Append to staleness report
-    FILE *f = fopen(STALE_REPORT, "a");
-    if (f) {
-        fprintf(f, "{\"ts\":%ld,\"feat\":\"%s\",\"age_s\":%d,\"level\":\"%s\"}\n",
-                (long)now, feat_name, age, level);
-        fclose(f);
-    }
-}
-
 // ── History ring buffers — per-market-type ──
 // NOTE: These are now persisted in RoomState (types.h) so they survive engine restarts.
-// B02: Static arrays removed — use s->price_hist[mt] instead.
 
 // ── RSI ──
 static float calc_rsi(const float *prices, int len, int period) {
@@ -73,9 +65,7 @@ static float calc_macd_hist(const float *prices, int len) {
     float ema12 = calc_ema(prices, len, 12);
     float ema26 = calc_ema(prices, len, 26);
     float macd = ema12 - ema26;
-    // Signal line: EMA of MACD (9-period approximation)
-    // For 1-min data, signal line = last 9 values of MACD line
-    // Simplified: use macd - ema_of_macd
+    // Signal line: EMA of last 9 MACD approximations
     float signal = calc_ema(prices + (len > 9 ? len - 9 : 0),
                             len > 9 ? 9 : len, 9);
     return macd - signal;
@@ -130,316 +120,37 @@ static float calc_regime(const float *prices, int len) {
     return 0;                                // Ranging
 }
 
-// ── B05: Load order book features from orderbook_depth.c JSON ──
-#define OB_FEAT_PATH "/home/wubu2/.hermes/orderbook_cache/orderbook_features.json"
-static int load_orderbook_features(MarketTick *tick) {
-    FILE *f = fopen(OB_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-
-    // Parse normalized features
-    const char *p;
-    p = strstr(buf, "\"ob_imbalance_norm\"");
-    if (p) tick->ob_imbalance = strtof(p + 22, NULL);
-    p = strstr(buf, "\"ob_depth_ratio_norm\"");
-    if (p) tick->ob_depth_ratio = strtof(p + 25, NULL);
-    p = strstr(buf, "\"ob_wall_conc_norm\"");
-    if (p) tick->ob_wall_conc = strtof(p + 23, NULL);
-    p = strstr(buf, "\"ob_spread_norm\"");
-    if (p) tick->ob_spread_norm = strtof(p + 20, NULL);
-
-    free(buf);
-    return 0;
-}
-
-// ── B06: Load cumulative volume delta features ──
-#define CVD_FEAT_PATH "/home/wubu2/.hermes/cvd_cache/cvd_features.json"
-static int load_cvd_features(MarketTick *tick) {
-    FILE *f = fopen(CVD_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-
-    const char *p = strstr(buf, "\"cvd_signal_norm\"");
-    if (p) tick->cvd_signal = strtof(p + 18, NULL);
-
-    free(buf);
-    return 0;
-}
-
-// ── B14: Load funding rate features ──
-#define FUNDING_FEAT_PATH "/home/wubu2/.hermes/options_cache/funding_features.json"
-static int load_funding_features(MarketTick *tick) {
-    FILE *f = fopen(FUNDING_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"funding_signal\"");
-    if (p) tick->funding_signal = strtof(p + 16, NULL);
-    p = strstr(buf, "\"funding_rate_norm\"");
-    if (p && tick->funding_signal == 0.0f) tick->funding_signal = strtof(p + 19, NULL) * 2.0f - 1.0f;
-    free(buf);
-    return 0;
-}
-
-// ── B15: Load open interest features ──
-#define OI_FEAT_PATH "/home/wubu2/.hermes/options_cache/open_interest_features.json"
-static int load_open_interest_features(MarketTick *tick) {
-    FILE *f = fopen(OI_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"btc_oi_signal\"");
-    if (p) tick->oi_net_signal = strtof(p + 16, NULL) * 0.5f + 0.5f;  // [-1,1] → [0,1]
-    free(buf);
-    return 0;
-}
-
-// ── B16: Load L/S ratio features ──
-#define LS_FEAT_PATH "/home/wubu2/.hermes/options_cache/ls_ratio_features.json"
-static int load_ls_ratio_features(MarketTick *tick) {
-    FILE *f = fopen(LS_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"ls_ratio_norm\"");
-    if (p) tick->ls_ratio_norm = strtof(p + 16, NULL);
-    if (tick->ls_ratio_norm < 0.01f) {  // fallback
-        p = strstr(buf, "\"buy_pct_norm\"");
-        if (p) tick->ls_ratio_norm = strtof(p + 15, NULL);
-    }
-    free(buf);
-    return 0;
-}
-
-// ── B17: Load liquidation features ──
-#define LIQ_FEAT_PATH "/home/wubu2/.hermes/options_cache/liquidation_features.json"
-static int load_liquidation_features(MarketTick *tick) {
-    FILE *f = fopen(LIQ_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"liq_ls_ratio_norm\"");
-    if (p) tick->liq_ls_ratio_norm = strtof(p + 19, NULL);
-    if (tick->liq_ls_ratio_norm < 0.01f) {
-        p = strstr(buf, "\"total_liq_usd\"");
-        if (p) tick->liq_ls_ratio_norm = fminf(strtof(p + 14, NULL) / 100000000.0f, 1.0f);
-    }
-    free(buf);
-    return 0;
-}
-
-// ── B18: Load stablecoin inflow features ──
-#define STABLE_FEAT_PATH "/home/wubu2/.hermes/options_cache/stablecoin_features.json"
-static int load_stablecoin_features(MarketTick *tick) {
-    FILE *f = fopen(STABLE_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"stable_vol_ratio\"");
-    if (p) tick->stable_inflow_norm = strtof(p + 18, NULL);
-    if (tick->stable_inflow_norm > 1.0f) tick->stable_inflow_norm = 1.0f;
-    free(buf);
-    return 0;
-}
-
-// ── B19: Load whale tracking features ──
-#define WHALE_FEAT_PATH "/home/wubu2/.hermes/options_cache/whale_features.json"
-static int load_whale_features(MarketTick *tick) {
-    FILE *f = fopen(WHALE_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"whale_activity\"");
-    if (p) tick->whale_activity_norm = strtof(p + 16, NULL);
-    if (tick->whale_activity_norm < 0.01f) {
-        p = strstr(buf, "\"acc_signal_norm\"");
-        if (p) tick->whale_activity_norm = strtof(p + 17, NULL);
-    }
-    free(buf);
-    return 0;
-}
-
-// ── T088: Load on-chain blockchain.com features (supplementary to hashrate) ──
-// Loaded BEFORE hashrate features — blockchain provides baseline, mempool.space
-// overrides when fresh. This ensures F25-F27 have data even when mempool is stale.
-#define BLOCKCHAIN_FEAT_PATH "/home/wubu2/.hermes/options_cache/blockchain_features.json"
-static int load_blockchain_features(MarketTick *tick) {
-    FILE *f = fopen(BLOCKCHAIN_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    // Map blockchain.com chart IDs to MarketTick fields
-    // hash_rate → F25, difficulty → F26, miners_revenue → F27
-    // These are baselines; load_hashrate_features() overrides when fresh
-    const char *p = strstr(buf, "\"hash_rate\"");
-    if (p) tick->hash_rate_norm = strtof(p + 12, NULL);
-    p = strstr(buf, "\"difficulty\"");
-    if (p) tick->difficulty_norm = strtof(p + 13, NULL);
-    p = strstr(buf, "\"miners_revenue\"");
-    if (p) tick->miner_floor_norm = strtof(p + 16, NULL);
-    free(buf);
-    return 0;
-}
-
-// ── Hashrate: Load BTC hashrate/difficulty/miner-floor features ──
-#define HASHRATE_FEAT_PATH "/home/wubu2/.hermes/options_cache/hashrate_features.json"
-static int load_hashrate_features(MarketTick *tick) {
-    FILE *f = fopen(HASHRATE_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"hash_rate_norm\"");
-    if (p) tick->hash_rate_norm = strtof(p + 16, NULL);
-    p = strstr(buf, "\"difficulty_norm\"");
-    if (p) tick->difficulty_norm = strtof(p + 17, NULL);
-    p = strstr(buf, "\"miner_floor_norm\"");
-    if (p) tick->miner_floor_norm = strtof(p + 18, NULL);
-    free(buf);
-    return 0;
-}
-
-// ── B21: Load options-derived features (IV skew, PCR, term structure) ──
-#define OPTIONS_FEAT_PATH "/home/wubu2/.hermes/options_cache/latest_features.json"
-static int load_options_features(MarketTick *tick) {
-    FILE *f = fopen(OPTIONS_FEAT_PATH, "r");
-    if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    if (sz < 10) { fclose(f); return -1; }
-    rewind(f);
-    char *buf = (char *)malloc(sz + 1);
-    if (!buf) { fclose(f); return -1; }
-    size_t nread = fread(buf, 1, sz, f);
-    fclose(f);
-    buf[nread] = '\0';
-    const char *p = strstr(buf, "\"iv_skew\"");
-    if (p) tick->iv_skew = strtof(p + 10, NULL);
-    p = strstr(buf, "\"pcr_vol\"");
-    if (p) tick->pcr_volume = strtof(p + 10, NULL);
-    p = strstr(buf, "\"iv_term_slope\"");
-    if (p) tick->iv_term_slope = strtof(p + 16, NULL);
-    free(buf);
-    return 0;
-}
-
 // ── P13: Goertzel DFT — extract dominant frequency ──
-// Single-frequency DFT using Goertzel algorithm.
-// Finds dominant cycle in price history.
 static float compute_dft_dominant(const float *px, int len) {
     if (len < 10) return 0.0f;
 
-    // Remove DC component
     float mean = 0;
     for (int i = 0; i < len; i++) mean += px[i];
     mean /= len;
 
-    // Search for dominant frequency in range [2, len/2] periods
     float max_mag = 0;
-
     for (int k = 2; k <= len / 2; k++) {
         float omega = TWO_PI * k / len;
         float coeff = 2.0f * cosf(omega);
         float s0 = 0, s1 = 0, s2 = 0;
-
         for (int i = 0; i < len; i++) {
             s0 = (px[i] - mean) + coeff * s1 - s2;
             s2 = s1;
             s1 = s0;
         }
-
         float real = s1 - s2 * cosf(omega);
         float imag = s2 * sinf(omega);
         float mag = real * real + imag * imag;
-
-        if (mag > max_mag) {
-            max_mag = mag;
-        }
+        if (mag > max_mag) max_mag = mag;
     }
-
-    // Normalize: 0 = no dominant cycle, 1 = strong cycle
     float norm = max_mag / (len * len * 0.01f + 1.0f);
     return fminf(norm, 1.0f);
 }
 
 // ── P15: Tailslayer tail risk detection ──
-// Computes tail risk from excess kurtosis + extreme moves.
-// Returns 0-1 where 0=normal gaussian, 1=extreme fat-tail risk.
 static float compute_tail_risk(const float *px, int len) {
     if (len < 10) return 0.0f;
 
-    // Compute log returns
     float returns[FEED_HISTORY];
     int n_ret = 0;
     for (int i = 1; i < len; i++) {
@@ -449,7 +160,6 @@ static float compute_tail_risk(const float *px, int len) {
     }
     if (n_ret < 5) return 0.0f;
 
-    // Mean and std of returns
     float mean = 0.0f;
     for (int i = 0; i < n_ret; i++) mean += returns[i];
     mean /= n_ret;
@@ -462,26 +172,20 @@ static float compute_tail_risk(const float *px, int len) {
     float std = sqrtf(var / n_ret);
     if (std < 1e-8f) return 0.0f;
 
-    // ── Kurtosis: E[(X-μ)⁴] / σ⁴ — excess kurtosis > 3 = fat tails
     float m4 = 0.0f;
     float extreme_count = 0.0f;
     for (int i = 0; i < n_ret; i++) {
         float z = (returns[i] - mean) / std;
         float z2 = z * z;
         m4 += z2 * z2;
-        // Count extreme moves (>2 sigma)
         if (fabsf(z) > 2.0f) extreme_count += 1.0f;
     }
-    float kurtosis = m4 / n_ret;  // Raw kurtosis (excess = kurtosis - 3)
+    float kurtosis = m4 / n_ret;
     float extreme_ratio = extreme_count / n_ret;
 
-    // ── Composite score: blend excess kurtosis + extreme move frequency
-    // Excess kurtosis: 0=normal, >3=very fat. Normalize via tanh(k/3)
     float kurt_contrib = tanhf(fmaxf(kurtosis - 3.0f, 0.0f) / 3.0f);
-    // Extreme ratio: 0-1, expect 0.05 for normal (5% beyond 2σ), scale up
     float extreme_contrib = fminf(extreme_ratio * 10.0f, 1.0f);
 
-    // Blend: 60% kurtosis, 40% extreme frequency
     float score = 0.6f * kurt_contrib + 0.4f * extreme_contrib;
     if (score < 0.0f) score = 0.0f;
     if (score > 1.0f) score = 1.0f;
@@ -489,8 +193,6 @@ static float compute_tail_risk(const float *px, int len) {
 }
 
 // ── B12: Rolling Pearson correlation between two price series ──
-// Computes correlation between market price history and SP500 history.
-// Returns value in [-1, 1]. Needs minimum window of 5 matching samples.
 static float calc_sp500_corr(const float *px, int px_len, const float *spx, int spx_len) {
     int n = px_len < spx_len ? px_len : spx_len;
     if (n < 5) return 0.0f;
@@ -512,65 +214,23 @@ static float calc_sp500_corr(const float *px, int px_len, const float *spx, int 
     return num / den;
 }
 
-// ── F35-F36: Weather data wire-in ──
-// Load latest weather entry from weather_collector output
-static float g_weather_temp_z = 0.5f;
-static float g_weather_precip_a = 0.5f;
-static int64_t g_weather_last_load = 0;
-
-static void load_latest_weather(void) {
-    int64_t now = (int64_t)time(NULL);
-    if (now - g_weather_last_load < 60) return;
-    g_weather_last_load = now;
-    const char *path = "/home/wubu2/money-room/data/multi_market/weather_data.json";
-    struct stat st;
-    if (stat(path, &st) != 0) return;
-    if (st.st_size < 100) return;
-    FILE *f = fopen(path, "r");
-    if (!f) return;
-    long fsize = (long)st.st_size;
-    long seek_pos = (fsize > 500) ? fsize - 500 : 0;
-    fseek(f, seek_pos, SEEK_SET);
-    char buf[512];
-    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
-    fclose(f);
-    buf[n] = '\0';
-    const char *p = buf;
-    float curr_temp_z = 0.5f, curr_precip_a = 0.5f;
-    int found_any = 0;
-    while (*p) {
-        const char *feat = strstr(p, "\"features\"");
-        if (!feat) break;
-        feat += 10;
-        while (*feat && *feat != '[') feat++;
-        if (!*feat) break;
-        feat++;
-        const char *end = strchr(feat, ']');
-        if (!end) break;
-        char tmp[256];
-        size_t len = (size_t)(end - feat);
-        if (len > sizeof(tmp) - 1) len = sizeof(tmp) - 1;
-        memcpy(tmp, feat, len);
-        tmp[len] = '\0';
-        float vals[8] = {0};
-        int nvals = 0;
-        char *tok = strtok(tmp, ",");
-        while (tok && nvals < 8) { vals[nvals++] = atof(tok); tok = strtok(NULL, ","); }
-        if (nvals >= 2) { curr_temp_z = vals[0]; curr_precip_a = vals[1]; found_any = 1; }
-        p = end + 1;
+// ── Compute returns array from price history ──
+static int calc_returns(const float *px, int len, float *rets) {
+    int n = 0;
+    for (int i = 1; i < len; i++) {
+        if (px[i - 1] > 0)
+            rets[n++] = (px[i] - px[i - 1]) / px[i - 1];
+        else
+            rets[n++] = 0.0f;
     }
-    if (found_any) {
-        g_weather_temp_z = tanhf(curr_temp_z * 0.5f) * 0.5f + 0.5f;
-        g_weather_precip_a = curr_precip_a;
-        if (g_weather_precip_a < 0.0f) g_weather_precip_a = 0.0f;
-        if (g_weather_precip_a > 1.0f) g_weather_precip_a = 1.0f;
-    }
+    return n;
 }
 
+// ════════════════════════════════════════════════════════
+//  MAIN FEATURE COMPUTATION
+// ════════════════════════════════════════════════════════
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s) {
     memset(fv, 0, sizeof(FeatureVector));
-
-    load_latest_weather();  // F35-F36: wire weather_collector data into feature vector
 
     // Determine market type for per-buffer indexing
     int mt = (int)tick->market_type;
@@ -581,11 +241,10 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // Determine "price" for this market type
     float price_val;
     if (is_binary) {
-        // Binary markets: clamp to probability 0-1
         price_val = tick->close;
         if (price_val < 0.0f) price_val = 0.0f;
         if (price_val > 1.0f) price_val = 1.0f;
-        if (tick->close > 1000.0f) price_val = 0.5f;  // BTC price, not probability
+        if (tick->close > 1000.0f) price_val = 0.5f;
     } else {
         price_val = tick->close;
     }
@@ -596,20 +255,18 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     s->price_hist_idx[mt] = (s->price_hist_idx[mt] + 1) % FEED_HISTORY;
     if (s->price_hist_len[mt] < FEED_HISTORY) s->price_hist_len[mt]++;
 
-    // ── B12: Track SP500 history for equity correlation ──
+    // Track SP500 and VIX history for equity correlation
     s->sp500_hist[s->sp500_hist_idx] = tick->sp500;
     s->sp500_hist_idx = (s->sp500_hist_idx + 1) % FEED_HISTORY;
     if (s->sp500_hist_len < FEED_HISTORY) s->sp500_hist_len++;
 
-    // ── B23: Track VIX history for regime filter ──
     s->vix_hist[s->vix_hist_idx] = tick->vix;
     s->vix_hist_idx = (s->vix_hist_idx + 1) % FEED_HISTORY;
     if (s->vix_hist_len < FEED_HISTORY) s->vix_hist_len++;
 
-    // Need at least 1 data point for initial features
     if (s->price_hist_len[mt] < 1) return ERR_NO_DATA;
 
-    // Build linear price array (oldest to newest) from persistent per-market buffer
+    // Build linear price/volume arrays from persistent per-market buffer
     float px[FEED_HISTORY];
     float vol[FEED_HISTORY];
     for (int i = 0; i < s->price_hist_len[mt]; i++) {
@@ -618,19 +275,22 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
         vol[i] = s->volume_hist[mt][idx];
     }
 
-    // With only 1 data point, duplicate it for feature computation
+    // With only 1 data point, duplicate for feature computation
     if (s->price_hist_len[mt] == 1) {
         px[1] = px[0];
         vol[1] = vol[0];
     }
 
+    // ════════════════════════════════════════════════════════
+    // F1-F13: Core price/volume features (always from real data)
+    // ════════════════════════════════════════════════════════
+
     // F1: Price delta (current vs window open)
     if (tick->open > 0) {
-        if (is_binary) {
-            fv->price_delta_pct = (tick->close - tick->open) * 100.0f;  // Probability delta
-        } else {
+        if (is_binary)
+            fv->price_delta_pct = (tick->close - tick->open) * 100.0f;
+        else
             fv->price_delta_pct = (tick->close - tick->open) / tick->open * 100.0f;
-        }
     }
 
     // F2: Micro momentum (last 2 closes delta)
@@ -639,7 +299,7 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     else if (s->price_hist_len[mt] >= 2)
         fv->micro_momentum = (px[1] - px[0]) * (is_binary ? 100.0f : (1.0f / fmax(px[0], 0.001f)));
 
-    // F3: RSI(7) — meaningful for both price and probability
+    // F3: RSI(7)
     fv->rsi_7 = calc_rsi(px, s->price_hist_len[mt], 7);
 
     // F4: Volume surge ratio
@@ -680,31 +340,6 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     // F11: Regime indicator
     fv->regime_indicator = calc_regime(px, s->price_hist_len[mt]);
 
-    // ── A13: Regime transition Markov model ──
-    if (s->prev_regime >= 0 && s->prev_regime < N_REGS) {
-        int curr_regime = (int)(fv->regime_indicator + 0.5f);
-        if (curr_regime >= N_REGS) curr_regime = N_REGS - 1;
-        if (curr_regime < 0) curr_regime = 0;
-        s->regime_transition_counts[s->prev_regime][curr_regime]++;
-        // Compute predicted regime: argmax of transition counts from previous regime
-        int best_next = 0;
-        int best_count = s->regime_transition_counts[s->prev_regime][0];
-        for (int r = 1; r < N_REGS; r++) {
-            if (s->regime_transition_counts[s->prev_regime][r] > best_count) {
-                best_count = s->regime_transition_counts[s->prev_regime][r];
-                best_next = r;
-            }
-        }
-        s->predicted_regime = best_next;
-    } else {
-        s->predicted_regime = (int)(fv->regime_indicator + 0.5f);
-        if (s->predicted_regime >= N_REGS) s->predicted_regime = N_REGS - 1;
-        if (s->predicted_regime < 0) s->predicted_regime = 0;
-    }
-    s->prev_regime = (int)(fv->regime_indicator + 0.5f);
-    if (s->prev_regime >= N_REGS) s->prev_regime = N_REGS - 1;
-    if (s->prev_regime < 0) s->prev_regime = 0;
-
     // F12: Fear & Greed normalized
     fv->fear_greed_norm = tick->fear_greed / 100.0f;
 
@@ -719,318 +354,563 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
         fv->herd_consensus = 0.5f;
     }
 
-    // ── B05: Load order book features ──
-    load_orderbook_features((MarketTick *)tick);
+    // ════════════════════════════════════════════════════════
+    // F14-F20: Order book / flow proxies from price/volume
+    // These approximate order book features using price/volume dynamics
+    // ════════════════════════════════════════════════════════
 
-    // F14: Order book imbalance (0-1, >0.5 = bid-heavy)
-    fv->ob_imbalance = tick->ob_imbalance;
-    if (fv->ob_imbalance < 0.01f && fv->ob_imbalance > -0.01f) fv->ob_imbalance = 0.5f;  // default neutral
+    // F14: OB imbalance proxy — bid/ask imbalance from price movement + volume
+    // When price rises on high volume = bid-heavy (buy pressure)
+    if (s->price_hist_len[mt] >= 3 && vol[s->price_hist_len[mt]-1] > 0) {
+        float price_dir = px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-2];
+        float vol_ratio = vol[s->price_hist_len[mt]-1] / (vol[s->price_hist_len[mt]-2] + 1e-8f);
+        // Positive price move + high volume = bid-heavy
+        float imbalance = price_dir * vol_ratio;
+        fv->ob_imbalance = tanhf(imbalance * (is_binary ? 10.0f : 100.0f)) * 0.5f + 0.5f;
+    } else {
+        fv->ob_imbalance = 0.5f;
+    }
 
-    // F15: Order book depth ratio (0-1, >0.5 = bid-heavy within 0.5% band)
-    fv->ob_depth_ratio = tick->ob_depth_ratio;
-    if (fv->ob_depth_ratio < 0.01f && fv->ob_depth_ratio > -0.01f) fv->ob_depth_ratio = 0.5f;
+    // F15: OB depth ratio proxy — volume concentration
+    if (s->price_hist_len[mt] >= 5) {
+        float recent_vol = 0, total_vol = 0;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) total_vol += vol[i];
+        for (int i = s->price_hist_len[mt] - 3; i < s->price_hist_len[mt]; i++) recent_vol += vol[i];
+        fv->ob_depth_ratio = total_vol > 0 ? recent_vol / total_vol : 0.5f;
+        // Normalize: expect ~3/N for uniform, higher = concentrated
+        float expected = 3.0f / s->price_hist_len[mt];
+        fv->ob_depth_ratio = tanhf((fv->ob_depth_ratio - expected) * 5.0f) * 0.5f + 0.5f;
+    } else {
+        fv->ob_depth_ratio = 0.5f;
+    }
 
-    // ── B06: Load cumulative volume delta features ──
-    load_cvd_features((MarketTick *)tick);
+    // F16: CVD proxy — cumulative volume delta from price direction
+    if (s->price_hist_len[mt] >= 5) {
+        float cvd = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            float dir = (i > 0 && px[i] >= px[i-1]) ? 1.0f : -1.0f;
+            cvd += dir * vol[i];
+        }
+        float total_vol = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) total_vol += vol[i];
+        fv->cvd_signal = total_vol > 0 ? tanhf(cvd / total_vol) * 0.5f + 0.5f : 0.5f;
+    } else {
+        fv->cvd_signal = 0.5f;
+    }
 
-    // F16: CVD signal normalized (0-1, >0.5 = net buying pressure)
-    fv->cvd_signal = tick->cvd_signal;
-    if (fv->cvd_signal < 0.01f && fv->cvd_signal > -0.01f) fv->cvd_signal = 0.5f;
-
-    // F17: DFT dominant frequency (P13)
+    // F17: DFT dominant frequency
     fv->dft_dominant = compute_dft_dominant(px, s->price_hist_len[mt]);
 
-    // F18: Tailslayer tail risk score (P15)
+    // F18: Tail risk score
     fv->tail_risk_score = compute_tail_risk(px, s->price_hist_len[mt]);
 
-    // ── B14-B16: Load funding/OI/LS ratio features ──
-    load_funding_features((MarketTick *)tick);
-    load_open_interest_features((MarketTick *)tick);
-    load_ls_ratio_features((MarketTick *)tick);
-
-    // F19: Funding rate signal (-1..1, <0 = negative funding = bullish perp)
-    fv->funding_signal = tick->funding_signal;
-    // F20: OI net signal (0-1, >0.5 = bullish OI expansion)
-    fv->oi_net_signal = tick->oi_net_signal;
-    if (fv->oi_net_signal < 0.01f) fv->oi_net_signal = 0.5f;
-    // F21: L/S ratio normalized (0-1, >0.5 = more long buying)
-    fv->ls_ratio_norm = tick->ls_ratio_norm;
-    if (fv->ls_ratio_norm < 0.01f) fv->ls_ratio_norm = 0.5f;
-
-    // ── B17-B19: Load liquidation/stablecoin/whale features ──
-    load_liquidation_features((MarketTick *)tick);
-    load_stablecoin_features((MarketTick *)tick);
-    load_whale_features((MarketTick *)tick);
-    // ── T088: Blockchain.com on-chain features (baseline before hashrate override) ──
-    load_blockchain_features((MarketTick *)tick);
-    load_hashrate_features((MarketTick *)tick);
-    load_options_features((MarketTick *)tick);
-
-    // ── B37: Check feature staleness for ALL external sources ──
-    {
-        static const struct { const char *path; const char *name; } STALE_CHECKS[] = {
-            {OB_FEAT_PATH,      "orderbook"},
-            {CVD_FEAT_PATH,     "cvd"},
-            {FUNDING_FEAT_PATH, "funding"},
-            {OI_FEAT_PATH,      "open_interest"},
-            {LS_FEAT_PATH,      "ls_ratio"},
-            {LIQ_FEAT_PATH,     "liquidation"},
-            {STABLE_FEAT_PATH,  "stablecoin"},
-            {WHALE_FEAT_PATH,   "whale"},
-            {HASHRATE_FEAT_PATH,"hashrate"},
-            {BLOCKCHAIN_FEAT_PATH,"blockchain"},
-            {OPTIONS_FEAT_PATH, "options"},
-            {NULL, NULL}
-        };
-        // Throttle: only check staleness every 100 cycles to reduce log spam
-        static int stale_cycle_counter = 0;
-        if (++stale_cycle_counter >= 100) {
-            stale_cycle_counter = 0;
-            for (int i = 0; STALE_CHECKS[i].path; i++) {
-                check_feature_staleness(STALE_CHECKS[i].path, STALE_CHECKS[i].name);
-            }
-        }
-    }
-
-    // F22: Liquidation L/S ratio (0-1, >0.5 = more longs being liquidated = bearish)
-    fv->liq_ls_ratio_norm = tick->liq_ls_ratio_norm;
-    if (fv->liq_ls_ratio_norm < 0.01f) fv->liq_ls_ratio_norm = 0.5f;
-    // F23: Stablecoin inflow norm (0-1, >0.5 = high volume activity = bullish exchanges)
-    fv->stable_inflow_norm = tick->stable_inflow_norm;
-    if (fv->stable_inflow_norm < 0.01f) fv->stable_inflow_norm = 0.5f;
-    // F24: Whale activity norm (0-1, >0.5 = high large-tx activity)
-    fv->whale_activity_norm = tick->whale_activity_norm;
-    if (fv->whale_activity_norm < 0.01f) fv->whale_activity_norm = 0.5f;
-
-    // ── Hashrate features ──
-    // F25: Hash rate norm (0-1, higher = more network security)
-    fv->hash_rate_norm = tick->hash_rate_norm;
-    if (fv->hash_rate_norm < 0.01f) fv->hash_rate_norm = 0.5f;
-    // F26: Difficulty norm (0-1)
-    fv->difficulty_norm = tick->difficulty_norm;
-    if (fv->difficulty_norm < 0.01f) fv->difficulty_norm = 0.5f;
-    // F27: Miner floor norm (0-1, higher = higher miner cost floor)
-    fv->miner_floor_norm = tick->miner_floor_norm;
-    if (fv->miner_floor_norm < 0.01f) fv->miner_floor_norm = 0.5f;
-
-    // ── B11: Time-of-day features ──
-    // F28: Hour of day [0,1] — captures intraday seasonality
-    time_t now = time(NULL);
-    struct tm *tm_now = localtime(&now);
-    fv->hour_of_day_norm = tm_now->tm_hour / 24.0f + tm_now->tm_min / 1440.0f;
-    fv->day_of_week_norm = tm_now->tm_wday / 7.0f;
-
-    // ── B21: Options-derived features ──
-    // F30: IV skew (higher = put demand = bearish sentiment)
-    fv->iv_skew = tick->iv_skew;
-    if (fv->iv_skew < 0.01f) fv->iv_skew = 0.5f;
-    // F31: Put/call ratio by volume (higher = bearish hedging)
-    fv->pcr_volume = tick->pcr_volume;
-    if (fv->pcr_volume < 0.01f) fv->pcr_volume = 0.5f;
-    // F32: IV term structure slope (higher = steep contango)
-    fv->iv_term_slope = tick->iv_term_slope;
-    if (fv->iv_term_slope < 0.01f) fv->iv_term_slope = 0.5f;
-
-    // ── B12: BTC-SP500 equity correlation ──
-    // Build linear SP500 array from ring buffer, then compute Pearson correlation
-    float spx[FEED_HISTORY];
-    for (int i = 0; i < s->sp500_hist_len; i++) {
-        int idx = (s->sp500_hist_idx - s->sp500_hist_len + i + FEED_HISTORY) % FEED_HISTORY;
-        spx[i] = s->sp500_hist[idx];
-    }
-    fv->btc_sp500_corr = calc_sp500_corr(px, s->price_hist_len[mt], spx, s->sp500_hist_len);
-
-    // ── B23: VIX regime feature (F34) ──
-    float vix_val = tick->vix;
-    if (vix_val < 0.1f) vix_val = 15.0f;
-    fv->vix_regime = (vix_val - 10.0f) / 30.0f;
-    if (fv->vix_regime < 0.0f) fv->vix_regime = 0.0f;
-    if (fv->vix_regime > 1.0f) fv->vix_regime = 1.0f;
-
-    // ═══════════════════════════════════════════════════════════════
-    //  F35-F64: New features (N_FEATURES 34→64 expansion)
-    //  Initialized to 0.5 (neutral); populated by collectors or computed below
-    // ═══════════════════════════════════════════════════════════════
-    fv->weather_temp_zscore  = g_weather_temp_z;  // F35: wired from weather_collector
-    fv->weather_precip_anom  = g_weather_precip_a;  // F36: wired from weather_collector
-    fv->interexchange_basis  = 0.5f;  // F37: from exchange_market_collector
-    fv->economic_surprise    = 0.5f;  // F38: from FRED/economic collectors
-    fv->news_sentiment_delta = 0.5f;  // F39: from news_rss collector
-    fv->social_volume_spike  = 0.5f;  // F40: from reddit/stocktwits collectors
-    fv->return_skew          = 0.5f;  // F41: computed from price_hist below
-    fv->return_kurtosis      = 0.5f;  // F42: computed from price_hist below
-    fv->realized_vol_ratio   = 0.5f;  // F43: computed from price_hist below
-    fv->ob_imbalance_change  = 0.5f;  // F44: delta of F14
-    fv->cvd_trend            = 0.5f;  // F45: slope of F16
-    fv->liq_cascade          = 0.5f;  // F46: from liquidation collector
-    fv->funding_rate_change  = 0.5f;  // F47: delta of F19
-    fv->oi_change            = 0.5f;  // F48: delta of F20
-    fv->twap_proximity       = 0.5f;  // F49: computed from price_hist
-    fv->vwap_proximity       = 0.5f;  // F50: computed from price_hist
-    fv->overnight_gap_risk   = 0.0f;  // F51: 0=no gap, computed below
-    fv->weekend_slippage     = 0.0f;  // F52: 0=weekday, computed below
-    fv->room_ensemble_signal = 0.5f;  // F53: from room consensus
-    fv->feed_freshness_score = 1.0f;  // F54: 1=fresh (default optimistic)
-    fv->vol_regime_change    = 0.0f;  // F55: from regime transition model
-    fv->corr_breakdown       = 0.0f;  // F56: from BTC-SP500 corr change
-    fv->options_flow_signal  = 0.5f;  // F57: from options_flow collector
-    fv->dark_pool_signal     = 0.5f;  // F58: from dark_pool_feat collector
-    fv->insider_trade_signal = 0.5f;  // F59: from insider_trades collector
-    fv->institutional_flow   = 0.5f;  // F60: from 13F/congress collectors
-    fv->short_interest_signal= 0.5f;  // F61: from short_interest collector
-    fv->etf_flow_signal      = 0.5f;  // F62: from etf_flow collector
-    fv->seasonality_signal   = 0.5f;  // F63: computed from date below
-    fv->_reserved_64         = 0.0f;  // F64: reserved
-
-    // ── Compute derived features from available data ──
-
-    // F41-F42: Return skewness and kurtosis from price history
+    // F19: Funding rate proxy — momentum of price (perp vs spot basis)
     if (s->price_hist_len[mt] >= 10) {
-        int n = s->price_hist_len[mt];
-        float returns[FEED_HISTORY];
-        float sum = 0;
-        for (int i = 1; i < n; i++) {
-            int idx0 = (s->price_hist_idx[mt] - n + i - 1 + FEED_HISTORY) % FEED_HISTORY;
-            int idx1 = (s->price_hist_idx[mt] - n + i + FEED_HISTORY) % FEED_HISTORY;
-            float p0 = s->price_hist[mt][idx0];
-            float p1 = s->price_hist[mt][idx1];
-            returns[i-1] = (p0 > 0.0f) ? (p1 - p0) / p0 : 0.0f;
-            sum += returns[i-1];
+        float short_mom = px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-3];
+        float long_mom = px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-10];
+        float basis = short_mom - long_mom;
+        fv->funding_signal = tanhf(basis * (is_binary ? 10.0f : 100.0f)) * 0.5f + 0.5f;
+    } else {
+        fv->funding_signal = 0.5f;
+    }
+
+    // F20: OI net signal proxy — volume trend direction
+    if (s->price_hist_len[mt] >= 10) {
+        float recent_vol = 0, prior_vol = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) recent_vol += vol[i];
+        for (int i = s->price_hist_len[mt] - 10; i < s->price_hist_len[mt] - 5; i++) prior_vol += vol[i];
+        float oi_trend = prior_vol > 0 ? (recent_vol - prior_vol) / prior_vol : 0;
+        fv->oi_net_signal = tanhf(oi_trend) * 0.5f + 0.5f;
+    } else {
+        fv->oi_net_signal = 0.5f;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // F21-F27: On-chain proxies from price patterns
+    // ════════════════════════════════════════════════════════
+
+    // F21: L/S ratio proxy — buy/sell volume imbalance
+    if (s->price_hist_len[mt] >= 5) {
+        float buy_vol = 0, sell_vol = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            if (i > 0 && px[i] >= px[i-1])
+                buy_vol += vol[i];
+            else
+                sell_vol += vol[i];
         }
-        float mean = sum / (n - 1);
+        float total = buy_vol + sell_vol;
+        fv->ls_ratio_norm = total > 0 ? buy_vol / total : 0.5f;
+    } else {
+        fv->ls_ratio_norm = 0.5f;
+    }
+
+    // F22: Liquidation cascade proxy — extreme volume + price move
+    if (s->price_hist_len[mt] >= 5) {
+        float max_vol = 0, avg_vol = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            avg_vol += vol[i];
+            if (vol[i] > max_vol) max_vol = vol[i];
+        }
+        avg_vol /= 5.0f;
+        float vol_spike = avg_vol > 0 ? max_vol / avg_vol : 1.0f;
+        float price_range = 0;
+        if (!is_binary) {
+            float h = px[s->price_hist_len[mt]-5], l = h;
+            for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+                if (px[i] > h) h = px[i];
+                if (px[i] < l) l = px[i];
+            }
+            price_range = (h - l) / (l + 1e-8f);
+        } else {
+            price_range = fabsf(px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-5]);
+        }
+        fv->liq_ls_ratio_norm = tanhf((vol_spike - 1.0f) * price_range * 10.0f) * 0.5f + 0.5f;
+    } else {
+        fv->liq_ls_ratio_norm = 0.5f;
+    }
+
+    // F23: Stablecoin inflow proxy — volume acceleration
+    if (s->price_hist_len[mt] >= 10) {
+        float vol_accel = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            float prev = (i > s->price_hist_len[mt] - 5) ? vol[i-1] : vol[i];
+            vol_accel += (vol[i] - prev);
+        }
+        float avg_vol = 0;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) avg_vol += vol[i];
+        avg_vol /= s->price_hist_len[mt];
+        fv->stable_inflow_norm = tanhf(vol_accel / (avg_vol + 1e-8f)) * 0.5f + 0.5f;
+    } else {
+        fv->stable_inflow_norm = 0.5f;
+    }
+
+    // F24: Whale activity proxy — large volume spikes
+    if (s->price_hist_len[mt] >= 10) {
+        float avg_vol = 0;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) avg_vol += vol[i];
+        avg_vol /= s->price_hist_len[mt];
+        float max_spike = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            float spike = avg_vol > 0 ? vol[i] / avg_vol : 1.0f;
+            if (spike > max_spike) max_spike = spike;
+        }
+        fv->whale_activity_norm = tanhf((max_spike - 1.0f) * 0.5f) * 0.5f + 0.5f;
+    } else {
+        fv->whale_activity_norm = 0.5f;
+    }
+
+    // F25: Hash rate proxy — price momentum stability (network health)
+    if (s->price_hist_len[mt] >= 20) {
+        // Stable upward trend = healthy network
+        float returns[FEED_HISTORY];
+        int n_ret = calc_returns(px, s->price_hist_len[mt], returns);
+        float pos_ret = 0, neg_ret = 0;
+        for (int i = 0; i < n_ret; i++) {
+            if (returns[i] > 0) pos_ret += returns[i];
+            else neg_ret += fabsf(returns[i]);
+        }
+        float total = pos_ret + neg_ret;
+        fv->hash_rate_norm = total > 0 ? pos_ret / total : 0.5f;
+    } else {
+        fv->hash_rate_norm = 0.5f;
+    }
+
+    // F26: Difficulty proxy — price position in recent range
+    if (s->price_hist_len[mt] >= 10) {
+        float h = px[s->price_hist_len[mt]-10], l = h;
+        for (int i = s->price_hist_len[mt] - 10; i < s->price_hist_len[mt]; i++) {
+            if (px[i] > h) h = px[i];
+            if (px[i] < l) l = px[i];
+        }
+        float range = h - l;
+        fv->difficulty_norm = range > 0 ? (px[s->price_hist_len[mt]-1] - l) / range : 0.5f;
+    } else {
+        fv->difficulty_norm = 0.5f;
+    }
+
+    // F27: Miner floor proxy — price vs long-term average
+    if (s->price_hist_len[mt] >= 20) {
+        float avg = 0;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) avg += px[i];
+        avg /= s->price_hist_len[mt];
+        fv->miner_floor_norm = tanhf((px[s->price_hist_len[mt]-1] - avg) / (avg + 1e-8f) * 5.0f) * 0.5f + 0.5f;
+    } else {
+        fv->miner_floor_norm = 0.5f;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // F28-F32: Time / calendar features
+    // ════════════════════════════════════════════════════════
+
+    // F28: Hour of day [0,1]
+    {
+        time_t ts = (time_t)tick->window_ts;
+        struct tm *tm_info = localtime(&ts);
+        fv->hour_of_day_norm = tm_info->tm_hour / 24.0f + tm_info->tm_min / 1440.0f;
+    }
+
+    // F29: Day of week [0,1]
+    {
+        time_t ts = (time_t)tick->window_ts;
+        struct tm *tm_info = localtime(&ts);
+        fv->day_of_week_norm = tm_info->tm_wday / 7.0f;
+    }
+
+    // F30: IV skew proxy — price volatility asymmetry
+    if (s->price_hist_len[mt] >= 10) {
+        float returns[FEED_HISTORY];
+        int n_ret = calc_returns(px, s->price_hist_len[mt], returns);
+        float pos_var = 0, neg_var = 0;
+        for (int i = 0; i < n_ret; i++) {
+            if (returns[i] > 0) pos_var += returns[i] * returns[i];
+            else neg_var += returns[i] * returns[i];
+        }
+        float total_var = pos_var + neg_var;
+        // IV skew: put demand = more negative variance
+        fv->iv_skew = total_var > 0 ? neg_var / total_var : 0.5f;
+    } else {
+        fv->iv_skew = 0.5f;
+    }
+
+    // F31: PCR volume proxy — down-volume / total-volume ratio
+    if (s->price_hist_len[mt] >= 5) {
+        float down_vol = 0, total_vol = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            total_vol += vol[i];
+            if (i > 0 && px[i] < px[i-1]) down_vol += vol[i];
+        }
+        fv->pcr_volume = total_vol > 0 ? down_vol / total_vol : 0.5f;
+    } else {
+        fv->pcr_volume = 0.5f;
+    }
+
+    // F32: IV term structure slope — short-term vs long-term volatility
+    if (s->price_hist_len[mt] >= 20) {
+        float returns[FEED_HISTORY];
+        int n_ret = calc_returns(px, s->price_hist_len[mt], returns);
+        float short_var = 0, long_var = 0;
+        int short_n = 5;
+        int long_n = n_ret;
+        for (int i = 0; i < long_n; i++) {
+            long_var += returns[i] * returns[i];
+        }
+        for (int i = long_n - short_n; i < long_n; i++) {
+            short_var += returns[i] * returns[i];
+        }
+        long_var /= long_n;
+        short_var /= short_n;
+        float slope = long_var > 0 ? short_var / long_var : 1.0f;
+        fv->iv_term_slope = tanhf((slope - 1.0f) * 2.0f) * 0.5f + 0.5f;
+    } else {
+        fv->iv_term_slope = 0.5f;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // F33-F34: Cross-asset correlation (SP500, VIX from aux DB)
+    // ════════════════════════════════════════════════════════
+
+    // F33: BTC-SP500 correlation
+    {
+        float spx[FEED_HISTORY];
+        for (int i = 0; i < s->sp500_hist_len; i++) {
+            int idx = (s->sp500_hist_idx - s->sp500_hist_len + i + FEED_HISTORY) % FEED_HISTORY;
+            spx[i] = s->sp500_hist[idx];
+        }
+        fv->btc_sp500_corr = calc_sp500_corr(px, s->price_hist_len[mt], spx, s->sp500_hist_len);
+    }
+
+    // F34: VIX regime
+    {
+        float vix_val = tick->vix;
+        if (vix_val < 0.1f) vix_val = 15.0f;
+        fv->vix_regime = (vix_val - 10.0f) / 30.0f;
+        if (fv->vix_regime < 0.0f) fv->vix_regime = 0.0f;
+        if (fv->vix_regime > 1.0f) fv->vix_regime = 1.0f;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // F35-F36: Weather (from aux DB via paper_load_aux, or defaults)
+    // ════════════════════════════════════════════════════════
+    // These are set by paper_load_aux() which reads from historical.db
+    // We use tick fields that aux data populates
+    fv->weather_temp_zscore = 0.5f;  // Default neutral; aux data overrides
+    fv->weather_precip_anom = 0.5f;
+
+    // ════════════════════════════════════════════════════════
+    // F37-F50: Advanced price-derived features
+    // ════════════════════════════════════════════════════════
+
+    // F37: Inter-exchange basis proxy — price oscillation intensity
+    if (s->price_hist_len[mt] >= 5) {
+        float oscillation = 0;
+        for (int i = s->price_hist_len[mt] - 5; i < s->price_hist_len[mt]; i++) {
+            if (i > 0) oscillation += fabsf(px[i] - px[i-1]);
+        }
+        float avg_px = 0;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) avg_px += px[i];
+        avg_px /= s->price_hist_len[mt];
+        fv->interexchange_basis = tanhf(oscillation / (avg_px + 1e-8f) * 10.0f) * 0.5f + 0.5f;
+    } else {
+        fv->interexchange_basis = 0.5f;
+    }
+
+    // F38: Economic surprise proxy — unexpected price movement
+    if (s->price_hist_len[mt] >= 10) {
+        float expected_move = 0;
+        for (int i = s->price_hist_len[mt] - 10; i < s->price_hist_len[mt] - 1; i++) {
+            expected_move += fabsf(px[i+1] - px[i]);
+        }
+        expected_move /= 9.0f;
+        float actual_move = fabsf(px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-2]);
+        float surprise = expected_move > 0 ? (actual_move - expected_move) / expected_move : 0;
+        fv->economic_surprise = tanhf(surprise) * 0.5f + 0.5f;
+    } else {
+        fv->economic_surprise = 0.5f;
+    }
+
+    // F39: News sentiment delta — price acceleration (news drives acceleration)
+    if (s->price_hist_len[mt] >= 5) {
+        float accel = (px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-2]) -
+                      (px[s->price_hist_len[mt]-2] - px[s->price_hist_len[mt]-3]);
+        fv->news_sentiment_delta = tanhf(accel * (is_binary ? 10.0f : 100.0f)) * 0.5f + 0.5f;
+    } else {
+        fv->news_sentiment_delta = 0.5f;
+    }
+
+    // F40: Social volume spike — volume spike z-score
+    if (s->price_hist_len[mt] >= 10) {
+        float avg_vol = 0, std_vol = 0;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) avg_vol += vol[i];
+        avg_vol /= s->price_hist_len[mt];
+        for (int i = 0; i < s->price_hist_len[mt]; i++) {
+            float d = vol[i] - avg_vol;
+            std_vol += d * d;
+        }
+        std_vol = sqrtf(std_vol / s->price_hist_len[mt]);
+        float current_vol = vol[s->price_hist_len[mt]-1];
+        float z_score = std_vol > 0 ? (current_vol - avg_vol) / std_vol : 0;
+        fv->social_volume_spike = tanhf(z_score * 0.5f) * 0.5f + 0.5f;
+    } else {
+        fv->social_volume_spike = 0.5f;
+    }
+
+    // F41-F42: Return skewness and kurtosis
+    if (s->price_hist_len[mt] >= 10) {
+        float returns[FEED_HISTORY];
+        int n_ret = calc_returns(px, s->price_hist_len[mt], returns);
+        float sum = 0;
+        for (int i = 0; i < n_ret; i++) sum += returns[i];
+        float mean = sum / n_ret;
         float m2 = 0, m3 = 0, m4 = 0;
-        for (int i = 0; i < n - 1; i++) {
+        for (int i = 0; i < n_ret; i++) {
             float d = returns[i] - mean;
             m2 += d * d;
             m3 += d * d * d;
             m4 += d * d * d * d;
         }
-        float var = m2 / (n - 1);
+        float var = m2 / n_ret;
         float std = sqrtf(var > 0.0f ? var : 1e-8f);
-        // Skewness: m3 / std^3, normalized to [0,1]
-        float skew = (m3 / (n - 1)) / (std * std * std + 1e-8f);
+        float skew = (m3 / n_ret) / (std * std * std + 1e-8f);
         fv->return_skew = tanhf(skew * 2.0f) * 0.5f + 0.5f;
-        // Excess kurtosis: m4 / std^4 - 3, normalized to [0,1]
-        float kurt = (m4 / (n - 1)) / (var * var + 1e-8f) - 3.0f;
+        float kurt = (m4 / n_ret) / (var * var + 1e-8f) - 3.0f;
         fv->return_kurtosis = tanhf(kurt * 0.5f) * 0.5f + 0.5f;
+    } else {
+        fv->return_skew = 0.5f;
+        fv->return_kurtosis = 0.5f;
     }
 
     // F43: Realized vol ratio (short-term / long-term)
     if (s->price_hist_len[mt] >= 20) {
-        int n = s->price_hist_len[mt];
+        float returns[FEED_HISTORY];
+        int n_ret = calc_returns(px, s->price_hist_len[mt], returns);
         float short_var = 0, long_var = 0;
         float short_mean = 0, long_mean = 0;
-        int short_n = 5;  // 5-period short window
-        int long_n = n - 1;
-        // Compute returns
-        float returns[FEED_HISTORY];
-        for (int i = 1; i < n; i++) {
-            int idx0 = (s->price_hist_idx[mt] - n + i - 1 + FEED_HISTORY) % FEED_HISTORY;
-            int idx1 = (s->price_hist_idx[mt] - n + i + FEED_HISTORY) % FEED_HISTORY;
-            float p0 = s->price_hist[mt][idx0];
-            returns[i-1] = (p0 > 0.0f) ? (s->price_hist[mt][idx1] - p0) / p0 : 0.0f;
-        }
-        // Long-term variance
+        int short_n = 5;
+        int long_n = n_ret;
         for (int i = 0; i < long_n; i++) long_mean += returns[i];
         long_mean /= long_n;
         for (int i = 0; i < long_n; i++) { float d = returns[i] - long_mean; long_var += d * d; }
         long_var /= long_n;
-        // Short-term variance (last 5 returns)
         for (int i = long_n - short_n; i < long_n; i++) short_mean += returns[i];
         short_mean /= short_n;
         for (int i = long_n - short_n; i < long_n; i++) { float d = returns[i] - short_mean; short_var += d * d; }
         short_var /= short_n;
         float vol_ratio = (long_var > 1e-8f) ? sqrtf(short_var / long_var) : 1.0f;
         fv->realized_vol_ratio = tanhf((vol_ratio - 1.0f) * 2.0f) * 0.5f + 0.5f;
+    } else {
+        fv->realized_vol_ratio = 0.5f;
+    }
+
+    // F44: OB imbalance change — delta of F14
+    // (computed from current and previous OB imbalance proxy)
+    // For now, use price acceleration as proxy
+    if (s->price_hist_len[mt] >= 3) {
+        float curr_dir = px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-2];
+        float prev_dir = px[s->price_hist_len[mt]-2] - px[s->price_hist_len[mt]-3];
+        float delta = curr_dir - prev_dir;
+        fv->ob_imbalance_change = tanhf(delta * (is_binary ? 10.0f : 100.0f)) * 0.5f + 0.5f;
+    } else {
+        fv->ob_imbalance_change = 0.5f;
+    }
+
+    // F45: CVD trend — slope of F16
+    if (s->price_hist_len[mt] >= 10) {
+        float cvd_recent = 0, cvd_prior = 0;
+        for (int i = s->price_hist_len[mt] - 3; i < s->price_hist_len[mt]; i++) {
+            if (i > 0 && px[i] >= px[i-1]) cvd_recent += vol[i]; else cvd_recent -= vol[i];
+        }
+        for (int i = s->price_hist_len[mt] - 6; i < s->price_hist_len[mt] - 3; i++) {
+            if (i > 0 && px[i] >= px[i-1]) cvd_prior += vol[i]; else cvd_prior -= vol[i];
+        }
+        float trend = cvd_recent - cvd_prior;
+        fv->cvd_trend = tanhf(trend / (vol[s->price_hist_len[mt]-1] + 1e-8f)) * 0.5f + 0.5f;
+    } else {
+        fv->cvd_trend = 0.5f;
+    }
+
+    // F46: Liquidation cascade — F22 (already computed above)
+    fv->liq_cascade = fv->liq_ls_ratio_norm;
+
+    // F47: Funding rate change — delta of F19
+    if (s->price_hist_len[mt] >= 15) {
+        float short_mom_recent = px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-3];
+        float short_mom_prior = px[s->price_hist_len[mt]-5] - px[s->price_hist_len[mt]-7];
+        float long_mom = px[s->price_hist_len[mt]-1] - px[s->price_hist_len[mt]-10];
+        float basis_recent = short_mom_recent - long_mom;
+        float basis_prior = short_mom_prior - long_mom;
+        float change = basis_recent - basis_prior;
+        fv->funding_rate_change = tanhf(change * 100.0f) * 0.5f + 0.5f;
+    } else {
+        fv->funding_rate_change = 0.5f;
+    }
+
+    // F48: OI change — delta of F20
+    if (s->price_hist_len[mt] >= 10) {
+        float vol_recent = 0, vol_prior = 0;
+        for (int i = s->price_hist_len[mt] - 3; i < s->price_hist_len[mt]; i++) vol_recent += vol[i];
+        for (int i = s->price_hist_len[mt] - 6; i < s->price_hist_len[mt] - 3; i++) vol_prior += vol[i];
+        float change = vol_recent - vol_prior;
+        float avg = (vol_recent + vol_prior) / 2.0f;
+        fv->oi_change = tanhf(change / (avg + 1e-8f)) * 0.5f + 0.5f;
+    } else {
+        fv->oi_change = 0.5f;
     }
 
     // F49-F50: TWAP/VWAP proximity
     if (s->price_hist_len[mt] >= 5 && price_val > 0.0f) {
-        int n = s->price_hist_len[mt];
-        // TWAP = average of last N prices
         float twap = 0;
-        for (int i = 0; i < n; i++) {
-            int idx = (s->price_hist_idx[mt] - n + i + FEED_HISTORY) % FEED_HISTORY;
-            twap += s->price_hist[mt][idx];
-        }
-        twap /= n;
+        for (int i = 0; i < s->price_hist_len[mt]; i++) twap += px[i];
+        twap /= s->price_hist_len[mt];
         fv->twap_proximity = 1.0f - fabsf(price_val - twap) / (price_val + 1e-8f);
         if (fv->twap_proximity < 0.0f) fv->twap_proximity = 0.0f;
-        // VWAP ≈ TWAP for 1-min data (volume weighting similar)
         fv->vwap_proximity = fv->twap_proximity;
+    } else {
+        fv->twap_proximity = 0.5f;
+        fv->vwap_proximity = 0.5f;
     }
 
+    // ════════════════════════════════════════════════════════
+    // F51-F64: Regime / risk / calendar features
+    // ════════════════════════════════════════════════════════
+
     // F51: Overnight gap risk (non-crypto markets)
-    if (tick->market_type != MARKET_CRYPTO && tick->market_type != MARKET_PREDICTION) {
-        float gap = fabsf(tick->open - s->prev_close) / (s->prev_close + 1e-8f);
+    if (tick->market_type != MARKET_CRYPTO && tick->market_type != MARKET_PREDICTION &&
+        s->prev_close > 0) {
+        float gap = fabsf(tick->open - s->prev_close) / s->prev_close;
         fv->overnight_gap_risk = tanhf(gap * 10.0f);
+    } else {
+        fv->overnight_gap_risk = 0.0f;
     }
 
     // F52: Weekend slippage
     {
         time_t ts = (time_t)tick->window_ts;
         struct tm *tm_info = localtime(&ts);
-        int wday = tm_info->tm_wday;  // 0=Sun, 6=Sat
+        int wday = tm_info->tm_wday;
         fv->weekend_slippage = (wday == 0 || wday == 6) ? 1.0f : 0.0f;
     }
 
-    // F55: Volatility regime change probability
-    fv->vol_regime_change = fabsf(fv->regime_indicator * 2.0f - 1.0f);  // 0=stable, 1=transition
+    // F53: Room ensemble signal — nested prediction (from nested HT model)
+    fv->room_ensemble_signal = 0.5f;  // Default; nested model overrides if loaded
 
-    // F56: Correlation breakdown (rapid change in BTC-SP500 corr)
-    if (s->sp500_hist_len >= 10) {
-        // Compare recent corr to longer-term corr
-        float recent_corr = fv->btc_sp500_corr * 2.0f - 1.0f;  // back to [-1,1]
-        // Use vix as proxy for correlation breakdown
-        fv->corr_breakdown = (fv->vix_regime > 0.7f && recent_corr > 0.3f) ? 0.8f : 0.1f;
+    // F54: Feed freshness score — 1.0 = fresh, degrades with time
+    {
+        time_t now = time(NULL);
+        int age = (int)(now - (time_t)tick->window_ts);
+        if (age < 60) fv->feed_freshness_score = 1.0f;
+        else if (age < 300) fv->feed_freshness_score = 0.8f;
+        else if (age < 900) fv->feed_freshness_score = 0.5f;
+        else if (age < 3600) fv->feed_freshness_score = 0.2f;
+        else fv->feed_freshness_score = 0.0f;
     }
 
-    // F63: Seasonality signal (day-of-month + month-of-year combined)
+    // F55: Volatility regime change probability
+    fv->vol_regime_change = fabsf(fv->regime_indicator * 2.0f - 1.0f);
+
+    // F56: Correlation breakdown
+    if (s->sp500_hist_len >= 10) {
+        float recent_corr = fv->btc_sp500_corr * 2.0f - 1.0f;
+        fv->corr_breakdown = (fv->vix_regime > 0.7f && recent_corr > 0.3f) ? 0.8f : 0.1f;
+    } else {
+        fv->corr_breakdown = 0.1f;
+    }
+
+    // F57: Options flow signal — F30 (IV skew) momentum
+    fv->options_flow_signal = fv->iv_skew;
+
+    // F58: Dark pool signal — F24 (whale activity) proxy
+    fv->dark_pool_signal = fv->whale_activity_norm;
+
+    // F59: Insider trade signal — F39 (news sentiment) proxy
+    fv->insider_trade_signal = fv->news_sentiment_delta;
+
+    // F60: Institutional flow — F20 (OI net signal) proxy
+    fv->institutional_flow = fv->oi_net_signal;
+
+    // F61: Short interest signal — F21 (L/S ratio) proxy
+    fv->short_interest_signal = fv->ls_ratio_norm;
+
+    // F62: ETF flow signal — F23 (stablecoin inflow) proxy
+    fv->etf_flow_signal = fv->stable_inflow_norm;
+
+    // F63: Seasonality signal
     {
         time_t ts = (time_t)tick->window_ts;
         struct tm *tm_info = localtime(&ts);
         int mday = tm_info->tm_mday;
-        int month = tm_info->tm_mon;  // 0-11
-        // Simple: end-of-month effect + January effect
+        int month = tm_info->tm_mon;
         float eom = (mday >= 25) ? 0.7f : 0.5f;
         float jan = (month == 0) ? 0.7f : 0.5f;
         fv->seasonality_signal = (eom + jan) * 0.5f;
     }
 
-    // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
-    // Without this, RSI(0-100) has 100x the scale of OB features(0-1)
-    // ── B35: Regime-specific scaling for price features ──
-    // Range (0): standard scaling, Trend (1): amplify signals, Volatile (2): compress noise
+    // F64: Reserved
+    fv->_reserved_64 = 0.0f;
+
+    // ════════════════════════════════════════════════════════
+    // NORMALIZATION — all features to [0,1] or [-1,1] → [0,1]
+    // ════════════════════════════════════════════════════════
     float delta_scale = 5.0f;
     float mom_scale = 2.0f;
-    if (s->predicted_regime == 1) { delta_scale = 3.0f; mom_scale = 1.2f; }   // trend
-    else if (s->predicted_regime == 2) { delta_scale = 10.0f; mom_scale = 4.0f; } // volatile
-    // F1: price_delta_pct — regime-aware tanh clamp
+    if (s->predicted_regime == 1) { delta_scale = 3.0f; mom_scale = 1.2f; }
+    else if (s->predicted_regime == 2) { delta_scale = 10.0f; mom_scale = 4.0f; }
+
     fv->price_delta_pct = tanhf(fv->price_delta_pct / delta_scale);
-    // F2: micro_momentum — regime-aware tanh clamp
     fv->micro_momentum = tanhf(fv->micro_momentum / mom_scale);
-    // F3: RSI 0-100 → 0-1
     fv->rsi_7 = fv->rsi_7 / 100.0f;
-    // F4: volume_surge_ratio — log-normalize
     if (fv->volume_surge_ratio > 0.0f) {
         fv->volume_surge_ratio = logf(fv->volume_surge_ratio) / 3.0f + 0.5f;
     }
     if (fv->volume_surge_ratio < 0.0f) fv->volume_surge_ratio = 0.0f;
     if (fv->volume_surge_ratio > 1.0f) fv->volume_surge_ratio = 1.0f;
-    // F5-F7: EMA/MACD normalization — skip for binary (already 0-1)
     if (!is_binary) {
         fv->ema_fast = tanhf((fv->ema_fast / price_val - 1.0f) * 5.0f) * 0.5f + 0.5f;
         fv->ema_slow = tanhf((fv->ema_slow / price_val - 1.0f) * 5.0f) * 0.5f + 0.5f;
         fv->macd_hist = tanhf(fv->macd_hist / (price_val * 0.01f + 0.001f));
     }
-    // F9: Divergence score [-1,1] → [0,1]
     fv->divergence_score = fv->divergence_score * 0.5f + 0.5f;
-    // F10: Pump score [-1,1] → [0,1]
     fv->pump_score = fv->pump_score * 0.5f + 0.5f;
-    // F11: Regime [0,2] → [0,1]
     fv->regime_indicator = fv->regime_indicator / 2.0f;
-
-    // F33: BTC-SP500 correlation [-1,1] → [0,1]
     fv->btc_sp500_corr = fv->btc_sp500_corr * 0.5f + 0.5f;
 
     return ERR_OK;

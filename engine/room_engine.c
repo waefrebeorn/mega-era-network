@@ -851,6 +851,26 @@ static RoomError load_or_init_state(void) {
         state->magic = STATE_MAGIC;
         init_agents(state->agents, MAX_AGENTS);
 
+        // ── P4-FIX: Assign agents to room's market type ──
+        {
+            int room_mt = MARKET_CRYPTO;
+            char cfg_path[640];
+            snprintf(cfg_path, sizeof(cfg_path), "%s/room_config.json", ROOM_DIR);
+            FILE *cfg_f = fopen(cfg_path, "r");
+            if (cfg_f) {
+                char json[4096];
+                size_t n = fread(json, 1, sizeof(json)-1, cfg_f);
+                json[n] = '\0';
+                fclose(cfg_f);
+                const char *p = strstr(json, "\"market_type\"");
+                if (p) { p = strchr(p, ':'); if (p) room_mt = atoi(p+1); }
+                if (room_mt < 0 || room_mt >= N_MARKET_TYPES) room_mt = MARKET_CRYPTO;
+            }
+            for (int i = 0; i < MAX_AGENTS; i++)
+                g_agent_market[i] = room_mt;
+            fprintf(stderr, "[ROOM] Agent market type: %d\n", room_mt);
+        }
+
         // ── Load multi-market trained genomes if available ──
         // Seeds a subset of agents with genomes optimized for different market types
         const char *mm_dir = "/home/wubu2/money-room/data/multi_market";
@@ -1139,6 +1159,12 @@ int main(void) {
         }
         idle_cycles = 0;
 
+        // P6-FIX: Set prev_close from first tick's close so room trade can resolve on cycle 2
+        if (prev_close <= 0 && tick.close > 0) {
+            prev_close = tick.close;
+            state->prev_close = prev_close;
+        }
+
         // Skip if we already processed this window
         if (tick.window_ts == state->stats.last_window_ts) {
             dup_cycles++;
@@ -1313,12 +1339,14 @@ void room_market_stats(RoomState *state);
             }
         }
 
-        // Check drawdown: if TOTAL AGENT capital dropped > max_drawdown_pct from peak
+        // ── P5-FIX: Compute total agent capital once per cycle ──
         float total_agent_cap = 0.0f;
         for (int i = 0; i < MAX_AGENTS; i++) {
             if (state->agents[i].alive && state->agents[i].capital > 0)
                 total_agent_cap += state->agents[i].capital;
         }
+
+        // Check drawdown: if TOTAL AGENT capital dropped > max_drawdown_pct from peak
         if (total_agent_cap > state->circuit_breaker_peak) {
             state->circuit_breaker_peak = total_agent_cap;
         }
@@ -1353,13 +1381,8 @@ void room_market_stats(RoomState *state);
         }
 
         // C05: Daily loss limit — use total agent capital as baseline
-        float total_agent_cap_dd = 0.0f;
-        for (int i = 0; i < MAX_AGENTS; i++) {
-            if (state->agents[i].alive && state->agents[i].capital > 0)
-                total_agent_cap_dd += state->agents[i].capital;
-        }
-        if (state->daily_pnl < 0 && state->circuit_breaker_cycles == 0 && total_agent_cap_dd > 0) {
-            float daily_loss_pct = -state->daily_pnl / total_agent_cap_dd;
+        if (state->daily_pnl < 0 && state->circuit_breaker_cycles == 0 && total_agent_cap > 0) {
+            float daily_loss_pct = -state->daily_pnl / total_agent_cap;
             if (daily_loss_pct > state->max_daily_loss_pct) {
                 state->circuit_breaker_cycles = state->circuit_cooldown_cycles;
                 state->circuit_breaker_count++;

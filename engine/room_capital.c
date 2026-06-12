@@ -694,7 +694,18 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
     int n = *tcount < max_trades ? *tcount : max_trades;
     if (n == 0) return ERR_OK;
 
-    bool yes_won = resolution_tick->close >= prev_close;
+    // P7-FIX: Binary markets use probability resolution, not direction
+    bool is_binary = (resolution_tick->market_type == MARKET_SPORTS ||
+                      resolution_tick->market_type == MARKET_WEATHER ||
+                      resolution_tick->market_type == MARKET_PREDICTION ||
+                      resolution_tick->market_type == MARKET_ELECTION);
+    bool yes_won;
+    if (is_binary) {
+        // Binary: YES won if close > 0.5 (outcome likely), NO won if close <= 0.5
+        yes_won = resolution_tick->close > 0.5f;
+    } else {
+        yes_won = resolution_tick->close >= prev_close;
+    }
 
     // Collect unresolved trades from windows before current tick
     float yes_pool = 0, no_pool = 0;
