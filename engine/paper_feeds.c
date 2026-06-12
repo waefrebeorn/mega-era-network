@@ -26,8 +26,6 @@ static char g_line[1024];
 static int64_t g_current_ts = 0;
 static int g_eof = 0;
 static int g_initialized = 0;
-static int g_cycle_count = 0;
-static int g_max_cycles = -1;
 static char g_csv_path[576] = {0};
 static int g_market_type = 0;
 
@@ -144,8 +142,6 @@ static int paper_feeds_advance(MarketTick *tick) {
     /* Try to read next unique timestamp */
     int ret = paper_feeds_read_next(tick, 1);
     if (ret == 0) {
-        g_cycle_count++;
-        if (g_max_cycles > 0 && g_cycle_count >= g_max_cycles) return -2;
         return 0;
     }
 
@@ -157,8 +153,6 @@ static int paper_feeds_advance(MarketTick *tick) {
 
     ret = paper_feeds_read_next(tick, 0); /* no dup skip on replay */
     if (ret == 0) {
-        g_cycle_count++;
-        if (g_max_cycles > 0 && g_cycle_count >= g_max_cycles) return -2;
         return 0;
     }
 
@@ -167,13 +161,6 @@ static int paper_feeds_advance(MarketTick *tick) {
 
 RoomError room_feeds_load(MarketTick *tick) {
     fprintf(stderr, "[PAPER_FEEDS] room_feeds_load called\n");
-    if (g_max_cycles == -1) {
-        const char *env = getenv("PAPER_MAX_CYCLES");
-        if (env && *env) {
-            g_max_cycles = atoi(env);
-            fprintf(stderr, "[PAPER_FEEDS] Max cycles: %d\n", g_max_cycles);
-        }
-    }
 
     if (!g_csv) {
         load_room_config();

@@ -18,10 +18,12 @@
 #define ELITE_DIR  "/home/wubu2/money-room/data/multi_market"
 
 // ── Market type → elite filename mapping ──
+// D9-FIX: Order MUST match MARKET_* enum (types.h): CRYPTO=0, EQUITY=1, FOREX=2, COMMODITY=3, BOND=4,
+//         VOLATILITY=5, PREDICTION=6, SPORTS=7, WEATHER=8, ELECTION=9
+// Previous order had SPORTS/WEATHER/PREDICTION swapped → elites saved with wrong names
 static const char *market_type_names[] = {
     "CRYPTO", "EQUITY", "FOREX", "COMMODITY", "BOND",
-    "VOLATILITY", "SPORTS", "WEATHER", "PREDICTION",
-    "ELECTION", "META"
+    "VOLATILITY", "PREDICTION", "SPORTS", "WEATHER", "ELECTION"
 };
 
 // ── Genome mutation bounds ──

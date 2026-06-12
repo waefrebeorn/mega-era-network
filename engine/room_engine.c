@@ -745,13 +745,13 @@ static void init_agents(AgentState *agents, int n) {
 
         // Random genome within bounds
         agents[i].genome.position_size     = 0.01f + (float)rand() / RAND_MAX * 0.49f;
-        agents[i].genome.conviction_threshold = 0.01f + (float)rand() / RAND_MAX * 0.29f;  // Lower initial threshold
+        agents[i].genome.conviction_threshold = 0.01f + (float)rand() / RAND_MAX * 0.15f;  // D4-FIX: 0.01-0.16 (was 0.01-0.30) more agents pass threshold
         agents[i].genome.risk_tolerance    = (float)rand() / RAND_MAX;
         agents[i].genome.lie_sensitivity   = 0.10f + (float)rand() / RAND_MAX * 0.88f;
         agents[i].genome.herd_antipathy    = (float)rand() / RAND_MAX;
         agents[i].genome.stop_loss_pct     = 0.01f + (float)rand() / RAND_MAX * 0.24f;
         agents[i].genome.take_profit_pct   = 0.01f + (float)rand() / RAND_MAX * 0.59f;
-        agents[i].genome.min_edge_pct      = 0.5f + (float)rand() / RAND_MAX * 49.5f;
+        agents[i].genome.min_edge_pct      = 0.5f + (float)rand() / RAND_MAX * 4.5f;  // D4-FIX: 0.5-5% (was 0.5-50%) so agents can actually vote
         agents[i].genome.time_horizon      = 0.1f + (float)rand() / RAND_MAX * 9.9f;
         agents[i].genome.mean_reversion_bias = -1.0f + (float)rand() / RAND_MAX * 2.0f;
         // ── v2: Initialize learned weights ──
@@ -967,7 +967,7 @@ static RoomError load_or_init_state(void) {
         // ── A30: Epsilon-greedy exploration ──
         state->epsilon = 0.05f;          // 5% initial exploration
         state->epsilon_init = 0.05f;
-        state->epsilon_min = 0.005f;     // 0.5% floor
+        state->epsilon_min = 0.10f;     // D3-FIX: 10% floor to prevent consensus death (was 0.005)
         // ── I2: PDT tracker persistence ──
         state->pdt_room_count = 0;
         state->pdt_room_window_start = 0;
@@ -1054,10 +1054,18 @@ int main(void) {
     }
 
     // ── Main loop ──
-    FILE *log = fopen(LOG_PATH, "a");
-    if (log) {
-        fputs("cycle,window_ts,asset,votes,active,win_rate,sharpe,dd_pct,consensus_spread,room_pnl_pct,room_trades,room_wr,room_cap,slippage$\n", log);
-        fclose(log);
+    // D2-FIX: Only write header if file is new (prevents duplicate headers on restart)
+    {
+        FILE *log_check = fopen(LOG_PATH, "r");
+        if (log_check) {
+            fclose(log_check);  // File exists — header already present
+        } else {
+            FILE *log = fopen(LOG_PATH, "w");
+            if (log) {
+                fputs("cycle,window_ts,asset,votes,active,win_rate,sharpe,dd_pct,consensus_spread,room_pnl_pct,room_trades,room_wr,room_cap,slippage$\n", log);
+                fclose(log);
+            }
+        }
     }
 
     // ── Boot-time hard reset of corruptable fields ──
@@ -1075,6 +1083,16 @@ int main(void) {
     int dup_cycles = 0;  // A02: Consecutive duplicate timestamps (LIVE_MODE static feed)
     float prev_close = state->prev_close;  // Track for inter-candle comparison (persisted from last process)
 
+    // ── D8-FIX: Cycle counter for PAPER_MAX_CYCLES (moved from paper_feeds_advance) ──
+    // Previously g_cycle_count was incremented on EVERY feed read, but room_feeds_load
+    // is called multiple times during init, consuming cycles before the main loop starts.
+    int g_main_cycle_count = 0;
+    int g_max_cycles_env = -1;
+    {
+        const char *env = getenv("PAPER_MAX_CYCLES");
+        if (env && *env) g_max_cycles_env = atoi(env);
+    }
+
     while (running) {
         // ── F05: Check graceful shutdown flag ──
         if (g_shutdown_flag) {
@@ -1084,15 +1102,16 @@ int main(void) {
 
         int64_t cycle_start = ns_now();
 
+        // ── D8-FIX: Check max cycles before reading feed ──
+        if (g_max_cycles_env > 0 && g_main_cycle_count >= g_max_cycles_env) {
+            printf("[ROOM] Paper mode: reached max cycles %d. Shutting down gracefully.\n", g_main_cycle_count);
+            break;
+        }
+
         // ── L1: Load market feed ──
         MarketTick tick;
         err = room_feeds_load(&tick);
         if (err != ERR_OK) {
-            // Check for graceful data exhaustion (PAPER_MODE max cycles)
-            if (err == ERR_DATA_EXHAUSTED) {
-                printf("[ROOM] Paper mode: reached cycle %d. Shutting down gracefully.\n", state->cycle);
-                break;
-            }
             // Retry once immediately — feed bridge may be mid-write
             struct timespec retry_ts = { .tv_sec = 0, .tv_nsec = 100000000 }; // 100ms
             nanosleep(&retry_ts, NULL);
@@ -1416,9 +1435,15 @@ void room_market_stats(RoomState *state);
                 float exit_px = tick.close;
                 bool up = state->room_trade.majority_up;
                 float move_pct = entry > 0 ? (exit_px - entry) / entry * 100.0f : 0.0f;
-                // Use current close vs entry for same-cycle resolve
-                // (the pending trade was opened last cycle with that cycle's close)
-                bool room_won = (exit_px >= entry) == up;
+                // D7-FIX: Binary market resolution
+                bool is_binary = (tick.market_type == MARKET_SPORTS || tick.market_type == MARKET_WEATHER ||
+                                  tick.market_type == MARKET_ELECTION || tick.market_type == MARKET_PREDICTION);
+                bool room_won;
+                if (is_binary) {
+                    room_won = up ? (exit_px > entry) : (exit_px < entry);
+                } else {
+                    room_won = (exit_px >= entry) == up;
+                }
                 if (room_won) {
                     float profit = state->room_trade.stake * (1.0f - TAKER_FEE);
                     float gross_ret = state->room_trade.stake + profit;
@@ -1460,14 +1485,16 @@ void room_market_stats(RoomState *state);
                 bool room_direction = majority_up;
 
                 // ── Nested cascade bias ──
-                // Override room direction when nested model signal is confident enough
-                // Model is trained to 55.7% WR on 4-hr BTC — overrides noisy 1-min agent votes
+                // D6-FIX: Use room's actual market_type, not hardcoded MARKET_CRYPTO
+                // Previously all rooms used CRYPTO nested prediction → wrong signal for stocks/elections/etc
+                int room_mt = tick.market_type;
+                if (room_mt < 0 || room_mt >= NESTED_N_MARKETS) room_mt = MARKET_CRYPTO;
                 float confidence = (float)(yv > nv ? yv : nv) / (float)(yv + nv);
                 confidence = (confidence - 0.5f) * 2.0f;
                 if (g_nested) {
-                    double nest_signal = (g_nested_prediction[MARKET_CRYPTO] - 0.5) * 2.0;  // -1 to 1
+                    double nest_signal = (g_nested_prediction[room_mt] - 0.5) * 2.0;  // -1 to 1
                     if (fabs(nest_signal) > 0.20) {  // threshold: model must be >60% confident
-                        bool nest_up = g_nested_prediction[MARKET_CRYPTO] > 0.5;
+                        bool nest_up = g_nested_prediction[room_mt] > 0.5;
                         if (nest_up != room_direction) {
                             room_direction = nest_up;
                             confidence = (float)fabs(nest_signal);
@@ -1556,16 +1583,33 @@ skip_room_trade:
             goto room_trade_resolve;  // No pending trade, skip resolve section
         }
         // Pending trade exists — fall through to resolve it
-room_trade_done:
 
         // ── L4a: Resolve room trade (if active from previous cycle) ──
-        if (state->room_trade.resolved_at == 0 && prev_close > 0) {
-            // Room trade resolves: exit when close > prev_close = yes_won
+        if (state->room_trade.resolved_at == 0 && state->room_trade.entry_price > 0) {
+            // D7-FIX: Binary markets use probability resolution, not direction
+            // For binary (sports/weather/election/prediction): close IS the outcome probability
+            // Win if close moved toward the predicted direction from entry
+            bool is_binary = (tick.market_type == MARKET_SPORTS || tick.market_type == MARKET_WEATHER ||
+                              tick.market_type == MARKET_ELECTION || tick.market_type == MARKET_PREDICTION);
             bool up = state->room_trade.majority_up;
-            bool room_won = (tick.close >= prev_close) == up;
             float entry = state->room_trade.entry_price;
             float exit = tick.close;
             float move_pct = entry > 0 ? (exit - entry) / entry * 100.0f : 0.0f;
+            bool room_won;
+
+            if (is_binary) {
+                // Binary resolution: if predicted UP, win if close > 0.5 (outcome likely)
+                // If predicted DN, win if close <= 0.5 (outcome unlikely)
+                // Entry probability is used as threshold: must move toward predicted side
+                if (up) {
+                    room_won = exit > entry;  // Probability increased = UP was right
+                } else {
+                    room_won = exit < entry;  // Probability decreased = DN was right
+                }
+            } else {
+                // Price-based resolution: close vs prev_close direction
+                room_won = (tick.close >= prev_close) == up;
+            }
 
             if (room_won) {
                 // Winner: get stake back + profit (binary: 1:1 payout minus taker fee)
@@ -1852,6 +1896,7 @@ room_trade_resolve:
 skip_trading:
         // ── Update stats ──
         state->cycle++;
+        g_main_cycle_count++;  // D8-FIX: Track actual main loop cycles for PAPER_MAX_CYCLES
         state->stats.last_window_ts = tick.window_ts;
         state->last_updated = ns_now();
 
