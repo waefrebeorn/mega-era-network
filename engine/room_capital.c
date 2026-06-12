@@ -734,6 +734,9 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                 agents[aid].capital += payout;
                 agents[aid].wins++;
                 agents[aid].consecutive_losses = 0;
+                // ── A18: Profit factor tracking ──
+                float trade_pnl = total_payout * share;
+                agents[aid].gross_profit += trade_pnl;
                 // C10: Conviction accuracy tracking
                 if (agents[aid].last_conviction > 0.7f) {
                     agents[aid].conv_hi_wins++;
@@ -746,8 +749,11 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                 trades[i].pnl_pct = total_payout * share / trades[i].position_size;
             } else {
                 // Loser's matched_stake stays deducted — transferred to winners
+                float loss_amount = trades[i].position_size;
                 agents[aid].losses++;
                 agents[aid].consecutive_losses++;
+                // ── A18: Profit factor tracking ──
+                agents[aid].gross_loss += loss_amount;
                 // C10: Conviction accuracy tracking (losses)
                 if (agents[aid].last_conviction > 0.7f) {
                     agents[aid].conv_hi_total++;
@@ -761,6 +767,15 @@ RoomError room_capital_resolve(TradeRecord *trades, int *tcount,
                 // ── C19: Capital-floor auto-kill — agent below $1 can't trade ──
                 if (agents[aid].capital < 1.0f)
                     agents[aid].alive = false;
+            }
+            // ── A17: Brier score tracking ──
+            // Brier = (predicted_prob - outcome)^2. outcome=1 if won, 0 if lost.
+            if (agents[aid].last_conviction > 0.0f) {
+                float predicted = agents[aid].last_conviction;
+                float outcome = is_winner ? 1.0f : 0.0f;
+                float err = predicted - outcome;
+                agents[aid].brier_num += err * err;
+                agents[aid].brier_den++;
             }
 
             agents[aid].total_pnl += trades[i].pnl_pct * trades[i].position_size;

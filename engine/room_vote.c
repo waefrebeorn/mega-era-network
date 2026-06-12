@@ -92,11 +92,11 @@ static float compute_agent_signal(const Genome *g, const FeatureVector *fv,
     int regime = 0;
     
     // A23: gene silencing — fresh random mask each call (15% feature dropout)
-    float signal = 0.0f;  // regime_bias[0] forced to 0
+    float signal = g->bias;  // Use agent's learned bias
     for (int i = 0; i < N_FEATURES; i++) {
         // Each feature independently has 15% chance of being silenced
         if (((float)rand() / RAND_MAX) < 0.15f) continue;
-        float w = 1.0f;  // Neutral weight - regime_weight disabled
+        float w = g->feat_weight[i];  // Use agent's LEARNED weight (was hardcoded 1.0 = all agents identical)
         signal += w * features[i];
     }
 

@@ -61,12 +61,17 @@ static int test_agent_state_serialization(void) {
     ASSERT(expected > 0, "AgentState size > 0");
 
     /* If N_FEATURES changes, AgentState size changes — this catches it */
-    /* Current N_FEATURES = 33 (B12 BTC-SP500 correlation added) */
-    ASSERT(expected == sizeof(Genome) + sizeof(float) * 4
-           + sizeof(int) * 7 + sizeof(float) * 7
-           + sizeof(float) * N_FEATURES * 2 + sizeof(float) * 4
-           || expected > 0 /* Allow any size, just not zero */,
-           "AgentState size consistent");
+    /* Current N_FEATURES = 64 (F35-F64: weather, microstructure, alt-data) */
+    /* AgentState = Genome + scalars + N_FEATURES arrays */
+    /* Genome = 11 floats + N_FEATURES floats + N_REGS*N_FEATURES floats + N_REGS floats */
+    size_t genome_size = sizeof(Genome);
+    size_t agent_size = sizeof(AgentState);
+    ASSERT(genome_size > 0, "Genome size > 0");
+    ASSERT(agent_size > genome_size, "AgentState > Genome");
+    /* AgentState has grown with N_FEATURES 34→64: +30 floats in Genome.feat_weight */
+    /* and +30 floats in Genome.regime_weight[3] = +120 floats total in Genome */
+    /* Plus gross_profit, gross_loss, brier_num (3 floats) + brier_den (1 int) */
+    ASSERT(agent_size > 1000, "AgentState > 1000 bytes (N_FEATURES=64)");
 
     return 0;
 }
@@ -75,7 +80,7 @@ static int test_agent_state_serialization(void) {
 static int test_constants_stable(void) {
     ASSERT_EQ((int)sizeof(float), 4, "float is 4 bytes");
     ASSERT_EQ((int)sizeof(double), 8, "double is 8 bytes");
-    ASSERT_EQ(N_FEATURES, 34, "N_FEATURES = 34 (VIX regime F34 added)");
+    ASSERT_EQ(N_FEATURES, 64, "N_FEATURES = 64 (F35-F64: weather, microstructure, alt-data)");
 
     /* Foundation fees */
     ASSERT_NEAR(TAKER_FEE, 0.0026f, 0.0001f, "Taker fee 0.26%");

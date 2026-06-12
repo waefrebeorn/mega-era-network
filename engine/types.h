@@ -37,19 +37,22 @@ extern const char *MARKET_TYPE_NAMES[];
 // Paper proof uses fewer agents for faster evolution per trade cap
 #define ROOM_AGENTS  10000
 #define MAX_AGENTS    ROOM_AGENTS
-#define N_FEATURES        34
+#define N_FEATURES        64
 #define N_REGS            3   // Regimes: 0=range, 1=trend, 2=volatile (P22)
 #define MAX_ASSETS        8
 #define MAX_TRADE_HIST    1000000
-#define STATE_MAGIC       0x524F4D42  // ROMB — STATE_VERSION=5 for A22 position tracking
-#define STATE_VERSION     5           // Current struct layout version (A22: +n_open_positions)
+#define STATE_MAGIC       0x524F4D42  // ROMB — STATE_VERSION=6 for N_FEATURES 34→64
+#define STATE_VERSION     7           // Current struct layout version (added PDT persist + withdrawal fields)
 
 // Fee constants (shared across modules)
 #define TAKER_FEE    0.0026f  // Kraken spot taker fee
 #define GAS_FEE_EST  2.50f    // C14: Avg on-chain gas cost USD (L2 ~$0.50, L1 ~$5.00)
 #define MATCH_FEE    0.002f   // Match fee on loser pool (0.2%)
 // ── T97/C15: Minimum trade size (raised to $5 for Polymarket 5-share minimum) ──
-#define MIN_TRADE_STAKE   5.0f    // Minimum $5 stake per trade (covers Polymarket 5-share min)
+#define MIN_TRADE_STAKE   0.5f    // D-FIX: Lowered from $5 to $0.50 for paper training
+    // $5 minimum was blocking all trades when capital dropped below $5.
+    // Paper mode needs continuous trading for Darwin evolution.
+    // Live mode will enforce real platform minimums via stake clamping.
 #define MAX_EXPOSURE_PCT  0.10f   // C11: Max 10% of room capital per single position
 
 // ── C07: Correlation-based position limits ──
@@ -103,52 +106,106 @@ typedef struct {
     float regime_bias[N_REGS];                // Per-regime bias term
 } Genome;
 
-// ── Feature vector (17-dim, L2 spec) ──
+// ── Feature vector (64-dim, multi-asset + weather + microstructure) ──
 typedef struct {
-    float price_delta_pct;      // Current vs window open %
-    float micro_momentum;       // Last 2 closes delta %
-    float rsi_7;                // 7-period RSI (0–100)
-    float volume_surge_ratio;   // Recent/prior volume ratio
-    float ema_fast;             // 3-period EMA
-    float ema_slow;             // 8-period EMA
-    float macd_hist;            // MACD histogram value
-    float bollinger_pct;        // %B position (0=lower, 1=upper)
-    float divergence_score;     // Price-RSI divergence (-1..1)
-    float pump_score;           // Crony-weighted news sentiment (-1..1)
-    float regime_indicator;     // 0=range, 1=trend, 2=volatile
-    float fear_greed_norm;      // Normalized F&G (0–1)
-    float herd_consensus;       // % agents voting same direction
-    // ── B05: Order book features (replaces φ-interval features) ──
-    float ob_imbalance;         // F14: bid_vol / (bid+ask_vol) top-10 levels (0-1)
-    float ob_depth_ratio;       // F15: bid_depth / (bid+ask_depth) 0.5% band (0-1)
-    float cvd_signal;           // F16: Cumulative volume delta normalized (0-1)
-    // ── P13: DFT frequency feature ──
-    float dft_dominant;         // F17: Dominant frequency strength (0-1)
-    // ── P15: Tailslayer tail risk score ──
-    float tail_risk_score;      // F18: 0-1: 0=normal, 1=extreme tail risk
-    // ── B14-B16: Funding/OI/LS ratio (loaded from collector cache) ──
-    float funding_signal;       // F19: funding rate deviation from 7d avg (-1..1)
-    float oi_net_signal;        // F20: aggregated OI signal (0-1: 0 = bearish/bullish)
+    // === F1-F13: Core price/volume ===
+    float price_delta_pct;      // F1:  Current vs window open %
+    float micro_momentum;       // F2:  Last 2 closes delta %
+    float rsi_7;                // F3:  7-period RSI (0-100)
+    float volume_surge_ratio;   // F4:  Recent/prior volume ratio
+    float ema_fast;             // F5:  3-period EMA
+    float ema_slow;             // F6:  8-period EMA
+    float macd_hist;            // F7:  MACD histogram value
+    float bollinger_pct;        // F8:  %B position (0=lower, 1=upper)
+    float divergence_score;     // F9:  Price-RSI divergence (-1..1)
+    float pump_score;           // F10: Crony-weighted news sentiment (-1..1)
+    float regime_indicator;     // F11: 0=range, 1=trend, 2=volatile
+    float fear_greed_norm;      // F12: Normalized F&G (0-1)
+    float herd_consensus;       // F13: % agents voting same direction
+    // === F14-F16: Order book ===
+    float ob_imbalance;         // F14: bid_vol/(bid+ask_vol) top-10 (0-1)
+    float ob_depth_ratio;       // F15: bid_depth/(bid+ask_depth) 0.5% band
+    float cvd_signal;           // F16: Cumulative volume delta normalized
+    // === F17-F23: Advanced signals ===
+    float dft_dominant;         // F17: DFT dominant frequency strength (0-1)
+    float tail_risk_score;      // F18: Tail risk score (0-1)
+    float funding_signal;       // F19: Funding rate deviation from 7d avg (-1..1)
+    float oi_net_signal;        // F20: Aggregated OI signal (0-1)
     float ls_ratio_norm;        // F21: L/S taker volume ratio normalized (0-1)
-    // ── B17-B19: Liquidation/Stablecoin/Whale ──
-    float liq_ls_ratio_norm;    // F22: liquidation long/short ratio (0-1)
-    float stable_inflow_norm;   // F23: stablecoin volume ratio (0-1+)
-    float whale_activity_norm;  // F24: whale transaction activity (0-1)
-    // ── Hashrate / On-chain ──
+    float liq_ls_ratio_norm;    // F22: Liquidation L/S ratio (0-1)
+    float stable_inflow_norm;   // F23: Stablecoin volume ratio (0-1+)
+    // === F24-F27: On-chain ===
+    float whale_activity_norm;  // F24: Whale transaction activity (0-1)
     float hash_rate_norm;       // F25: BTC hashrate normalized (0-1)
-    float difficulty_norm;      // F26: mining difficulty normalized (0-1)
-    float miner_floor_norm;     // F27: miner cost floor normalized (0-1)
-    // ── B11: Time-of-day features ──
-    float hour_of_day_norm;     // F28: hour of day [0,1) (0=midnight)
-    float day_of_week_norm;     // F29: day of week [0,1) (0=Mon, 0.857=Sun)
-    // ── B21: Options-derived features ──
-    float iv_skew;              // F30: IV skew (0-1+, >0.5 = high put demand = bearish)
-    float pcr_volume;           // F31: put/call ratio by volume (0-1+)
+    float difficulty_norm;      // F26: Mining difficulty normalized (0-1)
+    float miner_floor_norm;     // F27: Miner cost floor normalized (0-1)
+    // === F28-F29: Time-of-day ===
+    float hour_of_day_norm;     // F28: Hour of day [0,1)
+    float day_of_week_norm;     // F29: Day of week [0,1)
+    // === F30-F32: Options ===
+    float iv_skew;              // F30: IV skew (0-1+)
+    float pcr_volume;           // F31: Put/call ratio by volume (0-1+)
     float iv_term_slope;        // F32: IV term structure slope (0-1+)
-    // ── B12: Macro equity correlation ──
+    // === F33-F34: Macro correlation ===
     float btc_sp500_corr;       // F33: Rolling BTC-SP500 correlation (-1..1)
-    // ── B23: VIX regime filter ──
-    float vix_regime;           // F34: VIX regime (0=low<15, 0.5=normal 15-25, 1=high>25)
+    float vix_regime;           // F34: VIX regime filter (0/0.5/1)
+    // === F35-F36: Weather (T721 — from weather_collector) ===
+    float weather_temp_zscore;  // F35: Temperature z-score vs 30d avg (-3..3)
+    float weather_precip_anom;  // F36: Precipitation anomaly vs 30d avg (0-1)
+    // === F37: Inter-exchange basis (B47) ===
+    float interexchange_basis;  // F37: BTC price spread between exchanges (0-1)
+    // === F38: Economic surprise index (B24) ===
+    float economic_surprise;    // F38: Actual vs expected macro data (-1..1)
+    // === F39: News sentiment delta (B25) ===
+    float news_sentiment_delta; // F39: Sentiment change over 24h (-1..1)
+    // === F40: Social volume spike (B26) ===
+    float social_volume_spike;  // F40: Mention burst z-score (0-1)
+    // === F41-F42: Return distribution moments (A46) ===
+    float return_skew;          // F41: Return skewness (-1..1)
+    float return_kurtosis;      // F42: Return kurtosis excess (0-1)
+    // === F43: Realized vol ratio (B08) ===
+    float realized_vol_ratio;   // F43: Short/long vol divergence (0-1)
+    // === F44: OB imbalance change (B05 delta) ===
+    float ob_imbalance_change;  // F44: OB imbalance delta from t-1 (-1..1)
+    // === F45: CVD trend (B06 slope) ===
+    float cvd_trend;            // F45: Cumulative volume delta trend (-1..1)
+    // === F46: Liquidation cascade (B16) ===
+    float liq_cascade;          // F46: Liquidation cascade signal (0-1)
+    // === F47: Funding rate change (B14 delta) ===
+    float funding_rate_change;  // F47: Funding rate change from 7d avg (-1..1)
+    // === F48: Open interest change (B15 delta) ===
+    float oi_change;            // F48: Open interest change from 7d avg (-1..1)
+    // === F49-F50: TWAP/VWAP proximity ===
+    float twap_proximity;       // F49: Price proximity to TWAP (0-1)
+    float vwap_proximity;       // F50: Price proximity to VWAP (0-1)
+    // === F51: Overnight gap risk (C26) ===
+    float overnight_gap_risk;   // F51: Overnight gap risk charge (0-1)
+    // === F52: Weekend liquidity (C27) ===
+    float weekend_slippage;     // F52: Weekend liquidity penalty (0-1)
+    // === F53: Cross-room ensemble (A10) ===
+    float room_ensemble_signal; // F53: Cross-room consensus signal (0-1)
+    // === F54: Data freshness (D37) ===
+    float feed_freshness_score; // F54: Data freshness score (0-1, 1=fresh)
+    // === F55: Volatility regime change ===
+    float vol_regime_change;    // F55: Volatility regime transition prob (0-1)
+    // === F56: Correlation breakdown (B11) ===
+    float corr_breakdown;       // F56: BTC-SP500 correlation breakdown (0-1)
+    // === F57: Options flow (B13 — from options_flow collector) ===
+    float options_flow_signal;  // F57: Unusual options flow signal (-1..1)
+    // === F58: Dark pool (B12 — from dark_pool_feat collector) ===
+    float dark_pool_signal;     // F58: Dark pool print signal (0-1)
+    // === F59: Insider trades (B13 — from insider_trades collector) ===
+    float insider_trade_signal; // F59: Insider trade sentiment (-1..1)
+    // === F60: 13F institutional flow (B14) ===
+    float institutional_flow;   // F60: 13F institutional flow (-1..1)
+    // === F61: Short interest (B15) ===
+    float short_interest_signal;// F61: Short interest change (-1..1)
+    // === F62: ETF flow (B16) ===
+    float etf_flow_signal;      // F62: ETF flow signal (-1..1)
+    // === F63: Seasonality (B17) ===
+    float seasonality_signal;   // F63: Calendar seasonality signal (-1..1)
+    // === F64: Reserved ===
+    float _reserved_64;         // F64: Reserved for future expansion
 } FeatureVector;
 
 // ── Market data from Python feed ──
@@ -241,6 +298,12 @@ typedef struct {
     int64_t  day_trade_roll_ts;   // Start of rolling 5-day window (timestamp)
     // ── A22: Per-agent open position tracking ──
     int      n_open_positions;    // Number of currently open positions
+    // ── A18: Profit factor tracking for Darwin fitness ──
+    float    gross_profit;         // Sum of all winning trade PnL
+    float    gross_loss;           // Sum of all losing trade PnL (positive value)
+    // ── A17: Brier score calibration tracking ──
+    float    brier_num;            // Running sum of (predicted - outcome)^2
+    int      brier_den;            // Count of resolved predictions with Brier data
 } AgentState;
 
 // ── Trade record (for post-hoc analysis) ──
@@ -441,6 +504,16 @@ typedef struct {
     float    exchange_fees[MAX_ASSETS];      // Fee rate per asset (0.0026 = 0.26% Kraken)
     float    exchange_min_fees[MAX_ASSETS];  // Min fee per asset (e.g., Coinbase $0.99)
     float    exchange_min_orders[MAX_ASSETS]; // Min order size per asset ($)
+
+    // ── I2: PDT tracker persistence (survives engine restarts) ──
+    int      pdt_room_count;                 // Room trades in current 5-day window
+    int64_t  pdt_room_window_start;          // Epoch when current window started
+
+    // ── C41: Withdrawal schedule ──
+    float    withdrawal_threshold;           // Auto-withdraw when room_capital exceeds this
+    float    withdrawal_target;              // Amount to withdraw (profit above initial)
+    int64_t  last_withdrawal_ts;             // Timestamp of last withdrawal
+    float    total_withdrawn;                // Cumulative withdrawals
 } RoomState;
 
 // ── Error codes ──

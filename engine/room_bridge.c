@@ -128,18 +128,39 @@ RoomError room_bridge_write(RoomState *state) {
     // ── P16: Feature Importance ──
     fprintf(f, "\"feature_importance\": [\n");
     const char *feat_names[N_FEATURES] = {
+        /* F1-F13: Core price/volume */
         "price_delta_pct", "micro_momentum", "rsi_7", "volume_surge_ratio",
         "ema_fast", "ema_slow", "macd_hist", "bollinger_pct",
         "divergence_score", "pump_score", "regime_indicator",
         "fear_greed_norm", "herd_consensus",
+        /* F14-F16: Order book */
         "ob_imbalance", "ob_depth_ratio", "cvd_signal",
+        /* F17-F23: Advanced signals */
         "dft_dominant", "tail_risk_score",
         "funding_signal", "oi_net_signal", "ls_ratio_norm",
-        "liq_ls_ratio_norm", "stable_inflow_norm", "whale_activity_norm",
-        "hash_rate_norm", "difficulty_norm", "miner_floor_norm",
+        "liq_ls_ratio_norm", "stable_inflow_norm",
+        /* F24-F27: On-chain */
+        "whale_activity_norm", "hash_rate_norm", "difficulty_norm", "miner_floor_norm",
+        /* F28-F29: Time */
         "hour_of_day_norm", "day_of_week_norm",
+        /* F30-F32: Options */
         "iv_skew", "pcr_volume", "iv_term_slope",
-        "btc_sp500_corr", "vix_regime"
+        /* F33-F34: Macro */
+        "btc_sp500_corr", "vix_regime",
+        /* F35-F36: Weather */
+        "weather_temp_zscore", "weather_precip_anom",
+        /* F37-F48: NEW features */
+        "interexchange_basis", "economic_surprise", "news_sentiment_delta",
+        "social_volume_spike", "return_skew", "return_kurtosis",
+        "realized_vol_ratio", "ob_imbalance_change", "cvd_trend",
+        "liq_cascade", "funding_rate_change", "oi_change",
+        /* F49-F64: NEW features */
+        "twap_proximity", "vwap_proximity", "overnight_gap_risk",
+        "weekend_slippage", "room_ensemble_signal", "feed_freshness_score",
+        "vol_regime_change", "corr_breakdown", "options_flow_signal",
+        "dark_pool_signal", "insider_trade_signal", "institutional_flow",
+        "short_interest_signal", "etf_flow_signal", "seasonality_signal",
+        "_reserved_64"
     };
     int first = 1;
     for (int i = 0; i < N_FEATURES; i++) {

@@ -6,6 +6,9 @@ data/multi_market/sports_training_features.json
 # Runtime / external data roots (externalized under /mnt/c/money-room-data)
 /mnt/c/money-room-data/
 
+# Rollback backups
+engine/.rollback/
+
 # Built binaries
 engine/room_engine
 engine/room_engine_paper

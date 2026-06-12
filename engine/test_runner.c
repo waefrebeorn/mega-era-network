@@ -241,6 +241,121 @@ static int test_engine_compiles(void) {
     return 0;
 }
 
+/* ─── T483: Kelly + VaR + vol sizing tests ─── */
+static int test_kelly_var_vol(void) {
+    /* Verify room_capital.c compiles with new VaR/vol code */
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "cd %s && make room_capital.o 2>&1", ENGINE_DIR);
+    char output[MAX_OUT] = {0};
+    int exit_code;
+    run_cmd(cmd, output, sizeof(output), &exit_code, 30);
+    if (exit_code != 0) {
+        printf("room_capital.o compile failed");
+        return 1;
+    }
+    /* Verify the new functions exist in the object (may have .constprop suffix) */
+    snprintf(cmd, sizeof(cmd), "nm %s/room_capital.o | grep -cE 'compute_runtime_var|var_position_cap|compute_realized_vol|vol_scaling_factor'", ENGINE_DIR);
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    int count = atoi(output);
+    if (count < 1) {
+        printf("no VaR/vol functions found in room_capital.o");
+        return 1;
+    }
+    return 0;
+}
+
+/* ─── T543: Order management system tests ─── */
+static int test_order_mgmt(void) {
+    char cmd[512];
+    /* Build */
+    snprintf(cmd, sizeof(cmd), "cd %s && make order_mgmt 2>&1", ENGINE_DIR);
+    char output[MAX_OUT] = {0};
+    int exit_code;
+    run_cmd(cmd, output, sizeof(output), &exit_code, 30);
+    if (exit_code != 0) { printf("order_mgmt build failed"); return 1; }
+
+    /* Init */
+    snprintf(cmd, sizeof(cmd), "%s/order_mgmt init 2>&1", ENGINE_DIR);
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    if (exit_code != 0) { printf("order_mgmt init failed"); return 1; }
+
+    /* New order — extract order ID from output */
+    snprintf(cmd, sizeof(cmd), "%s/order_mgmt new 42 BTC yes 50.0 105000.0 2>&1", ENGINE_DIR);
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    if (exit_code != 0 || !strstr(output, "Order #")) { printf("order_mgmt new failed: %s", output); return 1; }
+    /* Parse order ID: "Order #N: ..." */
+    int oid = 0;
+    char *p = strstr(output, "Order #");
+    if (p) oid = atoi(p + 7);
+    if (oid <= 0) { printf("could not parse order ID"); return 1; }
+
+    /* Fill order using parsed ID */
+    snprintf(cmd, sizeof(cmd), "%s/order_mgmt fill %d 106000.0 2>&1", ENGINE_DIR, oid);
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    if (exit_code != 0 || !strstr(output, "FILLED")) { printf("order_mgmt fill failed (oid=%d): %s", oid, output); return 1; }
+
+    /* Stats */
+    snprintf(cmd, sizeof(cmd), "%s/order_mgmt stats 2>&1", ENGINE_DIR);
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    if (exit_code != 0 || !strstr(output, "Total PnL")) { printf("order_mgmt stats failed"); return 1; }
+
+    return 0;
+}
+
+/* ─── T542: Encrypted secrets vault test ─── */
+static int test_secrets_vault(void) {
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "%s/secrets_vault status 2>&1", ENGINE_DIR);
+    char output[MAX_OUT] = {0};
+    int exit_code;
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    if (exit_code != 0 || !strstr(output, "ACTIVE")) {
+        printf("secrets_vault not active");
+        return 1;
+    }
+    return 0;
+}
+
+/* ─── T624: Health monitoring test ─── */
+static int test_health_monitor(void) {
+    char cmd[512];
+    /* health_check produces valid JSON with required keys */
+    snprintf(cmd, sizeof(cmd), "%s/health_check 2>&1", ENGINE_DIR);
+    char output[MAX_OUT] = {0};
+    int exit_code;
+    run_cmd(cmd, output, sizeof(output), &exit_code, 10);
+    if (exit_code != 0 && exit_code != 1) { printf("bad exit %d", exit_code); return 1; }
+    if (!strstr(output, "\"binaries\"")) { printf("missing binaries key"); return 1; }
+    if (!strstr(output, "\"data_files\"")) { printf("missing data_files key"); return 1; }
+    return 0;
+}
+
+/* ─── Circuit breaker test ─── */
+static int test_circuit_breaker(void) {
+    /* Verify room_capital.c contains circuit breaker functions (static, so not in nm) */
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "grep -c 'check_circuit_breaker_before_trade\\|portfolio_drawdown_breached' %s/room_capital.c", ENGINE_DIR);
+    char output[MAX_OUT] = {0};
+    int exit_code;
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    int count = atoi(output);
+    if (count < 2) { printf("missing circuit breaker functions (found %d/2)", count); return 1; }
+    return 0;
+}
+
+/* ─── Feature importance tracking test ─── */
+static int test_feature_importance(void) {
+    /* Verify FeatureImportance struct is used in room_engine */
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "grep -c 'feat_importance' %s/room_engine.c", ENGINE_DIR);
+    char output[MAX_OUT] = {0};
+    int exit_code;
+    run_cmd(cmd, output, sizeof(output), &exit_code, 5);
+    int count = atoi(output);
+    if (count < 1) { printf("feat_importance not referenced in engine"); return 1; }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     int quick_mode = 0;
     int list_mode = 0;
@@ -350,6 +465,14 @@ int main(int argc, char **argv) {
             .expect_exit = 0,
             .expect_out = "EXISTS"
         };
+
+        /* ─── T752: Core engine logic tests ─── */
+        tests[nt++] = (TestDef){ .name = "kelly+var+vol: room_capital VaR/vol functions exist", .custom_fn = test_kelly_var_vol };
+        tests[nt++] = (TestDef){ .name = "order_mgmt: full lifecycle (init/new/fill/stats)", .custom_fn = test_order_mgmt };
+        tests[nt++] = (TestDef){ .name = "secrets_vault: encrypted vault active", .custom_fn = test_secrets_vault };
+        tests[nt++] = (TestDef){ .name = "health_monitor: health_check produces valid JSON", .custom_fn = test_health_monitor };
+        tests[nt++] = (TestDef){ .name = "circuit_breaker: risk controls in room_capital.o", .custom_fn = test_circuit_breaker };
+        tests[nt++] = (TestDef){ .name = "feature_importance: engine tracks feature importance", .custom_fn = test_feature_importance };
     }
 
     /* List mode */

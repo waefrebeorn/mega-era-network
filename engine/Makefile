@@ -25,7 +25,7 @@ MKT_TARGET = room_engine_market
 # Tools: shell-to-C conversions
 TOOLS = cycle_all_rooms room_feed_bridge paper_train collector_runner refresh_all paper_orchestrator
 TOOL_SRCS = $(addsuffix .c, $(TOOLS))
-TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check data_quality_scorer trade_history_db state_rollback room_darwin room_features
+TOOL_BINS = $(TOOLS) cross_asset_c accuracy_scorer health_check health_alerter data_server withdrawal_scheduler test_runner key_rotation congress_trades insider_trades stock_screener dark_pool_feat etf_flow_feat stock_collector politician_portfolio iv_rank volatility_calc earnings_calendar earnings_cal db_backup stress_test survival_stats resource_monitor coingecko_fallback blockchain_feat ablation_test cross_source_check data_quality_scorer trade_history_db state_rollback room_darwin room_features live_trader
 
 market: CFLAGS += -DMARKET_MODE
 market: $(MKT_TARGET)
@@ -43,7 +43,8 @@ $(TARGET)_paper: $(PAPER_OBJS)
 all: $(TARGET) health_check health_alerter data_server withdrawal_scheduler collector_runner cross_asset_c test_runner accuracy_scorer
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@./rollback.sh backup 2>/dev/null || true
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lsqlite3
 
 %.o: %.c types.h
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -86,7 +87,12 @@ feed_daemon: feed_daemon.c
 refresh_all: refresh_all.c
 	$(CC) -O2 -o $@ $< -lsqlite3 -lm
 
-# ── Multi-market trainer + collectors ──
+# ── Live trader: paper→IRL bridge ──
+live_trader: live_trader.c types.h
+	$(CC) $(CFLAGS) -o $@ $< -lcurl -ljansson -lsqlite3 -lm
+# ── USD AI: paper trading manager with live market comparison ──
+usd_ai: usd_ai.c types.h
+	$(CC) $(CFLAGS) -o $@ $< -lcurl -ljansson -lsqlite3 -lm
 multi_market_trainer: multi_market_trainer.c types.h
 	$(CC) -O3 -o multi_market_trainer multi_market_trainer.c -lsqlite3 -ljansson -lm -I.
 
@@ -131,6 +137,14 @@ withdrawal_scheduler: withdrawal_scheduler.c
 # ── Test runner (integration test harness) ──
 test_runner: test_runner.c
 	$(CC) -O2 -o $@ $< -lm
+
+# ── Order management system (T543) ──
+order_mgmt: order_mgmt.c
+	$(CC) -O3 -march=native -o $@ $< -lsqlite3 -lm
+
+# ── Secrets vault (T542) ──
+secrets_vault: secrets_vault.c
+	$(CC) -O3 -march=native -o $@ $< -lsqlite3 -lcrypto -lm
 
 # ── Trade journal (reads trade_log.csv, writes docs/data/trade_journal.json) ──
 trade_journal: trade_journal.c

@@ -1,0 +1,195 @@
+[2026-06-11 17:36:52] INFO === Monitor check start ===
+[2026-06-11 17:36:52] WARN Engine process not running!
+[2026-06-11 17:36:52] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 17:36:52] INFO ✓ Feed age: 68s
+[2026-06-11 17:36:52] WARN No room state file
+[2026-06-11 17:36:52] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 17:36:52] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 17:36:52] INFO === Monitor check end ===
+[2026-06-11 17:43:52] INFO === Monitor check start ===
+[2026-06-11 17:43:52] WARN Engine process not running!
+[2026-06-11 17:43:52] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 17:43:52] INFO ✓ Feed age: 188s
+[2026-06-11 17:43:52] WARN No room state file
+[2026-06-11 17:43:52] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 17:43:52] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 17:43:52] INFO === Monitor check end ===
+[2026-06-11 17:49:49] INFO === Monitor check start ===
+[2026-06-11 17:49:49] WARN Engine process not running!
+[2026-06-11 17:49:49] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 17:49:49] INFO ✓ Feed age: 245s
+[2026-06-11 17:49:49] WARN No room state file
+[2026-06-11 17:49:49] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 17:49:49] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 17:49:49] INFO === Monitor check end ===
+[2026-06-11 17:56:52] INFO === Monitor check start ===
+[2026-06-11 17:56:52] WARN Engine process not running!
+[2026-06-11 17:56:52] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 17:56:52] INFO ✓ Feed age: 67s
+[2026-06-11 17:56:52] WARN No room state file
+[2026-06-11 17:56:52] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 17:56:52] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 17:56:52] INFO === Monitor check end ===
+[2026-06-11 18:02:51] INFO === Monitor check start ===
+[2026-06-11 18:02:51] WARN Engine process not running!
+[2026-06-11 18:02:51] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 18:02:51] INFO ✓ Feed age: 125s
+[2026-06-11 18:02:51] WARN No room state file
+[2026-06-11 18:02:51] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 18:02:51] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 18:02:51] INFO === Monitor check end ===
+[2026-06-11 18:08:52] INFO === Monitor check start ===
+[2026-06-11 18:08:52] WARN Engine process not running!
+[2026-06-11 18:08:52] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 18:08:52] INFO ✓ Feed age: 186s
+[2026-06-11 18:08:52] WARN No room state file
+[2026-06-11 18:08:52] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 18:08:52] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 18:08:52] INFO === Monitor check end ===
+[2026-06-11 18:14:51] INFO === Monitor check start ===
+[2026-06-11 18:14:51] WARN Engine process not running!
+[2026-06-11 18:14:51] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 18:14:51] INFO ✓ Feed age: 245s
+[2026-06-11 18:14:51] WARN No room state file
+[2026-06-11 18:14:51] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 18:14:51] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 18:14:51] INFO === Monitor check end ===
+[2026-06-11 18:21:53] INFO === Monitor check start ===
+[2026-06-11 18:21:53] WARN Engine process not running!
+[2026-06-11 18:21:53] WARN No bot token set, skipping telegram: 🔴 *Room Monitor Alert*
+
+*Engine Down*
+
+💰 Cap...
+[2026-06-11 18:21:53] INFO ✓ Feed age: 66s
+[2026-06-11 18:21:53] WARN No room state file
+[2026-06-11 18:21:53] INFO ✓ Disk: 880.0 GB free
+[2026-06-11 18:21:53] WARN ⚠️ 2 alert(s) triggered
+[2026-06-11 18:21:53] INFO === Monitor check end ===
+[2026-06-11 18:28:53] INFO === Monitor check start ===
+[2026-06-11 18:28:53] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 18:28:53] INFO OK: Feed age 186s
+[2026-06-11 18:28:53] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 18:28:53] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 18:28:53] INFO OK: Disk 880.0 GB free
+[2026-06-11 18:28:53] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 18:28:53] INFO === Monitor check end ===
+[2026-06-11 18:29:11] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down since ~17:36. Feed OK (186s), disk OK (880GB). Critical alert cannot be sent via Telegram (no bot token configured in monitor).
+[2026-06-11 18:34:53] INFO === Monitor check start ===
+[2026-06-11 18:34:53] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 18:34:53] INFO OK: Feed age 246s
+[2026-06-11 18:34:53] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 18:34:53] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 18:34:53] INFO OK: Disk 880.0 GB free
+[2026-06-11 18:34:53] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 18:34:53] INFO === Monitor check end ===
+[2026-06-11 18:34:53] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 2+ consecutive checks (since ~17:36, over 1hr). Feed OK (246s), disk OK (880GB).
+[2026-06-11 18:40:53] INFO === Monitor check start ===
+[2026-06-11 18:40:53] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 18:40:53] INFO OK: Feed age 5s
+[2026-06-11 18:40:53] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 18:40:53] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 18:40:53] INFO OK: Disk 880.0 GB free
+[2026-06-11 18:40:53] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 18:40:53] INFO === Monitor check end ===
+[2026-06-11 18:41:00] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 3+ consecutive checks (since ~17:36, over 1hr). Feed OK (5s), disk OK (880GB).
+[2026-06-11 22:56:15] INFO === Monitor check start ===
+[2026-06-11 22:56:15] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 22:56:15] INFO OK: Feed age 70s
+[2026-06-11 22:56:15] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 22:56:15] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 22:56:15] INFO OK: Disk 879.0 GB free
+[2026-06-11 22:56:15] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 22:56:15] INFO === Monitor check end ===
+[2026-06-11 22:56:26] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 5+ consecutive checks (since ~17:36, over 5hrs). Feed OK (70s), disk OK (879GB).
+[2026-06-11 23:02:17] INFO === Monitor check start ===
+[2026-06-11 23:02:17] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:02:17] INFO OK: Feed age 132s
+[2026-06-11 23:02:17] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:02:17] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:02:17] INFO OK: Disk 878.0 GB free
+[2026-06-11 23:02:17] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:02:17] INFO === Monitor check end ===
+[2026-06-11 23:02:26] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 6+ consecutive checks (since ~17:36, over 5.5hrs). Feed OK (132s), disk OK (878GB).
+[2026-06-11 23:09:14] INFO === Monitor check start ===
+[2026-06-11 23:09:14] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:09:14] INFO OK: Feed age 248s
+[2026-06-11 23:09:14] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:09:14] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:09:15] INFO OK: Disk 877.0 GB free
+[2026-06-11 23:09:15] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:09:15] INFO === Monitor check end ===
+[2026-06-11 23:09:22] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 7+ consecutive checks (since ~17:36, over 5.5hrs). Feed OK (248s), disk OK (877GB).
+[2026-06-11 23:15:12] INFO === Monitor check start ===
+[2026-06-11 23:15:12] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:15:12] INFO OK: Feed age 5s
+[2026-06-11 23:15:12] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:15:12] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:15:12] INFO OK: Disk 875.0 GB free
+[2026-06-11 23:15:12] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:15:12] INFO === Monitor check end ===
+[2026-06-11 23:15:26] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 8+ consecutive checks (since ~17:36, over 5.5hrs). Feed OK (5s), disk OK (875GB).
+[2026-06-11 23:21:18] INFO === Monitor check start ===
+[2026-06-11 23:21:18] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:21:18] INFO OK: Feed age 71s
+[2026-06-11 23:21:18] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:21:18] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:21:18] INFO OK: Disk 874.0 GB free
+[2026-06-11 23:21:18] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:21:18] INFO === Monitor check end ===
+[2026-06-11 23:21:33] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 9+ consecutive checks (since ~17:36, over 5.5hrs). Feed OK (71s), disk OK (874GB).
+[2026-06-11 23:27:19] INFO === Monitor check start ===
+[2026-06-11 23:27:19] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:27:19] INFO OK: Feed age 131s
+[2026-06-11 23:27:19] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:27:19] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:27:19] INFO OK: Disk 873.0 GB free
+[2026-06-11 23:27:19] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:27:19] INFO === Monitor check end ===
+[2026-06-11 23:27:40] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 10+ consecutive checks (since ~17:36, over 5.5hrs). Feed OK (131s), disk OK (873GB).
+[2026-06-11 23:33:13] INFO === Monitor check start ===
+[2026-06-11 23:33:14] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:33:14] INFO OK: Feed age 186s
+[2026-06-11 23:33:14] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:33:14] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:33:14] INFO OK: Disk 872.0 GB free
+[2026-06-11 23:33:14] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:33:14] INFO === Monitor check end ===
+[2026-06-11 23:33:37] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 11+ consecutive checks (since ~17:36, over 6hrs). Feed OK (186s), disk OK (872GB). Telegram delivery UNAVAILABLE (no bot token set).
+[2026-06-11 23:39:18] INFO === Monitor check start ===
+[2026-06-11 23:39:18] CRITICAL Engine process NOT running! (room_engine / room_engine_paper not found)
+[2026-06-11 23:39:18] INFO OK: Feed age 249s
+[2026-06-11 23:39:18] WARN No room state file at /home/wubu2/money-room/engine/state/room_state.bin
+[2026-06-11 23:39:18] INFO Trade log does not exist yet (OK if engine just started)
+[2026-06-11 23:39:18] INFO OK: Disk 871.0 GB free
+[2026-06-11 23:39:18] CRITICAL === 1 CRITICAL(s), 1 WARN(s) ===
+[2026-06-11 23:39:18] INFO === Monitor check end ===
+[2026-06-11 23:39:29] SUMMARY — 1 CRITICAL (engine down), 1 WARN (no room state file). Engine down for 12+ consecutive checks (since ~17:36, over 6hrs). Feed OK (249s), disk OK (871GB).

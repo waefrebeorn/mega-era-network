@@ -106,18 +106,41 @@ static float edge_zscore(const AgentState *a) {
 static float agent_fitness(const AgentState *a) {
     if (!a->alive || a->trades <= 0) return 0.0f;
     // ── DA Fix: fitness = WR × √trades × log(1+capital) ──
-    // Replaces multi-objective with mathematically grounded edge metric
     float trades_factor = sqrtf((float)a->trades);
     float capital_factor = logf(1.0f + a->capital);
     if (capital_factor < 0.0f) capital_factor = 0.0f;
     float fitness = a->win_rate_ema * trades_factor * capital_factor;
-    
+
+    // ── A18: Profit factor bonus ──
+    // profit_factor = gross_profit / gross_loss (higher = better)
+    // Only apply after 20+ trades to avoid noise
+    if (a->trades >= 20 && a->gross_loss > 0.0f) {
+        float pf = a->gross_profit / a->gross_loss;
+        // Scale: PF=1.0 → no change, PF=2.0 → 1.3x bonus, PF=0.5 → 0.7x penalty
+        float pf_mult = pf / 1.5f;  // Normalize around 1.5
+        if (pf_mult < 0.5f) pf_mult = 0.5f;
+        if (pf_mult > 1.5f) pf_mult = 1.5f;
+        fitness *= pf_mult;
+    }
+
+    // ── A17: Brier score calibration penalty ──
+    // Brier = mean((predicted - outcome)^2). Lower = better calibrated.
+    // Well-calibrated agents get up to 10% bonus; miscalibrated get penalized.
+    if (a->brier_den >= 20) {
+        float brier = a->brier_num / (float)a->brier_den;
+        // Perfect Brier = 0, worst = 1. Scale: 0→1.10x, 0.25→1.0x, 0.5→0.85x
+        float brier_mult = 1.10f - brier * 0.6f;
+        if (brier_mult < 0.80f) brier_mult = 0.80f;
+        if (brier_mult > 1.10f) brier_mult = 1.10f;
+        fitness *= brier_mult;
+    }
+
     // Penalize agents without statistically significant edge after 100 trades
     float z = edge_zscore(a);
     if (z < 1.96f && a->trades >= 100) fitness *= 0.8f;
     // Penalize volatile WR
     if (a->win_rate_var > 0.10f) fitness *= 0.85f;
-    
+
     return fitness;
 }
  static int cmp_agents_desc(const void *a, const void *b) {

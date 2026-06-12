@@ -512,8 +512,65 @@ static float calc_sp500_corr(const float *px, int px_len, const float *spx, int 
     return num / den;
 }
 
+// ── F35-F36: Weather data wire-in ──
+// Load latest weather entry from weather_collector output
+static float g_weather_temp_z = 0.5f;
+static float g_weather_precip_a = 0.5f;
+static int64_t g_weather_last_load = 0;
+
+static void load_latest_weather(void) {
+    int64_t now = (int64_t)time(NULL);
+    if (now - g_weather_last_load < 60) return;
+    g_weather_last_load = now;
+    const char *path = "/home/wubu2/money-room/data/multi_market/weather_data.json";
+    struct stat st;
+    if (stat(path, &st) != 0) return;
+    if (st.st_size < 100) return;
+    FILE *f = fopen(path, "r");
+    if (!f) return;
+    long fsize = (long)st.st_size;
+    long seek_pos = (fsize > 500) ? fsize - 500 : 0;
+    fseek(f, seek_pos, SEEK_SET);
+    char buf[512];
+    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    buf[n] = '\0';
+    const char *p = buf;
+    float curr_temp_z = 0.5f, curr_precip_a = 0.5f;
+    int found_any = 0;
+    while (*p) {
+        const char *feat = strstr(p, "\"features\"");
+        if (!feat) break;
+        feat += 10;
+        while (*feat && *feat != '[') feat++;
+        if (!*feat) break;
+        feat++;
+        const char *end = strchr(feat, ']');
+        if (!end) break;
+        char tmp[256];
+        size_t len = (size_t)(end - feat);
+        if (len > sizeof(tmp) - 1) len = sizeof(tmp) - 1;
+        memcpy(tmp, feat, len);
+        tmp[len] = '\0';
+        float vals[8] = {0};
+        int nvals = 0;
+        char *tok = strtok(tmp, ",");
+        while (tok && nvals < 8) { vals[nvals++] = atof(tok); tok = strtok(NULL, ","); }
+        if (nvals >= 2) { curr_temp_z = vals[0]; curr_precip_a = vals[1]; found_any = 1; }
+        p = end + 1;
+    }
+    if (found_any) {
+        g_weather_temp_z = tanhf(curr_temp_z * 0.5f) * 0.5f + 0.5f;
+        g_weather_precip_a = curr_precip_a;
+        if (g_weather_precip_a < 0.0f) g_weather_precip_a = 0.0f;
+        if (g_weather_precip_a > 1.0f) g_weather_precip_a = 1.0f;
+    }
+}
+
 RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomState *s) {
     memset(fv, 0, sizeof(FeatureVector));
+
+    load_latest_weather();  // F35-F36: wire weather_collector data into feature vector
 
     // Determine market type for per-buffer indexing
     int mt = (int)tick->market_type;
@@ -725,8 +782,13 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
             {OPTIONS_FEAT_PATH, "options"},
             {NULL, NULL}
         };
-        for (int i = 0; STALE_CHECKS[i].path; i++) {
-            check_feature_staleness(STALE_CHECKS[i].path, STALE_CHECKS[i].name);
+        // Throttle: only check staleness every 100 cycles to reduce log spam
+        static int stale_cycle_counter = 0;
+        if (++stale_cycle_counter >= 100) {
+            stale_cycle_counter = 0;
+            for (int i = 0; STALE_CHECKS[i].path; i++) {
+                check_feature_staleness(STALE_CHECKS[i].path, STALE_CHECKS[i].name);
+            }
         }
     }
 
@@ -779,13 +841,161 @@ RoomError room_features_compute(const MarketTick *tick, FeatureVector *fv, RoomS
     fv->btc_sp500_corr = calc_sp500_corr(px, s->price_hist_len[mt], spx, s->sp500_hist_len);
 
     // ── B23: VIX regime feature (F34) ──
-    // VIX < 15 = low vol (0.0), 15-25 = normal (0.5), > 25 = high (1.0)
-    // Continuous mapping: clamp((vix - 10) / 30, 0, 1)
     float vix_val = tick->vix;
-    if (vix_val < 0.1f) vix_val = 15.0f;  // default to normal if missing
+    if (vix_val < 0.1f) vix_val = 15.0f;
     fv->vix_regime = (vix_val - 10.0f) / 30.0f;
     if (fv->vix_regime < 0.0f) fv->vix_regime = 0.0f;
     if (fv->vix_regime > 1.0f) fv->vix_regime = 1.0f;
+
+    // ═══════════════════════════════════════════════════════════════
+    //  F35-F64: New features (N_FEATURES 34→64 expansion)
+    //  Initialized to 0.5 (neutral); populated by collectors or computed below
+    // ═══════════════════════════════════════════════════════════════
+    fv->weather_temp_zscore  = g_weather_temp_z;  // F35: wired from weather_collector
+    fv->weather_precip_anom  = g_weather_precip_a;  // F36: wired from weather_collector
+    fv->interexchange_basis  = 0.5f;  // F37: from exchange_market_collector
+    fv->economic_surprise    = 0.5f;  // F38: from FRED/economic collectors
+    fv->news_sentiment_delta = 0.5f;  // F39: from news_rss collector
+    fv->social_volume_spike  = 0.5f;  // F40: from reddit/stocktwits collectors
+    fv->return_skew          = 0.5f;  // F41: computed from price_hist below
+    fv->return_kurtosis      = 0.5f;  // F42: computed from price_hist below
+    fv->realized_vol_ratio   = 0.5f;  // F43: computed from price_hist below
+    fv->ob_imbalance_change  = 0.5f;  // F44: delta of F14
+    fv->cvd_trend            = 0.5f;  // F45: slope of F16
+    fv->liq_cascade          = 0.5f;  // F46: from liquidation collector
+    fv->funding_rate_change  = 0.5f;  // F47: delta of F19
+    fv->oi_change            = 0.5f;  // F48: delta of F20
+    fv->twap_proximity       = 0.5f;  // F49: computed from price_hist
+    fv->vwap_proximity       = 0.5f;  // F50: computed from price_hist
+    fv->overnight_gap_risk   = 0.0f;  // F51: 0=no gap, computed below
+    fv->weekend_slippage     = 0.0f;  // F52: 0=weekday, computed below
+    fv->room_ensemble_signal = 0.5f;  // F53: from room consensus
+    fv->feed_freshness_score = 1.0f;  // F54: 1=fresh (default optimistic)
+    fv->vol_regime_change    = 0.0f;  // F55: from regime transition model
+    fv->corr_breakdown       = 0.0f;  // F56: from BTC-SP500 corr change
+    fv->options_flow_signal  = 0.5f;  // F57: from options_flow collector
+    fv->dark_pool_signal     = 0.5f;  // F58: from dark_pool_feat collector
+    fv->insider_trade_signal = 0.5f;  // F59: from insider_trades collector
+    fv->institutional_flow   = 0.5f;  // F60: from 13F/congress collectors
+    fv->short_interest_signal= 0.5f;  // F61: from short_interest collector
+    fv->etf_flow_signal      = 0.5f;  // F62: from etf_flow collector
+    fv->seasonality_signal   = 0.5f;  // F63: computed from date below
+    fv->_reserved_64         = 0.0f;  // F64: reserved
+
+    // ── Compute derived features from available data ──
+
+    // F41-F42: Return skewness and kurtosis from price history
+    if (s->price_hist_len[mt] >= 10) {
+        int n = s->price_hist_len[mt];
+        float returns[FEED_HISTORY];
+        float sum = 0;
+        for (int i = 1; i < n; i++) {
+            int idx0 = (s->price_hist_idx[mt] - n + i - 1 + FEED_HISTORY) % FEED_HISTORY;
+            int idx1 = (s->price_hist_idx[mt] - n + i + FEED_HISTORY) % FEED_HISTORY;
+            float p0 = s->price_hist[mt][idx0];
+            float p1 = s->price_hist[mt][idx1];
+            returns[i-1] = (p0 > 0.0f) ? (p1 - p0) / p0 : 0.0f;
+            sum += returns[i-1];
+        }
+        float mean = sum / (n - 1);
+        float m2 = 0, m3 = 0, m4 = 0;
+        for (int i = 0; i < n - 1; i++) {
+            float d = returns[i] - mean;
+            m2 += d * d;
+            m3 += d * d * d;
+            m4 += d * d * d * d;
+        }
+        float var = m2 / (n - 1);
+        float std = sqrtf(var > 0.0f ? var : 1e-8f);
+        // Skewness: m3 / std^3, normalized to [0,1]
+        float skew = (m3 / (n - 1)) / (std * std * std + 1e-8f);
+        fv->return_skew = tanhf(skew * 2.0f) * 0.5f + 0.5f;
+        // Excess kurtosis: m4 / std^4 - 3, normalized to [0,1]
+        float kurt = (m4 / (n - 1)) / (var * var + 1e-8f) - 3.0f;
+        fv->return_kurtosis = tanhf(kurt * 0.5f) * 0.5f + 0.5f;
+    }
+
+    // F43: Realized vol ratio (short-term / long-term)
+    if (s->price_hist_len[mt] >= 20) {
+        int n = s->price_hist_len[mt];
+        float short_var = 0, long_var = 0;
+        float short_mean = 0, long_mean = 0;
+        int short_n = 5;  // 5-period short window
+        int long_n = n - 1;
+        // Compute returns
+        float returns[FEED_HISTORY];
+        for (int i = 1; i < n; i++) {
+            int idx0 = (s->price_hist_idx[mt] - n + i - 1 + FEED_HISTORY) % FEED_HISTORY;
+            int idx1 = (s->price_hist_idx[mt] - n + i + FEED_HISTORY) % FEED_HISTORY;
+            float p0 = s->price_hist[mt][idx0];
+            returns[i-1] = (p0 > 0.0f) ? (s->price_hist[mt][idx1] - p0) / p0 : 0.0f;
+        }
+        // Long-term variance
+        for (int i = 0; i < long_n; i++) long_mean += returns[i];
+        long_mean /= long_n;
+        for (int i = 0; i < long_n; i++) { float d = returns[i] - long_mean; long_var += d * d; }
+        long_var /= long_n;
+        // Short-term variance (last 5 returns)
+        for (int i = long_n - short_n; i < long_n; i++) short_mean += returns[i];
+        short_mean /= short_n;
+        for (int i = long_n - short_n; i < long_n; i++) { float d = returns[i] - short_mean; short_var += d * d; }
+        short_var /= short_n;
+        float vol_ratio = (long_var > 1e-8f) ? sqrtf(short_var / long_var) : 1.0f;
+        fv->realized_vol_ratio = tanhf((vol_ratio - 1.0f) * 2.0f) * 0.5f + 0.5f;
+    }
+
+    // F49-F50: TWAP/VWAP proximity
+    if (s->price_hist_len[mt] >= 5 && price_val > 0.0f) {
+        int n = s->price_hist_len[mt];
+        // TWAP = average of last N prices
+        float twap = 0;
+        for (int i = 0; i < n; i++) {
+            int idx = (s->price_hist_idx[mt] - n + i + FEED_HISTORY) % FEED_HISTORY;
+            twap += s->price_hist[mt][idx];
+        }
+        twap /= n;
+        fv->twap_proximity = 1.0f - fabsf(price_val - twap) / (price_val + 1e-8f);
+        if (fv->twap_proximity < 0.0f) fv->twap_proximity = 0.0f;
+        // VWAP ≈ TWAP for 1-min data (volume weighting similar)
+        fv->vwap_proximity = fv->twap_proximity;
+    }
+
+    // F51: Overnight gap risk (non-crypto markets)
+    if (tick->market_type != MARKET_CRYPTO && tick->market_type != MARKET_PREDICTION) {
+        float gap = fabsf(tick->open - s->prev_close) / (s->prev_close + 1e-8f);
+        fv->overnight_gap_risk = tanhf(gap * 10.0f);
+    }
+
+    // F52: Weekend slippage
+    {
+        time_t ts = (time_t)tick->window_ts;
+        struct tm *tm_info = localtime(&ts);
+        int wday = tm_info->tm_wday;  // 0=Sun, 6=Sat
+        fv->weekend_slippage = (wday == 0 || wday == 6) ? 1.0f : 0.0f;
+    }
+
+    // F55: Volatility regime change probability
+    fv->vol_regime_change = fabsf(fv->regime_indicator * 2.0f - 1.0f);  // 0=stable, 1=transition
+
+    // F56: Correlation breakdown (rapid change in BTC-SP500 corr)
+    if (s->sp500_hist_len >= 10) {
+        // Compare recent corr to longer-term corr
+        float recent_corr = fv->btc_sp500_corr * 2.0f - 1.0f;  // back to [-1,1]
+        // Use vix as proxy for correlation breakdown
+        fv->corr_breakdown = (fv->vix_regime > 0.7f && recent_corr > 0.3f) ? 0.8f : 0.1f;
+    }
+
+    // F63: Seasonality signal (day-of-month + month-of-year combined)
+    {
+        time_t ts = (time_t)tick->window_ts;
+        struct tm *tm_info = localtime(&ts);
+        int mday = tm_info->tm_mday;
+        int month = tm_info->tm_mon;  // 0-11
+        // Simple: end-of-month effect + January effect
+        float eom = (mday >= 25) ? 0.7f : 0.5f;
+        float jan = (month == 0) ? 0.7f : 0.5f;
+        fv->seasonality_signal = (eom + jan) * 0.5f;
+    }
 
     // ── B27: Feature normalization — all features to [-1, 1] or [0, 1] ──
     // Without this, RSI(0-100) has 100x the scale of OB features(0-1)

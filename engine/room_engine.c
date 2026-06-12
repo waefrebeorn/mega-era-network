@@ -119,7 +119,13 @@ static char g_room_dir[512] = "/home/wubu2/.hermes/pm_logs/c_room";
 static char g_state_path[576];
 static char g_feed_path[576];
 static char g_log_path[576];
-static char g_room_mode[16] = "live";
+static char g_room_mode[16] =
+#ifdef PAPER_MODE
+    "paper"
+#else
+    "live"
+#endif
+    ;
 static int is_paper_mode(void) { return strcmp(g_room_mode, "paper") == 0; }
 static int is_market_mode(void) { return strcmp(g_room_mode, "market") == 0; }
 #define ROOM_DIR g_room_dir
@@ -572,6 +578,10 @@ static void hot_reload_genomes(AgentState *agents, int n) {
                 agents[aid].peak_capital = 50.0f;
                 agents[aid].max_drawdown = 0.0f;
                 agents[aid].consecutive_losses = 0;
+                agents[aid].gross_profit = 0.0f;
+                agents[aid].gross_loss = 0.0f;
+                agents[aid].brier_num = 0.0f;
+                agents[aid].brier_den = 0;
                 agents[aid].starting_capital = 50.0f;
                 agents[aid].last_trade_window = -1;
             } else {
@@ -666,6 +676,10 @@ static int load_warmstart_genomes(AgentState *agents, int n, int max_warm) {
             agents[seeded].max_drawdown = 0.0f;
             agents[seeded].peak_capital = 50.0f;
             agents[seeded].consecutive_losses = 0;
+            agents[seeded].gross_profit = 0.0f;
+            agents[seeded].gross_loss = 0.0f;
+            agents[seeded].brier_num = 0.0f;
+            agents[seeded].brier_den = 0;
             agents[seeded].win_rate_ema = 0.5f;
             agents[seeded].last_trade_window = -1;
             agents[seeded].conv_hi_wins = 0;
@@ -708,6 +722,10 @@ static void init_agents(AgentState *agents, int n) {
         agents[i].max_drawdown = 0.0f;
         agents[i].peak_capital = start_cap;
         agents[i].consecutive_losses = 0;
+        agents[i].gross_profit = 0.0f;
+        agents[i].gross_loss = 0.0f;
+        agents[i].brier_num = 0.0f;
+        agents[i].brier_den = 0;
         agents[i].win_rate_ema = 0.5f;
         agents[i].last_trade_window = -1;
         // C10: Initialize conviction tracking
@@ -899,6 +917,7 @@ static RoomError load_or_init_state(void) {
         state->stats.max_drawdown = 0.0f;
         state->stats.return_count = 0;
         state->stats.return_idx = 0;
+        state->stats.hedge_factor = 1.0f;  // D-FIX: Initialize hedge_factor (was 0.0 from memset, causing stake=$5 min always)
         state->room_capital = 50.0f;  // Real $50 seed
         state->room_capital_peak = 50.0f;
         state->room_take_profit_pct = 0.20f; // C35: 20% profit target
@@ -943,6 +962,14 @@ static RoomError load_or_init_state(void) {
         state->epsilon = 0.05f;          // 5% initial exploration
         state->epsilon_init = 0.05f;
         state->epsilon_min = 0.005f;     // 0.5% floor
+        // ── I2: PDT tracker persistence ──
+        state->pdt_room_count = 0;
+        state->pdt_room_window_start = 0;
+        // ── C41: Withdrawal schedule defaults ──
+        state->withdrawal_threshold = 100.0f;  // Auto-withdraw at $100 room capital
+        state->withdrawal_target = 50.0f;      // Withdraw $50 profit (above $50 seed)
+        state->last_withdrawal_ts = 0;
+        state->total_withdrawn = 0.0f;
         printf("[ROOM] Initialized %d agents, $50 room seed\n", MAX_AGENTS);
         printf("[ROOM] CB: consec_room_losses=%d max_consecutive_losses=%d circuit_breaker_cycles=%d\n",
                state->consec_room_losses, state->max_consecutive_losses, state->circuit_breaker_cycles);
@@ -1351,8 +1378,15 @@ void room_market_stats(RoomState *state);
                 if (entry_px > 0) {
                     float move_pct = (exit_px - entry_px) / entry_px;
                     state->room_trade.won = (move_pct > 0) == state->room_trade.majority_up;
-                    state->room_trade.pnl = state->room_trade.won ? state->room_trade.stake * 0.01f : -state->room_trade.stake * 0.01f;
-                    state->room_capital += state->room_trade.pnl;
+                    state->room_trade.pnl = state->room_trade.won
+                        ? state->room_trade.stake * (1.0f - TAKER_FEE)
+                        : -(state->room_trade.stake * (1.0f + TAKER_FEE));
+                    // Kill switch: capital already deducted on entry, add back gross return on win
+                    if (state->room_trade.won) {
+                        state->room_capital += state->room_trade.stake + state->room_trade.pnl;
+                    } else {
+                        state->room_capital += state->room_trade.pnl; // pnl is negative, stake already deducted
+                    }
                     state->daily_pnl += state->room_trade.pnl;
                     state->room_trade.exit_price = exit_px;
                     state->room_trade.resolved_at = tick.window_ts;
@@ -1364,10 +1398,46 @@ void room_market_stats(RoomState *state);
         }
 
         // ── Room Trade Execution (one per cycle, $50 seed) ──
-        // Skip first 1K P2P trades for evolution warm-up (lowered from 10K for live mode).
+        // Skip first 10 cycles for feature warm-up (price history needs data).
         // Uses multi-stream expert selection: pick top 100 agents by WR,
         // their votes are diverse across different data streams.
-        if (state->trade_count >= 1000 && vote_count > 0) {
+        if (state->cycle > 10 && vote_count > 0) {
+            // D-FIX: Resolve any pending trade BEFORE opening a new one
+            // Previously, opening a new trade overwrote the pending trade's
+            // entry_price/stake/resolved_at, losing the deducted capital forever.
+            if (state->room_trade.resolved_at == 0 && state->room_trade.entry_price > 0) {
+                float entry = state->room_trade.entry_price;
+                float exit_px = tick.close;
+                bool up = state->room_trade.majority_up;
+                float move_pct = entry > 0 ? (exit_px - entry) / entry * 100.0f : 0.0f;
+                // Use current close vs entry for same-cycle resolve
+                // (the pending trade was opened last cycle with that cycle's close)
+                bool room_won = (exit_px >= entry) == up;
+                if (room_won) {
+                    float profit = state->room_trade.stake * (1.0f - TAKER_FEE);
+                    float gross_ret = state->room_trade.stake + profit;
+                    state->room_capital += gross_ret;
+                    state->room_wins++;
+                    state->room_trade.won = true;
+                    state->room_trade.pnl = profit;
+                    state->daily_pnl += profit;
+                    state->consec_room_losses = 0;
+                    printf("[ROOM_TRADE] WIN* stake=$%.2f profit=$%.2f cap=$%.2f move=%+.4f%% (pre-open resolve)\n",
+                           state->room_trade.stake, profit, state->room_capital, move_pct);
+                } else {
+                    state->room_trade.pnl = -(state->room_trade.stake * (1.0f + TAKER_FEE));
+                    state->room_losses++;
+                    state->room_trade.won = false;
+                    state->daily_pnl += state->room_trade.pnl;
+                    state->consec_room_losses++;
+                    printf("[ROOM_TRADE] LOSS* stake=$%.2f loss=$%.2f cap=$%.2f move=%+.4f%% (pre-open resolve)\n",
+                           state->room_trade.stake, state->room_trade.pnl, state->room_capital, move_pct);
+                }
+                state->room_trade.exit_price = exit_px;
+                state->room_trade.resolved_at = tick.window_ts;
+                state->room_capital_peak = state->room_capital > state->room_capital_peak ? state->room_capital : state->room_capital_peak;
+            }
+
             // Use top 100 agents' votes (diverse experts per stream)
             int top_n = 100;
             if (top_n > vote_count) top_n = vote_count;
@@ -1400,9 +1470,41 @@ void room_market_stats(RoomState *state);
                     }
                 }
 
-                float stake = state->room_capital * (0.01f + confidence * 0.04f) * state->stats.hedge_factor;
-                if (stake > state->room_capital * 0.05f) stake = state->room_capital * 0.05f;
-                if (stake < 0.01f) stake = 0.01f;
+                // ── Room trade stake: fixed 5% of room capital (min $5) ──
+                // Confidence scaling removed — random votes give near-zero confidence
+                // which made stake < MIN_TRADE_STAKE, blocking all room trades.
+                float stake = state->room_capital * 0.05f * state->stats.hedge_factor;
+                if (stake > state->room_capital * 0.10f) stake = state->room_capital * 0.10f;
+                if (stake < MIN_TRADE_STAKE) stake = MIN_TRADE_STAKE;
+
+                // ── C2: Minimum trade size check — skip if below Kraken $10 / Polymarket $5 ──
+                if (stake < MIN_TRADE_STAKE) {
+                    printf("[ROOM] SKIP: stake $%.2f below MIN_TRADE_STAKE $%.2f\n", stake, MIN_TRADE_STAKE);
+                    goto skip_room_trade;
+                }
+
+                // ── I1: PDT check — max 3 room trades per window (persisted) ──
+                // PAPER_MODE: PDT disabled for training (maximize trade throughput)
+                // LIVE_MODE: 3 trades per 5-day window (real SEC PDT rule)
+#ifndef PAPER_MODE
+                if (state->pdt_room_window_start == 0)
+                    state->pdt_room_window_start = tick.window_ts;
+                if (tick.window_ts - state->pdt_room_window_start > 5 * 86400) {
+                    state->pdt_room_window_start = tick.window_ts;
+                    state->pdt_room_count = 0;
+                }
+                if (state->pdt_room_count >= 3) {
+                    printf("[ROOM] SKIP: PDT limit reached (%d trades in 5d window)\n", state->pdt_room_count);
+                    goto skip_room_trade;
+                }
+                state->pdt_room_count++;
+#endif
+
+                // D-FIX: Capital floor — never stake more than available capital
+                if (stake > state->room_capital) {
+                    printf("[ROOM] SKIP: stake $%.2f exceeds room_cap $%.2f\n", stake, state->room_capital);
+                    goto skip_room_trade;
+                }
                 state->room_capital -= stake;
                 // ── T20: Entry slippage on room trade ──
                 // ── C27: Widen slippage on weekends (lower liquidity) ──
@@ -1433,14 +1535,31 @@ void room_market_stats(RoomState *state);
                 state->room_trade.won = false;
                 state->room_trade.pnl = 0;
                 state->room_trade.resolved_at = 0;
+                printf("[ROOM_TRADE] OPEN  stake=$%.2f cap=$%.2f dir=%s entry=%.2f yv=%d nv=%d pdt_count=%d\n",
+                       stake, state->room_capital, room_direction ? "UP" : "DN", tick.close, yv, nv, state->pdt_room_count);
             }
+            goto room_trade_resolve;  // Opened a trade — skip resolve (resolve next cycle)
         }
+skip_room_trade:
+        // Room trade skipped (PDT/min stake/tie) — reset trade record ONLY if no pending trade
+        // A pending trade has resolved_at == 0; don't wipe it or it can never resolve
+        if (state->room_trade.resolved_at != 0) {
+            // No pending trade — safe to reset and skip resolve
+            memset(&state->room_trade, 0, sizeof(state->room_trade));
+            state->room_trade.resolved_at = -1;
+            goto room_trade_resolve;  // No pending trade, skip resolve section
+        }
+        // Pending trade exists — fall through to resolve it
+room_trade_done:
 
         // ── L4a: Resolve room trade (if active from previous cycle) ──
         if (state->room_trade.resolved_at == 0 && prev_close > 0) {
             // Room trade resolves: exit when close > prev_close = yes_won
             bool up = state->room_trade.majority_up;
             bool room_won = (tick.close >= prev_close) == up;
+            float entry = state->room_trade.entry_price;
+            float exit = tick.close;
+            float move_pct = entry > 0 ? (exit - entry) / entry * 100.0f : 0.0f;
 
             if (room_won) {
                 // Winner: get stake back + profit (binary: 1:1 payout minus taker fee)
@@ -1461,6 +1580,8 @@ void room_market_stats(RoomState *state);
                 state->room_trade.pnl = profit;
                 state->daily_pnl += state->room_trade.pnl;
                 state->consec_room_losses = 0;  // Reset on win
+                printf("[ROOM_TRADE] WIN  stake=$%.2f profit=$%.2f cap=$%.2f move=%+.4f%% entry=%.2f exit=%.2f\n",
+                       state->room_trade.stake, profit, state->room_capital, move_pct, entry, exit);
             } else {
                 // Loser: lose stake + fee
                 state->room_losses++;
@@ -1469,14 +1590,35 @@ void room_market_stats(RoomState *state);
                 state->room_capital += state->room_trade.pnl;  // capital already deducted
                 state->daily_pnl += state->room_trade.pnl;
                 state->consec_room_losses++;  // Track consecutive losses
+                printf("[ROOM_TRADE] LOSS stake=$%.2f loss=$%.2f cap=$%.2f move=%+.4f%% entry=%.2f exit=%.2f\n",
+                       state->room_trade.stake, state->room_trade.pnl, state->room_capital, move_pct, entry, exit);
             }
             state->room_trade.exit_price = tick.close;
             state->room_trade.resolved_at = tick.window_ts;
 
             if (state->room_capital > state->room_capital_peak)
                 state->room_capital_peak = state->room_capital;
+
+            // ── C41: Withdrawal schedule — auto-withdraw profit above threshold ──
+            if (state->room_capital >= state->withdrawal_threshold) {
+                float excess = state->room_capital - state->withdrawal_threshold;
+                if (excess >= state->withdrawal_target) {
+                    float withdraw_amt = state->withdrawal_target;
+                    // Don't withdraw below seed capital
+                    if (state->room_capital - withdraw_amt < 50.0f)
+                        withdraw_amt = state->room_capital - 50.0f;
+                    if (withdraw_amt > 0) {
+                        state->room_capital -= withdraw_amt;
+                        state->total_withdrawn += withdraw_amt;
+                        state->last_withdrawal_ts = tick.window_ts;
+                        printf("[WITHDRAWAL] $%.2f withdrawn (total: $%.2f, remaining: $%.2f)\\n",
+                               withdraw_amt, state->total_withdrawn, state->room_capital);
+                    }
+                }
+            }
         }
 
+room_trade_resolve:
         // ── P27: Concept drift detection — rolling WR on room trades ──
         {
             static int drift_buf[100];  // Ring buffer: 1=win, 0=loss
@@ -1581,8 +1723,6 @@ void room_market_stats(RoomState *state);
                 float dir_remaining = max_dir - dir_exposure;
                 if (dir_remaining <= 0) {
                     state->votes[i].position_size = 0;
-                    printf("[DIR] Agent %d: skipped (%s direction at max %.1f%%)\n",
-                           aid, vote_yes ? "YES" : "NO", state->max_direction_pct * 100);
                     continue;
                 }
                 float new_pct = dir_remaining / agent_cap;
@@ -1597,8 +1737,6 @@ void room_market_stats(RoomState *state);
                 float remaining = max_exposure - total_exposure;
                 if (remaining <= 0) {
                     state->votes[i].position_size = 0; // Skip this vote
-                    printf("[LIMIT] Agent %d: skipped (total exposure capped at %.1f%%)\n",
-                           aid, state->max_total_exposure_pct * 100);
                     continue;
                 }
                 float new_pct = remaining / agent_cap;
@@ -1661,7 +1799,11 @@ void room_market_stats(RoomState *state);
         state->prev_close = prev_close;  // Persist across process restarts
 
         // ── L5: Darwin evolution (every 100 trades) ──
-        if (g_flags.darwin_evolution && state->trade_count > 0 && state->trade_count % 100 == 0) {
+        // D-FIX: Use room_trades for Darwin trigger in paper mode
+        // Previously used trade_count (P2P trades) which never increments in paper mode,
+        // so Darwin never ran and agents never evolved from identical initial weights.
+        int darwin_trigger = state->room_trades > 0 ? state->room_trades : state->trade_count;
+        if (g_flags.darwin_evolution && darwin_trigger > 0 && darwin_trigger % 100 == 0) {
             room_darwin_evolve(state->agents, MAX_AGENTS, state->cycle, &state->darwin, g_agent_market);
             // A16: Prune dead features using tracked importance
             prune_dead_features(state->agents, MAX_AGENTS, &state->feat_importance);
@@ -1775,6 +1917,8 @@ skip_trading:
                 var += d * d;
             }
             s->consensus_spread = sqrtf(var / vote_count);
+        } else {
+            s->consensus_spread = 0.0f;  // D-FIX: NaN when vote_count <= 1 (no spread with 0 or 1 votes)
         }
         s->voted_this_cycle = vote_count;
         s->avg_conviction = vote_count > 0 ? conv_sum / vote_count : 0;

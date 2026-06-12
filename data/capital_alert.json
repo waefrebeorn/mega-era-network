@@ -1,0 +1,10 @@
+{
+  "timestamp": 1781213809,
+  "level": "WARNING",
+  "message": "No room state file",
+  "room_capital": 0.00,
+  "room_capital_peak": 0.00,
+  "drawdown_pct": 0.00,
+  "circuit_breaker": false,
+  "kill_switch": unknown
+}

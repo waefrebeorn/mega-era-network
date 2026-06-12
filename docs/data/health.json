@@ -6,14 +6,14 @@
       "status": "ok"
     },
     {
-      "exists": false,
+      "exists": true,
       "name": "room_engine_paper",
-      "status": "fail"
+      "status": "ok"
     },
     {
-      "exists": true,
+      "exists": false,
       "name": "cycle_all_rooms",
-      "status": "ok"
+      "status": "fail"
     },
     {
       "exists": true,
@@ -72,47 +72,48 @@
     }
   ],
   "checks_fail": 1,
-  "checks_ok": 15,
-  "checks_warn": 4,
+  "checks_ok": 16,
+  "checks_warn": 3,
   "data_files": [
     {
-      "age_sec": 5880,
+      "age_sec": 336600,
       "exists": true,
       "name": "pipeline_status",
       "stale": true,
       "status": "warn"
     },
     {
-      "age_sec": 5880,
+      "age_sec": 336600,
       "exists": true,
       "name": "data_quality",
       "stale": true,
       "status": "warn"
     },
     {
-      "age_sec": 2821,
+      "age_sec": 74367,
       "exists": true,
       "name": "market_summary",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": 13646,
+      "age_sec": 20340,
       "exists": true,
       "name": "weather_data",
       "stale": false,
       "status": "ok"
     },
     {
-      "age_sec": -1,
-      "exists": false,
+      "age_sec": 12,
+      "exists": true,
       "name": "paper_state",
-      "status": "warn"
+      "stale": false,
+      "status": "ok"
     }
   ],
   "engine_running": false,
   "engine_status": "warn",
-  "issues": "MISSING BIN: room_engine_paper\nSTALE DATA: pipeline_status (5880s > 600s max)\nSTALE DATA: data_quality (5880s > 600s max)\nENGINE NOT RUNNING: room_engine\n",
+  "issues": "MISSING BIN: cycle_all_rooms\nSTALE DATA: pipeline_status (336600s > 600s max)\nSTALE DATA: data_quality (336600s > 600s max)\nENGINE NOT RUNNING: room_engine (or _paper/_market)\\n",
   "overall_status": "degraded",
-  "timestamp": 1780904881
+  "timestamp": 1781235601
 }
