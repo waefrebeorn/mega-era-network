@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -82,34 +83,40 @@ RoomError room_bridge_write(RoomState *state) {
     // Vote summary
     int up = 0, down = 0;
     float conv_sum = 0;
+    int valid_votes = 0;
     for (int i = 0; i < state->vote_count; i++) {
         if (state->votes[i].direction) up++;
         else down++;
-        conv_sum += state->votes[i].conviction;
+        if (isfinite(state->votes[i].conviction)) {
+            conv_sum += state->votes[i].conviction;
+            valid_votes++;
+        }
     }
+    float avg_conv = valid_votes > 0 ? conv_sum / valid_votes : 0.0f;
     fprintf(f, "\"vote_summary\": {\n");
     fprintf(f, "  \"total\": %d,\n", state->vote_count);
     fprintf(f, "  \"up\": %d,\n", up);
     fprintf(f, "  \"down\": %d,\n", down);
-    fprintf(f, "  \"avg_conviction\": %.4f,\n", state->vote_count > 0 ? conv_sum / state->vote_count : 0);
-    fprintf(f, "  \"consensus_spread\": %.4f\n", state->stats.consensus_spread);
+    fprintf(f, "  \"avg_conviction\": %.4f,\n", avg_conv);
+    fprintf(f, "  \"consensus_spread\": %.4f\n", isfinite(state->stats.consensus_spread) ? state->stats.consensus_spread : 0.0f);
     fprintf(f, "},\n");
 
-    // Stats
+    // Stats — guard against NaN/Inf in all float outputs
+    #define JS_F(v) (isfinite(v) ? (v) : 0.0f)
     fprintf(f, "\"stats\": {\n");
     fprintf(f, "  \"active_agents\": %d,\n", state->stats.active_agents);
     fprintf(f, "  \"voted_this_cycle\": %d,\n", state->stats.voted_this_cycle);
     fprintf(f, "  \"trades_total\": %d,\n", state->stats.trades_total);
     fprintf(f, "  \"trades_won\": %d,\n", state->stats.trades_won);
     fprintf(f, "  \"trades_lost\": %d,\n", state->stats.trades_lost);
-    fprintf(f, "  \"win_rate\": %.4f,\n", state->stats.win_rate);
-    fprintf(f, "  \"sharpe_ratio\": %.4f,\n", state->stats.sharpe_ratio);
-    fprintf(f, "  \"max_drawdown\": %.4f,\n", state->stats.max_drawdown);
-    fprintf(f, "  \"capital_current\": %.4f,\n", state->stats.capital_current);
-    fprintf(f, "  \"capital_peak\": %.4f,\n", state->stats.capital_peak);
-    fprintf(f, "  \"room_pnl_pct\": %.4f,\n", state->stats.room_pnl_pct);
-    fprintf(f, "  \"weight_diversity\": %.6f,\n", state->stats.weight_diversity);
-    fprintf(f, "  \"genome_diversity\": %.6f,\n", state->stats.genome_diversity);
+    fprintf(f, "  \"win_rate\": %.4f,\n", JS_F(state->stats.win_rate));
+    fprintf(f, "  \"sharpe_ratio\": %.4f,\n", JS_F(state->stats.sharpe_ratio));
+    fprintf(f, "  \"max_drawdown\": %.4f,\n", JS_F(state->stats.max_drawdown));
+    fprintf(f, "  \"capital_current\": %.4f,\n", JS_F(state->stats.capital_current));
+    fprintf(f, "  \"capital_peak\": %.4f,\n", JS_F(state->stats.capital_peak));
+    fprintf(f, "  \"room_pnl_pct\": %.4f,\n", JS_F(state->stats.room_pnl_pct));
+    fprintf(f, "  \"weight_diversity\": %.6f,\n", JS_F(state->stats.weight_diversity));
+    fprintf(f, "  \"genome_diversity\": %.6f,\n", JS_F(state->stats.genome_diversity));
     fprintf(f, "  \"return_count\": %d,\n", state->stats.return_count);
     fprintf(f, "  \"return_idx\": %d,\n", state->stats.return_idx);
     fprintf(f, "  \"room_trades\": %d\n", state->room_trades);

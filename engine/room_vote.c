@@ -132,64 +132,38 @@ static void update_hidden_state(AgentState *agent, float signal) {
  */
 void init_genome_weights(Genome *g) {
     // Start with the v1 hardcoded weights as initial prior
-    // Feature order: price_delta, micro_momentum, rsi_7, volume_surge,
-    //                ema_fast, ema_slow, macd_hist, bollinger_pct,
-    //                divergence_score, pump_score, regime_indicator,
-    //                fear_greed_norm, herd_consensus,
-    //                ob_imbalance, ob_depth_ratio, cvd_signal,
-    //                dft_dominant, tail_risk_score,
-    //                funding_signal, oi_net_signal, ls_ratio_norm,
-    //                liq_ls_ratio_norm, stable_inflow_norm, whale_activity_norm,
-    //                hash_rate_norm, difficulty_norm, miner_floor_norm,
-    //                hour_of_day_norm, day_of_week_norm,
-    //                iv_skew, pcr_volume, iv_term_slope,
-    //                btc_sp500_corr, vix_regime
     float default_weights[N_FEATURES] = {
-        0.15f,   // price_delta_pct
-        0.10f,   // micro_momentum
-        0.08f,   // rsi_7 (normalized /50)
-        0.06f,   // volume_surge_ratio
-        0.05f,   // ema_fast
-        0.03f,   // ema_slow
-        0.02f,   // macd_hist
-        0.10f,   // bollinger_pct (applied as 0.5 - pct)
-        0.04f,   // divergence_score
-        -0.12f,  // pump_score (negative = avoid crony)
-        0.00f,   // regime_indicator (gating applied separately)
-        -0.05f,  // fear_greed_norm
-        0.00f,   // herd_consensus (gating applied separately)
-        0.08f,   // ob_imbalance (F14) - positive per importance
-        0.00f,   // ob_depth_ratio (F15) - negative importance, zeroed
-        0.08f,   // cvd_signal (F16) - positive per importance
-        0.06f,   // dft_dominant (F17) - positive per importance
-        -0.04f,  // tail_risk_score (F18) - negative importance
-        0.04f,   // funding_signal (F19) - positive per importance
-        0.05f,   // oi_net_signal (F20) - positive per importance
-        -0.02f,  // ls_ratio_norm (F21) - slightly negative
-        -0.10f,  // liq_ls_ratio_norm (F22) - negative importance
-        0.05f,   // stable_inflow_norm (F23) - positive per importance
-        0.08f,   // whale_activity_norm (F24) - positive per importance
-        -0.08f,  // hash_rate_norm (F25) - negative importance
-        -0.07f,  // difficulty_norm (F26) - negative importance
-        0.01f,   // miner_floor_norm (F27) - near zero
-        -0.01f,  // hour_of_day_norm (F28) - slightly negative
-        -0.15f,  // day_of_week_norm (F29) - negative importance
-        -0.03f,  // iv_skew (F30) - negative importance
-        0.02f,   // pcr_volume (F31) - positive per importance
-        -0.03f,  // iv_term_slope (F32) - negative importance
-        0.01f,   // btc_sp500_corr (F33) - near zero
-        -0.04f,  // vix_regime (F34) - negative importance
+        0.15f, 0.10f, 0.08f, 0.06f, 0.05f, 0.03f, 0.02f, 0.10f,
+        0.04f, -0.12f, 0.00f, -0.05f, 0.00f, 0.08f, 0.00f, 0.08f,
+        0.06f, -0.04f, 0.04f, 0.05f, -0.02f, -0.10f, 0.05f, 0.08f,
+        -0.08f, -0.07f, 0.01f, -0.01f, -0.15f, -0.03f, 0.02f, -0.03f,
+        0.01f, -0.04f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
     };
     memcpy(g->feat_weight, default_weights, sizeof(default_weights));
-    
-    // Also initialize regime-specific weights
-    for (int r = 0; r < N_REGS; r++) {
-        memcpy(g->regime_weight[r], default_weights, sizeof(default_weights));
-        g->regime_bias[r] = 0.0f;
+
+    // ── Per-agent sign-flip diversity: 40% of weights get sign-flipped ──
+    // This ensures agents don't all vote the same direction on the first cycle.
+    // Without this, all 10K agents compute identical dot(features, weights) → 100% consensus.
+    for (int i = 0; i < N_FEATURES; i++) {
+        if ((rand() % 100) < 40) {
+            g->feat_weight[i] = -g->feat_weight[i];
+        }
+        // Add small per-agent jitter (±0.03) for additional diversity
+        float jitter = ((float)(rand() % 201) - 100.0f) / 3333.0f;
+        g->feat_weight[i] += jitter;
     }
-    
-    g->bias = 0.0f;
-    g->learning_rate = 0.01f;
+
+    // Also initialize regime-specific weights with per-agent diversity
+    for (int r = 0; r < N_REGS; r++) {
+        memcpy(g->regime_weight[r], g->feat_weight, sizeof(g->feat_weight));
+        g->regime_bias[r] = ((float)(rand() % 201) - 100.0f) / 1000.0f; // ±0.1
+    }
+
+    g->bias = ((float)(rand() % 201) - 100.0f) / 1000.0f; // ±0.1 (was 0.0 = all identical)
+    g->learning_rate = 0.01f + ((float)(rand() % 100)) / 10000.0f; // 0.01-0.02
 }
 
 RoomError room_vote_run(AgentState *agents, int n,

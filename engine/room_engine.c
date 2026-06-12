@@ -814,6 +814,12 @@ static RoomError load_or_init_state(void) {
     // F10: If magic matches but CRC doesn't, state is corrupted
     // F11: If version is old, migrate in-place (check version first since CRC may fail across versions)
     bool crc_good = (state->magic == STATE_MAGIC && state_verify_crc(state) == 0);
+    // Reset return tracking on stale state (prevents sharpe from old cycle_returns)
+    if (crc_good) {
+        state->stats.return_count = 0;
+        state->stats.return_idx = 0;
+        memset(state->stats.cycle_returns, 0, sizeof(state->stats.cycle_returns));
+    }
     // F11: Version migration — handle old state formats (before CRC check since layout changed)
     if (state->magic == STATE_MAGIC && state->state_version > 0 && state->state_version < STATE_VERSION && state->state_version != STATE_VERSION) {
         fprintf(stderr, "[F11] Migrating state from v%d to v%d\n", state->state_version, STATE_VERSION);
