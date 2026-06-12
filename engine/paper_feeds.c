@@ -42,7 +42,6 @@ static int load_room_config(void) {
 
     FILE *f = fopen(cfg_path, "r");
     if (!f) {
-        fprintf(stderr, "[PAPER_FEEDS] No room_config.json at %s, falling back to BTC CSV\n", cfg_path);
         snprintf(g_csv_path, sizeof(g_csv_path), "%s/btc_1min_latest.csv", HISTORICAL_DIR);
         g_market_type = MARKET_CRYPTO;
         return -1;
@@ -53,15 +52,11 @@ static int load_room_config(void) {
     json[n] = '\0';
     fclose(f);
 
-    /* Simple string-parse for market_type and csv_file */
     int mt = -1;
     char csv_file[256] = {0};
 
     const char *p = strstr(json, "\"market_type\"");
-    if (p) {
-        p = strchr(p, ':');
-        if (p) mt = atoi(p+1);
-    }
+    if (p) { p = strchr(p, ':'); if (p) mt = atoi(p+1); }
     p = strstr(json, "\"csv_file\"");
     if (p) {
         p = strchr(p, ':');
@@ -83,11 +78,9 @@ static int load_room_config(void) {
     if (mt >= 0 && mt < N_MARKET_TYPES && csv_file[0]) {
         g_market_type = mt;
         snprintf(g_csv_path, sizeof(g_csv_path), "%s/%s", HISTORICAL_DIR, csv_file);
-        fprintf(stderr, "[PAPER_FEEDS] Room config: market_type=%d csv=%s\n", mt, csv_file);
         return 0;
     }
 
-    fprintf(stderr, "[PAPER_FEEDS] Invalid room_config.json, falling back to BTC CSV\n");
     snprintf(g_csv_path, sizeof(g_csv_path), "%s/btc_1min_latest.csv", HISTORICAL_DIR);
     g_market_type = MARKET_CRYPTO;
     return -1;
@@ -109,7 +102,6 @@ static int paper_feeds_parse_line(const char *line, MarketTick *tick) {
     tick->volume = (float)v;
     tick->market_type = (MarketType)g_market_type;
 
-    /* Set asset label based on market type */
     const char *assets[] = {
         "BTC","SPY","EURUSD","GOLD","TNX","VIX",
         "PM","SPORTS","WEATHER","ELECTION"
@@ -121,46 +113,60 @@ static int paper_feeds_parse_line(const char *line, MarketTick *tick) {
         strncpy(tick->asset, "BTC", sizeof(tick->asset)-1);
     }
     tick->asset[sizeof(tick->asset)-1] = '\0';
-
     g_current_ts = ts;
     return 0;
+}
+
+/* ── Read next unique-timestamp row from CSV, with rewind support ── */
+static int paper_feeds_read_next(MarketTick *tick, int skip_dups) {
+    while (fgets(g_line, sizeof(g_line), g_csv)) {
+        if (g_line[0] == '\n' || g_line[0] == '\r') continue;
+        if (g_line[0] == 't' && g_line[1] == 's') continue;
+        if (g_line[0] == 'T') continue;
+        MarketTick candidate;
+        if (paper_feeds_parse_line(g_line, &candidate) == 0) {
+            if (skip_dups && candidate.window_ts == g_current_ts) continue;
+            *tick = candidate;
+            return 0;
+        }
+    }
+    return -1; /* EOF */
 }
 
 static int paper_feeds_advance(MarketTick *tick) {
     if (!g_csv) return -1;
 
-    /* Skip header on first call */
     if (!g_initialized) {
-        if (!fgets(g_line, sizeof(g_line), g_csv)) return -1;
+        if (!fgets(g_line, sizeof(g_line), g_csv)) return -1; /* skip header */
         g_initialized = 1;
     }
 
-    /* Read next data line */
-    while (fgets(g_line, sizeof(g_line), g_csv)) {
-        if (g_line[0] == '\n' || g_line[0] == '\r') continue;
-        if (g_line[0] == 't' && g_line[1] == 's') continue; /* skip header "ts,..." */
-        if (g_line[0] == 'T') continue; /* skip header "Timestamp,..." */
-        if (paper_feeds_parse_line(g_line, tick) == 0) {
-            g_cycle_count++;
-            if (g_max_cycles > 0 && g_cycle_count >= g_max_cycles) {
-                return -2;
-            }
-            return 0;
-        }
+    /* Try to read next unique timestamp */
+    int ret = paper_feeds_read_next(tick, 1);
+    if (ret == 0) {
+        g_cycle_count++;
+        if (g_max_cycles > 0 && g_cycle_count >= g_max_cycles) return -2;
+        return 0;
     }
 
-    /* EOF — rewind for continuous replay */
+    /* EOF — rewind. Reset g_current_ts so stale dups are accepted on replay */
     rewind(g_csv);
     g_eof = 1;
+    g_current_ts = 0;
     fgets(g_line, sizeof(g_line), g_csv); /* skip header */
-    if (fgets(g_line, sizeof(g_line), g_csv)) {
-        return paper_feeds_parse_line(g_line, tick);
+
+    ret = paper_feeds_read_next(tick, 0); /* no dup skip on replay */
+    if (ret == 0) {
+        g_cycle_count++;
+        if (g_max_cycles > 0 && g_cycle_count >= g_max_cycles) return -2;
+        return 0;
     }
-    return -1;
+
+    return -1; /* Empty file */
 }
 
 RoomError room_feeds_load(MarketTick *tick) {
-    /* Read max cycles from env on first call */
+    fprintf(stderr, "[PAPER_FEEDS] room_feeds_load called\n");
     if (g_max_cycles == -1) {
         const char *env = getenv("PAPER_MAX_CYCLES");
         if (env && *env) {
@@ -169,7 +175,6 @@ RoomError room_feeds_load(MarketTick *tick) {
         }
     }
 
-    /* Load room config on first call */
     if (!g_csv) {
         load_room_config();
         g_csv = fopen(g_csv_path, "r");
@@ -181,14 +186,10 @@ RoomError room_feeds_load(MarketTick *tick) {
     }
 
     int ret = paper_feeds_advance(tick);
-    if (ret == -2) {
-        return ERR_DATA_EXHAUSTED;
-    }
-    if (ret != 0) {
-        return ERR_FILE_READ;
-    }
+    if (ret == -2) return ERR_DATA_EXHAUSTED;
+    if (ret != 0) return ERR_FILE_READ;
 
-    /* Load aux data (SP500, VIX, BTC 30d stats) from timeline.db */
+    /* Load aux data (SP500, VIX, BTC 30d stats) from historical.db */
     paper_load_aux(tick);
 
     return ERR_OK;
