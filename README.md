@@ -1,5 +1,16 @@
 # 🏦 Money Room — Multi-Agent Trading Engine
 
+---
+
+## License
+
+This project is licensed under the **Waefrebeorn Umbrella License v3.0**.
+See the [LICENSE](LICENSE) file for the full license text.
+
+The Waefrebeorn Umbrella License is a custom source-available license.
+It is not OSI-approved and not FSF-approved.
+
+
 > **C-first automated trading infrastructure.**
 > 10K agents across 16 rooms. Darwin evolution. Real market data. Zero Python in production.
 
